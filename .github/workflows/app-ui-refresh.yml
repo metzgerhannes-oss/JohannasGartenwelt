@@ -13,41 +13,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply UX V3 UI
-        run: python tools/ux3_ui.py
-      - name: Apply UX V3 logic
-        run: python tools/ux3_logic.py
-      - name: Build PWA assets
-        run: python tools/ux3_assets.py
-      - name: Check JavaScript syntax
+      - name: Apply focused mobile UX polish
+        run: python tools/app_ux_polish.py
+      - name: Check JavaScript and PWA assets
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
+          import json, re
           s=Path('index.html').read_text(encoding='utf-8')
           blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
           Path('/tmp/jgw.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
+          assert Path('app-icon-180.png').read_bytes().startswith(b'\x89PNG')
+          assert 'JGW UX V3' in s
+          assert 'id="setupGuide"' in s
+          assert 'id="plantAdvanced"' in s
+          assert 'id="calendarToggle"' in s
+          assert 'id="setGardenCenterBtn"' not in s
           PY
           node --check /tmp/jgw.js
-      - name: Check UX markers
-        shell: bash
-        run: |
-          grep -q 'JGW UX V3' index.html
-          grep -q 'firstRunGuide' index.html
-          grep -q 'calendarMoreBtn' index.html
-          grep -q 'friendlyGardenExplanation' index.html
-          grep -q 'manifest.webmanifest' index.html
-          ! grep -q 'id="setGardenCenterBtn"' index.html
-          ! grep -q 'id="openGardenCenter"' index.html
-          test -s apple-touch-icon.png
-          test -s icon-192.png
-          test -s icon-512.png
-      - name: Commit refreshed UI
+      - name: Commit polished app
         shell: bash
         run: |
           git config user.name "Johannas Gartenwelt Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add index.html manifest.webmanifest icon.svg apple-touch-icon.png icon-192.png icon-512.png
-          git commit -m "Polish mobile UX and simplify core garden flows"
+          git add index.html manifest.webmanifest app-icon.svg app-icon-180.png
+          git commit -m "Polish mobile navigation, onboarding and daily usability"
           git push
