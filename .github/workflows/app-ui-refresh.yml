@@ -13,33 +13,85 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply final mobile UX polish
-        run: python tools/app_ux_polish_runner.py
-      - name: Check JavaScript and PWA assets
+      - name: Apply final visual polish
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          final_css = r'''
+          /* JGW FINAL DESIGN */
+          body,button,input,select,textarea{
+            font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+          }
+          h1,h2,h3,.brand h1,.plantname,.state-title{
+            font-family:Georgia,"Times New Roman",serif;
+          }
+          .muted,.small,.label,.field label,.tab,.btn,.chip,.locpill,.syncmini,.section-status,.map-status{
+            letter-spacing:normal;
+          }
+          .btn,.field input,.field select,.field textarea{min-height:44px}
+          .gearbtn,.quickbtn{min-width:44px;width:44px;height:44px}
+          .syncmini{min-height:44px}
+          @media(max-width:700px){
+            .tabs .tab{min-height:52px;padding:7px 3px 6px}
+            .tabs .navicon{font-size:18px}
+            .brandtools{gap:6px}
+            .gearbtn,.quickbtn{min-width:44px;width:44px;height:44px}
+            .syncmini{min-width:44px;height:44px}
+          }
+          /* /JGW FINAL DESIGN */
+          '''
+
+          def replace_design_css(text):
+              text = re.sub(r'\n?\s*/\* JGW FINAL DESIGN \*/.*?/\* /JGW FINAL DESIGN \*/\s*', '\n', text, flags=re.S)
+              if '</style>' not in text:
+                  raise SystemExit('style closing tag missing')
+              return text.replace('</style>', final_css + '\n</style>', 1)
+
+          index = Path('index.html')
+          s = replace_design_css(index.read_text(encoding='utf-8'))
+          index.write_text(s, encoding='utf-8')
+
+          setup = Path('setup.html')
+          q = setup.read_text(encoding='utf-8')
+          if '<link rel="icon" href="./app-icon.svg" type="image/svg+xml">' not in q:
+              q = q.replace('<title>Gerät einrichten · Johanna´s Gartenwelt</title>', '<title>Gerät einrichten · Johanna´s Gartenwelt</title>\n<link rel="icon" href="./app-icon.svg" type="image/svg+xml">\n<link rel="apple-touch-icon" href="./app-icon-180.png">', 1)
+          q = replace_design_css(q)
+          setup.write_text(q, encoding='utf-8')
+          PY
+      - name: Check JavaScript and final design
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           import json, re
-          s=Path('index.html').read_text(encoding='utf-8')
-          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
-          Path('/tmp/jgw.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          for fn in ['index.html','setup.html']:
+              s=Path(fn).read_text(encoding='utf-8')
+              blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+              Path('/tmp/'+fn+'.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+              assert 'JGW FINAL DESIGN' in s
+          idx=Path('index.html').read_text(encoding='utf-8')
+          setup=Path('setup.html').read_text(encoding='utf-8')
           json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
-          assert Path('app-icon-180.png').read_bytes().startswith(b'\x89PNG')
-          assert 'JGW UX V3' in s
-          assert 'id="setupGuide"' in s
-          assert 'id="plantAdvanced"' in s
-          assert 'id="calendarToggle"' in s
-          assert 'function renderOnboardingGuide()' in s
-          assert 'id="setGardenCenterBtn"' not in s
-          assert 'id="openGardenCenter"' not in s
+          assert 'font-family:-apple-system' in idx
+          assert 'min-height:52px' in idx
+          assert '<link rel="apple-touch-icon" href="./app-icon-180.png">' in setup
+          assert 'id="setupGuide"' in idx
+          assert 'id="plantAdvanced"' in idx
+          assert 'id="calendarToggle"' in idx
+          assert 'function renderOnboardingGuide()' in idx
+          assert 'id="setGardenCenterBtn"' not in idx
+          assert 'id="openGardenCenter"' not in idx
           PY
-          node --check /tmp/jgw.js
-      - name: Commit polished app
+          node --check /tmp/index.html.js
+          node --check /tmp/setup.html.js
+      - name: Commit final design
         shell: bash
         run: |
           git config user.name "Johannas Gartenwelt Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add index.html manifest.webmanifest app-icon.svg app-icon-180.png
-          git commit -m "Polish mobile navigation, onboarding and daily usability"
+          git add index.html setup.html
+          git commit -m "Finalize typography, touch targets and setup page styling"
           git push
