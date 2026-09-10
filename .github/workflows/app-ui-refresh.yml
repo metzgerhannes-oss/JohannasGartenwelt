@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/app-ui-refresh.yml'
+      - 'tools/final_audit.py'
 
 permissions:
   contents: read
