@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#8faa7e">
+<title>Johanna´s Gartenwelt</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+<style>
+:root{
+  --forest:#567a57;
+  --forest-dark:#3f5f43;
+  --sage:#8faa7e;
+  --moss:#6d8768;
+  --rose:#d7a7ad;
+  --blush:#f5dde1;
+  --cream:#fbf6ef;
+  --paper:#fffdf9;
+  --petal:#f8eef0;
+  --gold:#c8a56a;
+  --line:#e7d9cb;
+  --txt:#4e443a;
+  --muted:#7d7267;
+  --ok:#eef6eb;
+  --warn:#fff5df;
+  --bad:#faece7;
+  --blue:#88a9b8;
+  --shadow:0 12px 30px rgba(109,135,104,.14)
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--txt);
+  font-family:Georgia,"Times New Roman",serif;
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,.75), transparent 28%),
+    radial-gradient(circle at top right, rgba(245,221,225,.55), transparent 24%),
+    linear-gradient(180deg,#f8f0e7 0%, #f6efe7 34%, #f7f4ef 100%);
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.wrap{max-width:1120px;margin:auto;padding:18px}
+.head{
+  background:linear-gradient(135deg, rgba(248,238,240,.98), rgba(242,248,239,.98));
+  color:var(--txt);
+  border:1px solid rgba(200,165,106,.32);
+  border-radius:28px;
+  padding:24px 24px 18px;
+  box-shadow:var(--shadow);
+  position:relative;
+  overflow:hidden;
+}
+.head:before,.head:after{content:"";position:absolute;border-radius:50%;pointer-events:none}
+.head:before{width:220px;height:220px;right:-60px;top:-85px;background:radial-gradient(circle, rgba(215,167,173,.28), transparent 67%)}
+.head:after{width:260px;height:260px;left:-85px;bottom:-130px;background:radial-gradient(circle, rgba(143,170,126,.18), transparent 68%)}
+.brand{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;position:relative;z-index:1}
+.brand h1{margin:0;font-size:36px;line-height:1.02;font-weight:700;letter-spacing:.02em;color:var(--forest-dark)}
+.brand p{margin:8px 0 0;color:var(--muted);font-size:15px}
+.locpill{background:rgba(255,253,249,.88);border:1px solid rgba(200,165,106,.38);padding:9px 13px;border-radius:999px;font-size:13px;color:var(--forest-dark);box-shadow:0 4px 14px rgba(109,135,104,.08)}
+.tabs{display:flex;gap:8px;overflow:auto;padding:16px 0 2px;scrollbar-width:none;position:relative;z-index:1}.tabs::-webkit-scrollbar{display:none}
+.tab{border:1px solid rgba(200,165,106,.28);background:rgba(255,255,255,.56);color:var(--forest-dark);padding:10px 15px;border-radius:999px;font-weight:700;white-space:nowrap;box-shadow:0 1px 8px rgba(143,170,126,.07)}
+.tab.active{background:linear-gradient(135deg,var(--forest),var(--sage));color:#fff;border-color:transparent}
+.view{display:none}.view.active{display:block}
+.box{background:rgba(255,253,249,.96);border:1px solid var(--line);border-radius:22px;padding:18px;margin-top:16px;box-shadow:var(--shadow)}
+.box h2,.box h3{margin:0 0 8px;color:var(--forest-dark)}
+.topline{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.muted{color:var(--muted);font-size:13px;line-height:1.5}
+.hidden{display:none!important}
+.error{background:#fdecea;border-color:#efc8c3;color:#842d28}
+.notice{background:#f3f8f0;border-color:#d8e4d4;color:#466048}
+.loading{color:var(--muted)}
+.btn{border:0;border-radius:13px;padding:11px 15px;font-weight:700;background:linear-gradient(135deg,var(--forest),var(--sage));color:white;box-shadow:0 6px 16px rgba(86,122,87,.18)}
+.btn.secondary{background:#f4ede4;color:var(--forest-dark);border:1px solid #e6d8c7;box-shadow:none}
+.btn.ghost{background:rgba(255,255,255,.9);color:var(--forest-dark);border:1px solid #e3d5c6;box-shadow:none}
+.btn.danger{background:linear-gradient(135deg,#b16666,#cb8a8a)}
+.btn.small{padding:8px 11px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.metric{border:1px solid #eadfd2;border-radius:16px;padding:14px;background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(252,248,242,.96))}
+.label{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.value{font-size:25px;font-weight:700;margin-top:5px;color:var(--forest-dark)}
+.small{font-size:12px;color:var(--muted);margin-top:4px}
+.recommend{padding:15px;border-radius:16px;margin-top:12px;border:1px solid rgba(0,0,0,.03)}
+.recommend.ok{background:var(--ok)}.recommend.warn{background:var(--warn)}.recommend.bad{background:var(--bad)}
+.rtitle{font-size:19px;font-weight:700;color:var(--forest-dark)}.rtext{font-size:13px;line-height:1.5;margin-top:4px}
+.tasklist{display:grid;gap:10px}
+.task{border:1px solid #eadfd2;border-radius:16px;padding:13px;display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center}
+.task.bad{background:var(--bad)}.task.warn{background:var(--warn)}.task.ok{background:var(--ok)}
+.taskicon{font-size:24px}.task b{display:block}.task .why{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4}.empty{text-align:center;padding:24px;color:var(--muted)}
+#map{height:560px;border-radius:18px;border:1px solid var(--line);background:#dde4e8}
+.mapbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.maphint{padding:9px 11px;border-radius:11px;background:var(--warn);font-size:13px;font-weight:700;border:1px solid #ecd8a8;color:#6d5730}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+.swatch{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-2px}
+.plant-marker{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#fffdf9;border:3px solid var(--forest);box-shadow:0 2px 8px rgba(0,0,0,.28);font-size:13px}
+.plant-marker.bad{border-color:#c27b6d}.plant-marker.warn{border-color:#d2a34b}.plant-marker.ok{border-color:var(--forest)}
+.plantgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.plantcard{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:rgba(255,253,249,.98);box-shadow:0 8px 16px rgba(109,135,104,.06)}
+.plantphoto{aspect-ratio:16/10;background:linear-gradient(135deg,#eef5ec,#f8eef0);display:grid;place-items:center;font-size:42px;overflow:hidden}.plantphoto img{width:100%;height:100%;object-fit:cover}
+.plantbody{padding:13px}.plantname{font-weight:700;font-size:18px;color:var(--forest-dark)}.latin{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px}
+.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}.chip{background:#f5eee6;border:1px solid #eadfd2;border-radius:999px;padding:5px 8px;font-size:11px;color:#5f554a}
+.plantactions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.statusdot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px}.statusdot.ok{background:var(--forest)}.statusdot.warn{background:#d2a34b}.statusdot.bad{background:#c27b6d}
+.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{display:grid;gap:5px}.field.full{grid-column:1/-1}.field label{font-size:12px;font-weight:800;color:#6d6156}
+.field input,.field select,.field textarea{width:100%;border:1px solid #ddcfc0;border-radius:12px;padding:11px;background:#fffdf9;color:var(--txt);min-height:44px;box-shadow:inset 0 1px 2px rgba(0,0,0,.02)}
+.field textarea{min-height:78px;resize:vertical}
+.photo-preview{width:150px;aspect-ratio:4/3;border-radius:14px;border:1px dashed #ccb8a6;background:#faf5ef;display:grid;place-items:center;overflow:hidden;color:var(--muted)}.photo-preview img{width:100%;height:100%;object-fit:cover}
+.monthrow{display:flex;gap:5px;flex-wrap:wrap}.monthcheck input{position:absolute;opacity:0;pointer-events:none}.monthcheck span{display:inline-block;border:1px solid #e3d6c8;border-radius:9px;padding:6px 8px;font-size:12px;background:#fffdf9}.monthcheck input:checked+span{background:linear-gradient(135deg,var(--forest),var(--sage));border-color:transparent;color:#fff}
+.airesults{display:grid;gap:7px;margin-top:8px}.airesult{border:1px solid var(--line);border-radius:12px;padding:9px;background:#fffdf9;text-align:left}.airesult b{display:block}.airesult small{color:var(--muted)}
+.calendar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.calmonth{border:1px solid var(--line);border-radius:16px;padding:13px;background:rgba(255,255,255,.78)}.calmonth h3{font-size:16px}.calitem{padding:8px 0;border-top:1px solid #f0e7dd;font-size:13px}.calitem:first-of-type{border-top:0}.calitem b{display:block}
+.weathergrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}.day{border:1px solid var(--line);border-radius:14px;padding:10px;text-align:center;background:rgba(255,255,255,.78)}.day b{display:block;font-size:17px;margin:5px 0;color:var(--forest-dark)}
+.chart{height:145px;display:flex;align-items:flex-end;gap:3px;border-bottom:1px solid var(--line);margin-top:12px}.barw{height:100%;flex:1;display:flex;align-items:flex-end;min-width:2px}.bar{width:100%;min-height:2px;background:linear-gradient(180deg,#a7c0cb,#88a9b8);border-radius:3px 3px 0 0}
+.axis{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px}
+table{width:100%;border-collapse:collapse;margin-top:10px}td,th{padding:8px;border-bottom:1px solid #f0e7dd;text-align:left;font-size:13px}td:last-child,th:last-child{text-align:right}
+.settingsgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.foot{font-size:11px;color:var(--muted);line-height:1.6;padding:16px 4px 6px;text-align:center}.zone-editor{border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:10px;background:#fdf9f3}.zone-list{display:grid;gap:7px;margin-top:10px}.zone-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 11px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.82)}.zone-row .zmain{min-width:0}.zone-row b{display:block;color:var(--forest-dark)}.zone-row small{color:var(--muted)}
+summary{cursor:pointer;color:var(--forest-dark);font-weight:700}
+.sync-status{padding:12px 13px;border-radius:14px;margin-top:12px;border:1px solid var(--line);background:#faf6ef}
+.sync-status.ok{background:var(--ok);border-color:#d6e6d0}.sync-status.warn{background:var(--warn);border-color:#ecd8a8}.sync-status.bad{background:var(--bad);border-color:#e8c6bd}
+.sync-status b{display:block;color:var(--forest-dark);margin-bottom:3px}.sync-status small{color:var(--muted);line-height:1.4}
+.sync-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.sync-fields .full{grid-column:1/-1}
+.sync-conflict{margin-top:10px;padding:11px;border:1px solid #e4c2b8;background:#faece7;border-radius:13px}
+.sync-conflict b{display:block;margin-bottom:4px;color:#8a4f46}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#fffdf9;color:var(--txt)}
+@media(max-width:850px){.plantgrid,.grid,.calendar{grid-template-columns:repeat(2,minmax(0,1fr))}.weathergrid{grid-template-columns:repeat(4,1fr)}#map{height:500px}}
+@media(max-width:560px){.wrap{padding:10px}.head{border-radius:20px;padding:18px 14px}.brand h1{font-size:30px}.grid,.plantgrid,.calendar,.settingsgrid,.formgrid{grid-template-columns:1fr}.field.full{grid-column:auto}.weathergrid{grid-template-columns:repeat(2,1fr)}#map{height:430px}.task{grid-template-columns:auto 1fr}.task>.actions{grid-column:1/-1}.photo-preview{width:100%;max-width:240px}.tabs{margin-left:-2px}.box{padding:14px}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+<header class="head">
+  <div class="brand">
+    <div><h1>Johanna´s Gartenwelt</h1></div>
+    <div class="locpill" id="headerLocation">Noch kein Standort</div>
+  </div>
+  <nav class="tabs" aria-label="Bereiche">
+    <button class="tab active" data-view="today" type="button">Heute</button>
+    <button class="tab" data-view="map" type="button">Karte</button>
+    <button class="tab" data-view="plants" type="button">Pflanzen</button>
+    <button class="tab" data-view="calendar" type="button">Kalender</button>
+    <button class="tab" data-view="weather" type="button">Wetter</button>
+    <button class="tab" data-view="settings" type="button">Einstellungen</button>
+  </nav>
+</header>
+<div id="globalError" class="box error hidden"></div>
+<div id="globalNotice" class="box notice hidden"></div>
+
+<section class="view active" id="view-today">
+  <div class="box">
+    <div class="topline"><div><h2>Heute im Garten</h2><div class="muted" id="todayDate"></div></div><div class="actions"><button class="btn secondary small" id="refreshWeather" type="button">Wetter aktualisieren</button></div></div>
+    <div id="todayWeather" class="recommend warn"><div class="rtitle">Standort einrichten</div><div class="rtext">Lege unter Einstellungen zuerst deine PLZ fest.</div></div>
+  </div>
+  <div class="box">
+    <div class="topline"><h3>Aufgaben</h3><span class="muted" id="taskCount"></span></div>
+    <div id="tasks" class="tasklist"></div>
+  </div>
+</section>
+
+<section class="view" id="view-map">
+  <div class="box">
+    <div class="topline"><div><h2>Gartenkarte</h2><div class="muted">Luftbild Baden-Württemberg · Pflanzen positionieren und Standortzonen markieren.</div></div></div>
+    <div class="mapbar">
+      <button class="btn" id="drawZoneBtn" type="button">Sonne-/Schattenzone zeichnen</button>
+      <button class="btn secondary" id="fitGardenBtn" type="button">Garten anzeigen</button>
+      <button class="btn ghost" id="setGardenCenterBtn" type="button">Gartenmitte setzen</button>
+      <span id="mapModeHint" class="maphint hidden"></span>
+    </div>
+    <div id="map" aria-label="Interaktive Gartenkarte"></div>
+    <div class="legend">
+      <span><i class="swatch" style="background:#f4c542"></i>Vollsonne</span><span><i class="swatch" style="background:#e99c38"></i>Sonnig</span><span><i class="swatch" style="background:#7caf6f"></i>Halbschatten</span><span><i class="swatch" style="background:#607080"></i>Schatten</span>
+    </div>
+    <div id="zoneEditor" class="zone-editor hidden">
+      <h3>Neue Standortzone</h3>
+      <div class="formgrid">
+        <div class="field"><label for="zoneName">Bezeichnung</label><input id="zoneName" placeholder="z. B. Terrasse Südwest"></div>
+        <div class="field"><label for="zoneLight">Licht</label><select id="zoneLight"><option value="fullsun">Vollsonne</option><option value="sunny">Sonnig</option><option value="partial">Halbschatten</option><option value="shade">Schatten</option></select></div>
+        <div class="field"><label for="zoneRain">Niederschlag</label><select id="zoneRain"><option value="open">Offen / normal</option><option value="partial">Teilweise geschützt</option><option value="protected">Starker Regenschatten</option></select></div>
+        <div class="field"><label for="zoneSoil">Boden</label><select id="zoneSoil"><option value="normal">Normal</option><option value="dry">Trocknet schnell</option><option value="moist">Bleibt länger feucht</option></select></div>
+      </div>
+      <div class="actions" style="margin-top:10px"><button class="btn" id="saveZoneBtn" type="button">Zone speichern</button><button class="btn ghost" id="cancelZoneBtn" type="button">Abbrechen</button></div>
+    </div>
+    <div class="zone-list" id="zoneList"></div>
+  </div>
+</section>
+
+<section class="view" id="view-plants">
+  <div class="box">
+    <div class="topline"><div><h2>Meine Pflanzen</h2><div class="muted">Foto, Pflegeprofil, Standort und Historie werden nur in diesem Browser gespeichert.</div></div><button class="btn" id="newPlantBtn" type="button">+ Pflanze</button></div>
+  </div>
+  <div class="box hidden" id="plantEditor">
+    <div class="topline"><h3 id="plantEditorTitle">Pflanze hinzufügen</h3><button class="btn ghost small" id="closePlantEditor" type="button">Schließen</button></div>
+    <form id="plantForm">
+      <input type="hidden" id="plantId">
+      <div class="formgrid">
+        <div class="field full">
+          <label for="plantPhoto">Foto</label>
+          <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap"><div class="photo-preview" id="photoPreview">Foto</div><div style="flex:1;min-width:220px"><input id="plantPhoto" type="file" accept="image/*" capture="environment"><div class="actions" style="margin-top:8px"><button type="button" class="btn secondary small" id="identifyBtn">Mit KI erkennen</button></div><div class="muted" id="aiStatus" style="margin-top:7px">PlantNet ist eingerichtet. Foto aufnehmen und „Mit KI erkennen“ wählen.</div><div id="aiResults" class="airesults"></div></div></div>
+        </div>
+        <div class="field"><label for="plantName">Pflanzenname *</label><input id="plantName" required placeholder="z. B. Hortensie"></div>
+        <div class="field"><label for="plantScientific">Botanischer Name</label><input id="plantScientific" placeholder="z. B. Hydrangea macrophylla"></div>
+        <div class="field"><label for="plantArea">Gartenbereich</label><input id="plantArea" placeholder="z. B. Vorgarten"></div>
+        <div class="field"><label for="plantType">Pflanzung</label><select id="plantType"><option value="bed" selected>Direkt im Gartenboden (Standard)</option><option value="pot">Kübel / Topf</option><option value="raised">Hochbeet</option><option value="balcony">Balkonkasten</option><option value="other">Sonstige Pflanzung</option></select></div>
+        <div class="field"><label for="plantWater">Wasserbedarf</label><select id="plantWater"><option value="low">Niedrig</option><option value="normal" selected>Normal</option><option value="high">Hoch</option></select></div>
+        <div class="field"><label for="plantSize">Pflanzengröße</label><select id="plantSize"><option value="small">Klein</option><option value="medium" selected>Mittel</option><option value="large">Groß</option></select></div>
+        <div class="field"><label for="plantBirthYear">Pflanz-/Anzuchtjahr (ca.)</label><input id="plantBirthYear" type="number" inputmode="numeric" min="1900" max="2100" placeholder="z. B. 2024"></div>
+        <div class="field"><label for="plantSince">Am aktuellen Standort seit</label><input id="plantSince" type="date"><div class="muted">Optional – wichtig für die Anwachsphase.</div></div>
+        <div class="field"><label for="plantTransplanted">Zuletzt umgepflanzt / umgetopft</label><input id="plantTransplanted" type="date"><div class="muted">Leer lassen, wenn unbekannt oder nie.</div></div>
+        <div class="field"><label for="plantOrgan">Foto zeigt</label><select id="plantOrgan"><option value="auto">Automatisch</option><option value="leaf">Blatt</option><option value="flower">Blüte</option><option value="fruit">Frucht</option><option value="bark">Rinde</option><option value="habit">Gesamtpflanze</option></select></div>
+        <div class="field full"><label>Düngemonate</label><div class="monthrow" id="fertMonths"></div></div>
+        <div class="field full"><label>Schnittmonate</label><div class="monthrow" id="cutMonths"></div></div>
+        <div class="field full"><label for="plantNotes">Notizen</label><textarea id="plantNotes" placeholder="Besonderheiten, Sorte, Pflanzjahr …"></textarea></div>
+      </div>
+      <div class="actions" style="margin-top:14px"><button class="btn" type="submit">Speichern</button><button class="btn secondary" id="saveAndPlaceBtn" type="button">Speichern & auf Karte platzieren</button></div>
+    </form>
+  </div>
+  <div id="plantList" class="plantgrid" style="margin-top:15px"></div>
+</section>
+
+<section class="view" id="view-calendar">
+  <div class="box">
+    <div class="topline"><div><h2>Pflegekalender</h2><div class="muted">Nur planbare, saisonale Gartenarbeiten wie Düngen und Schnitt. Gießen bleibt bewusst in der täglichen Ansicht und wird nicht in den Kalender exportiert.</div></div></div>
+    <div style="margin-top:15px"><div class="label">Saison als eine Kalenderdatei</div><div class="actions" id="seasonExports" style="margin-top:8px"></div></div>
+    <div style="margin-top:14px"><button class="btn secondary" id="exportCareYear" type="button">Nächste 12 Monate als .ics</button></div>
+  </div>
+  <div class="calendar" id="calendarGrid" style="margin-top:15px"></div>
+</section>
+
+<section class="view" id="view-weather">
+  <div class="box">
+    <div class="topline"><div><h2 id="weatherPlace">Wetter</h2><div class="muted" id="weatherPlace2">Noch kein Standort eingerichtet.</div></div></div>
+    <div class="actions" id="periods" style="margin-top:13px"><button class="btn secondary small period" data-days="7">7 Tage</button><button class="btn secondary small period" data-days="14">14 Tage</button><button class="btn small period" data-days="30">30 Tage</button><button class="btn secondary small period" data-days="60">60 Tage</button><button class="btn secondary small period" data-days="90">90 Tage</button></div>
+    <div class="grid" style="margin-top:13px">
+      <div class="metric"><div class="label">Niederschlag</div><div class="value" id="wTotal">–</div><div class="small" id="wAvg"></div></div>
+      <div class="metric"><div class="label">Verdunstung ET₀</div><div class="value" id="wEt0">–</div><div class="small">Referenz-Evapotranspiration</div></div>
+      <div class="metric"><div class="label">Wasserbilanz</div><div class="value" id="wBalance">–</div><div class="small">Regen minus ET₀</div></div>
+      <div class="metric"><div class="label">Regentage</div><div class="value" id="wWet">–</div><div class="small">mindestens 1 mm</div></div>
+      <div class="metric"><div class="label">Letzter Regen</div><div class="value" id="wLast">–</div><div class="small">mindestens 2 mm</div></div>
+      <div class="metric"><div class="label">Nächste 7 Tage</div><div class="value" id="wFuture">–</div><div class="small">Regenprognose</div></div>
+    </div>
+  </div>
+  <div class="box"><strong id="chartTitle">Niederschlag</strong><div id="chart" class="chart"></div><div class="axis"><span id="chartFrom"></span><span id="chartTo"></span></div><details><summary>Tageswerte anzeigen</summary><div style="overflow:auto"><table><thead><tr><th>Datum</th><th>Regen</th><th>ET₀</th></tr></thead><tbody id="weatherTbody"></tbody></table></div></details></div>
+  <div class="box"><strong>Ausblick 7 Tage</strong><div id="weatherForecast" class="weathergrid" style="margin-top:12px"></div></div>
+</section>
+
+<section class="view" id="view-settings">
+  <div class="settingsgrid">
+    <div class="box">
+      <h2>Standort</h2><div class="muted">Die PLZ wird nur lokal gespeichert. Wetterdaten werden für den PLZ-Mittelpunkt abgerufen.</div>
+      <form id="locationForm" style="margin-top:12px"><div class="field"><label for="plz">PLZ</label><input id="plz" maxlength="5" inputmode="numeric" pattern="[0-9]{5}" placeholder="z. B. 72144" required></div><div class="actions" style="margin-top:9px"><button class="btn" type="submit">Standort laden</button></div></form>
+      <div class="muted" id="locationStatus" style="margin-top:9px"></div>
+    </div>
+    <div class="box">
+      <h2>KI-Pflanzenerkennung</h2><div class="muted">Für die KI-Pflanzenerkennung den persönlichen PlantNet API-Key einmalig hier eintragen. Er wird nur lokal in diesem Browser gespeichert.</div>
+      <div class="field" style="margin-top:12px"><label for="plantnetKey">PlantNet API-Key</label><input id="plantnetKey" type="password" autocomplete="off" placeholder="API-Key"></div>
+      <div class="actions" style="margin-top:9px"><button class="btn" id="saveApiKey" type="button">Schlüssel speichern</button></div>
+      <div class="muted" style="margin-top:9px">Bei direkter Browsernutzung muss PlantNet den verwendeten Ursprung für CORS zulassen. Die App funktioniert auch vollständig ohne KI-Erkennung.</div>
+    </div>
+    <div class="box">
+      <h2>Datensicherung</h2><div class="muted">Pflanzen, Fotos, Zonen, Historie und der lokal hinterlegte PlantNet-Schlüssel liegen in diesem Browser. Der Backup-Export sichert diese Daten gemeinsam. Zugangsdaten der Geräte-Synchronisation bleiben gerätebezogen und werden nicht exportiert.</div>
+      <div class="actions" style="margin-top:12px"><button class="btn" id="exportBtn" type="button">Backup exportieren</button><label class="btn secondary" for="importFile" style="display:inline-block">Backup importieren</label><input class="hidden" id="importFile" type="file" accept="application/json,.json"></div>
+    </div>
+    <div class="box">
+      <h2>Geräte-Synchronisation</h2>
+      <div class="muted">Optional: iPhone, iPad und PC können denselben Gartenstand über eine private Supabase-Datenbank nutzen. Änderungen werden lokal gespeichert und bei aktiver Verbindung automatisch abgeglichen.</div>
+      <div id="syncStatus" class="sync-status warn"><b>Nicht eingerichtet</b><small>Die App funktioniert weiterhin vollständig lokal.</small></div>
+      <div class="sync-fields">
+        <div class="field full"><label for="syncUrl">Supabase Project URL</label><input id="syncUrl" inputmode="url" autocomplete="off" placeholder="https://…supabase.co"></div>
+        <div class="field full"><label for="syncKey">Supabase Publishable Key</label><input id="syncKey" type="password" autocomplete="off" placeholder="sb_publishable_…"></div>
+        <div class="field"><label for="syncGardenId">Garten-ID</label><input id="syncGardenId" autocomplete="off" spellcheck="false" placeholder="z. B. JOHANNA-AB12CD"></div>
+        <div class="field"><label for="syncPin">Garten-PIN / Passwort</label><input id="syncPin" type="password" autocomplete="new-password" minlength="6" placeholder="mind. 6 Zeichen"></div>
+      </div>
+      <div class="actions" style="margin-top:10px"><button class="btn secondary small" id="generateGardenId" type="button">Garten-ID erzeugen</button><button class="btn secondary small" id="saveSyncConfig" type="button">Zugang speichern</button></div>
+      <div class="actions" style="margin-top:8px"><button class="btn small" id="createCloudGarden" type="button">Diesen Garten freigeben</button><button class="btn secondary small" id="joinCloudGarden" type="button">Bestehendem Garten beitreten</button></div>
+      <div class="actions" id="syncActiveActions" style="margin-top:8px"><button class="btn small" id="syncNow" type="button">Jetzt synchronisieren</button><button class="btn ghost small" id="disconnectSync" type="button">Sync auf diesem Gerät trennen</button></div>
+      <div id="syncConflict" class="sync-conflict hidden"><b>Änderungskonflikt</b><div class="muted">Auf einem anderen Gerät wurde der Garten geändert, während dieses Gerät noch nicht synchronisiert war. Wähle, welcher Stand gelten soll.</div><div class="actions" style="margin-top:8px"><button class="btn small" id="useCloudVersion" type="button">Cloud-Stand laden</button><button class="btn danger small" id="useLocalVersion" type="button">Dieses Gerät übernehmen</button></div></div>
+      <details style="margin-top:12px"><summary>Einrichtung in 4 Schritten</summary><div class="muted" style="margin-top:8px">1. Kostenloses Supabase-Projekt anlegen. 2. Die mitgelieferte Datei <b>supabase_setup.sql</b> einmal im SQL Editor ausführen. 3. Project URL und Publishable Key hier eintragen. 4. Auf dem ersten Gerät „Diesen Garten freigeben“, auf weiteren Geräten mit derselben Garten-ID und PIN „Bestehendem Garten beitreten“ wählen.</div></details>
+      <div class="muted" style="margin-top:9px">PlantNet-Key und Supabase-Zugangsdaten werden nicht in die gemeinsame Cloud-Gartendatei geschrieben. Die Garten-PIN bleibt nur auf deinen Geräten gespeichert. Pflanzenfotos werden mit dem Garten synchronisiert.</div>
+    </div>
+
+    <div class="box">
+      <h2>Daten zurücksetzen</h2><div class="muted">Entfernt Pflanzen, Zonen und Pflegehistorie aus diesem Browser.</div>
+      <div class="actions" style="margin-top:12px"><button class="btn danger" id="clearBtn" type="button">Gartendaten löschen</button></div>
+    </div>
+  </div>
+</section>
+
+<div class="foot">Gießempfehlungen sind Modellschätzungen aus Regen, ET₀, Pflanzart, Wasserbedarf, Pflanzengröße, Anwachsphase und markierten Standortzonen. Bodenfeuchte vor dem Gießen prüfen. Luftbild: LGL Baden-Württemberg DOP20 Open Data. Wetter: Open-Meteo. Pflanzenerkennung optional: Pl@ntNet.</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+(function(){
+"use strict";
+var STORE="giess_check_garten_v3";
+var SYNC_STORE="johannas_gartenwelt_sync_v1";
+var syncState={url:"",key:"",gardenId:"",pin:"",enabled:false,revision:0,lastSync:"",lastPayloadHash:"",dirty:false,conflict:false,busy:false,applying:false,pushTimer:null,pollTimer:null};
+var MONTHS=["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+var CARE_RULES=[
+ {keys:["hydrangea","hortensie"],water:"high",fert:[3,4,5,6,7],cut:[2,3]},
+ {keys:["malus","apfel"],water:"normal",fert:[3,4],cut:[2,3,7,8]},
+ {keys:["lavandula","lavendel"],water:"low",fert:[3,4],cut:[3,4,7,8]},
+ {keys:["rhododendron"],water:"high",fert:[4,5,6],cut:[5,6]},
+ {keys:["rosa ","rose","rosen"],water:"normal",fert:[3,4,6],cut:[3,4]},
+ {keys:["buxus","buchs"],water:"normal",fert:[4,5,6],cut:[5,6,8,9]},
+ {keys:["vitis","wein"],water:"normal",fert:[3,4],cut:[1,2,7]},
+ {keys:["fragaria","erdbeer"],water:"high",fert:[3,4,7,8],cut:[7,8]},
+ {keys:["tomat","solanum lycopersicum"],water:"high",fert:[5,6,7,8],cut:[]},
+ {keys:["acer","ahorn"],water:"normal",fert:[3,4],cut:[7,8]},
+ {keys:["prunus"],water:"normal",fert:[3,4],cut:[7,8]},
+ {keys:["thuja","lebensbaum"],water:"normal",fert:[3,4],cut:[4,5,8]},
+ {keys:["olea europaea","oliven"],water:"low",fert:[4,5,6,7],cut:[3,4]},
+ {keys:["citrus","zitr"],water:"normal",fert:[4,5,6,7,8],cut:[2,3]},
+ {keys:["pelargonium","geranie"],water:"normal",fert:[5,6,7,8,9],cut:[]}
+];
+var DEFAULT_PLANTNET_KEY="";
+var state={days:30,plz:"",loc:null,gardenCenter:null,weather:null,plants:[],zones:[],settings:{plantnetKey:DEFAULT_PLANTNET_KEY},pendingZone:null,editingZoneId:null,map:null,zoneGroup:null,markerGroup:null,mapReady:false,placePlantId:null,setCenterMode:false,photoData:"",photoFile:null,editPlantId:null};
+function el(id){return document.getElementById(id)}
+function show(id,on){var n=el(id);if(n)n.classList.toggle("hidden",!on)}
+function isoToday(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function dateObj(s){return new Date(s+"T12:00:00")}
+function fmtDate(s){return dateObj(s).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit",year:"numeric"})}
+function de1(n){return Number(n||0).toLocaleString("de-DE",{minimumFractionDigits:1,maximumFractionDigits:1})}
+function uid(){return "p"+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]})}
+function load(){try{var raw=localStorage.getItem(STORE);if(raw){var d=JSON.parse(raw);state.plz=d.plz||"";state.loc=d.loc||null;state.gardenCenter=d.gardenCenter||null;state.plants=Array.isArray(d.plants)?d.plants:[];state.zones=Array.isArray(d.zones)?d.zones:[];state.settings=Object.assign({plantnetKey:DEFAULT_PLANTNET_KEY},d.settings||{});if(!(state.settings.plantnetKey||"").trim())state.settings.plantnetKey=DEFAULT_PLANTNET_KEY;state.days=[7,14,30,60,90].includes(Number(d.days))?Number(d.days):30}else{var old=localStorage.getItem("giess_plz");if(old)state.plz=old}}catch(e){console.warn(e)}loadSync()}
+function loadSync(){try{var raw=localStorage.getItem(SYNC_STORE);if(raw)Object.assign(syncState,JSON.parse(raw)||{})}catch(e){console.warn(e)}syncState.busy=false;syncState.conflict=false;syncState.pushTimer=null;syncState.pollTimer=null;syncState.applying=false}
+function saveSync(){try{localStorage.setItem(SYNC_STORE,JSON.stringify({url:syncState.url,key:syncState.key,gardenId:syncState.gardenId,pin:syncState.pin,enabled:syncState.enabled,revision:syncState.revision,lastSync:syncState.lastSync,lastPayloadHash:syncState.lastPayloadHash,dirty:syncState.dirty}))}catch(e){console.warn(e)}}
+function cloudPayload(){return{version:1,plz:state.plz||"",loc:state.loc||null,gardenCenter:state.gardenCenter||null,plants:state.plants||[],zones:state.zones||[]}}
+function hash32(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return("00000000"+(h>>>0).toString(16)).slice(-8)}
+function cloudPayloadHash(){try{return hash32(JSON.stringify(cloudPayload()))}catch(e){return""}}
+function save(){try{localStorage.setItem(STORE,JSON.stringify({plz:state.plz,loc:state.loc,gardenCenter:state.gardenCenter,plants:state.plants,zones:state.zones,settings:state.settings,days:state.days}));if(syncState.enabled&&!syncState.applying){var ph=cloudPayloadHash();if(ph&&ph!==syncState.lastPayloadHash){syncState.dirty=true;saveSync();scheduleCloudPush()}}return true}catch(e){globalError("Lokaler Speicher ist voll. Exportiere ein Backup und lösche gegebenenfalls alte Pflanzenfotos.");return false}}
+function normalizeSyncUrl(v){return String(v||"").trim().replace(/\/+$/g,"")} 
+function syncConfigured(){return /^https:\/\/[^/]+\.supabase\.co$/i.test(normalizeSyncUrl(syncState.url))&&String(syncState.key||"").trim().length>10&&String(syncState.gardenId||"").trim().length>=6&&String(syncState.pin||"").length>=6}
+function syncReadForm(){syncState.url=normalizeSyncUrl(el("syncUrl")?el("syncUrl").value:syncState.url);syncState.key=String(el("syncKey")?el("syncKey").value:syncState.key).trim();syncState.gardenId=String(el("syncGardenId")?el("syncGardenId").value:syncState.gardenId).trim().toLowerCase();syncState.pin=String(el("syncPin")?el("syncPin").value:syncState.pin);saveSync()}
+function randomGardenId(){var a=new Uint8Array(6);crypto.getRandomValues(a);var s=Array.from(a).map(function(x){return(x%36).toString(36)}).join("").toUpperCase();return"JOHANNA-"+s}
+async function sha256Hex(s){if(!window.crypto||!crypto.subtle)throw new Error("Geräte-Sync benötigt HTTPS. Öffne die App über GitHub Pages.");var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
+async function syncSecretHash(){return sha256Hex(String(syncState.gardenId||"").trim().toLowerCase()+"|"+String(syncState.pin||""))}
+async function syncRpc(fn,args){if(!syncConfigured())throw new Error("Sync-Zugang ist noch unvollständig.");var res=await fetch(normalizeSyncUrl(syncState.url)+"/rest/v1/rpc/"+fn,{method:"POST",headers:{"apikey":syncState.key,"Content-Type":"application/json"},body:JSON.stringify(args||{})});var text=await res.text(),data=null;try{data=text?JSON.parse(text):null}catch(e){data=text}if(!res.ok){var msg=data&&data.message?data.message:(typeof data==="string"?data:("HTTP "+res.status));throw new Error(msg)}if(Array.isArray(data)&&data.length===1)data=data[0];return data}
+function formatSyncTime(v){if(!v)return"noch nie";try{return new Date(v).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}catch(e){return v}}
+function renderSync(){if(!el("syncStatus"))return;el("syncUrl").value=syncState.url||"";el("syncKey").value=syncState.key||"";el("syncGardenId").value=syncState.gardenId||"";el("syncPin").value=syncState.pin||"";var box=el("syncStatus"),active=el("syncActiveActions");if(active)active.classList.toggle("hidden",!syncState.enabled);show("syncConflict",!!syncState.conflict);if(syncState.busy){box.className="sync-status warn";box.innerHTML="<b>Synchronisierung läuft …</b><small>Lokale Daten bleiben währenddessen nutzbar.</small>";return}if(syncState.conflict){box.className="sync-status bad";box.innerHTML="<b>Änderungskonflikt</b><small>Cloud und dieses Gerät enthalten unterschiedliche neue Änderungen.</small>";return}if(syncState.enabled){box.className="sync-status ok";box.innerHTML="<b>Synchronisierung aktiv</b><small>Garten-ID: "+esc((syncState.gardenId||"").toUpperCase())+" · Revision "+Number(syncState.revision||0)+" · zuletzt "+esc(formatSyncTime(syncState.lastSync))+(syncState.dirty?" · lokale Änderung wartet auf Upload":"")+"</small>"}else{box.className="sync-status warn";box.innerHTML="<b>Nicht verbunden</b><small>Die App speichert derzeit nur auf diesem Gerät.</small>"}}
+function applyCloudPayload(p){p=p||{};syncState.applying=true;state.plz=p.plz||"";state.loc=p.loc||null;state.gardenCenter=p.gardenCenter||null;state.plants=Array.isArray(p.plants)?p.plants:[];state.zones=Array.isArray(p.zones)?p.zones:[];save();syncState.applying=false;renderAll();if(state.plz)refreshWeather(false)}
+function scheduleCloudPush(){if(!syncState.enabled||syncState.busy||syncState.conflict)return;clearTimeout(syncState.pushTimer);syncState.pushTimer=setTimeout(function(){syncPush(false)},1400)}
+async function syncCreateGarden(){syncReadForm();if(!syncConfigured()){globalError("Für die Synchronisierung Project URL, Publishable Key, Garten-ID und eine PIN mit mindestens 6 Zeichen eintragen.");return}syncState.busy=true;renderSync();try{var sh=await syncSecretHash(),r=await syncRpc("jgw_create_garden",{p_garden_id:syncState.gardenId,p_secret_hash:sh,p_payload:cloudPayload()});if(!r||r.ok!==true){if(r&&r.error==="exists")throw new Error("Diese Garten-ID existiert bereits. Wähle eine andere ID oder tritt dem bestehenden Garten bei.");throw new Error((r&&r.error)||"Garten konnte nicht angelegt werden.")}syncState.enabled=true;syncState.revision=Number(r.revision||1);syncState.lastSync=r.updated_at||new Date().toISOString();syncState.lastPayloadHash=cloudPayloadHash();syncState.dirty=false;syncState.conflict=false;saveSync();notice("Gemeinsamer Garten angelegt. Weitere Geräte können jetzt mit Garten-ID und PIN beitreten.")}catch(e){globalError("Sync-Einrichtung fehlgeschlagen: "+e.message)}finally{syncState.busy=false;renderSync()}}
+async function syncJoinGarden(){syncReadForm();if(!syncConfigured()){globalError("Für die Synchronisierung Project URL, Publishable Key, Garten-ID und eine PIN mit mindestens 6 Zeichen eintragen.");return}if((state.plants.length||state.zones.length)&&!confirm("Beim Beitreten wird der lokale Gartenstand auf diesem Gerät durch den gemeinsamen Cloud-Stand ersetzt. Fortfahren?"))return;syncState.busy=true;renderSync();try{var sh=await syncSecretHash(),r=await syncRpc("jgw_pull_garden",{p_garden_id:syncState.gardenId,p_secret_hash:sh});if(!r||r.ok!==true)throw new Error("Garten nicht gefunden oder PIN falsch.");syncState.enabled=true;syncState.revision=Number(r.revision||0);syncState.lastSync=r.updated_at||new Date().toISOString();syncState.dirty=false;syncState.conflict=false;applyCloudPayload(r.payload||{});syncState.lastPayloadHash=cloudPayloadHash();saveSync();notice("Gemeinsamer Garten geladen. Automatische Synchronisierung ist aktiv.")}catch(e){globalError("Beitritt fehlgeschlagen: "+e.message)}finally{syncState.busy=false;renderSync()}}
+async function syncPush(force){if(!syncState.enabled||!syncConfigured()||syncState.busy)return;var ph=cloudPayloadHash();if(!force&&!syncState.dirty&&ph===syncState.lastPayloadHash)return;syncState.busy=true;renderSync();try{var sh=await syncSecretHash(),fn=force?"jgw_force_push_garden":"jgw_push_garden",args={p_garden_id:syncState.gardenId,p_secret_hash:sh,p_payload:cloudPayload()};if(!force)args.p_base_revision=Number(syncState.revision||0);var r=await syncRpc(fn,args);if(!r||r.ok!==true){if(r&&r.conflict){syncState.conflict=true;syncState.dirty=true;saveSync();return}throw new Error((r&&r.error)||"Upload fehlgeschlagen.")}syncState.revision=Number(r.revision||syncState.revision);syncState.lastSync=r.updated_at||new Date().toISOString();syncState.lastPayloadHash=ph;syncState.dirty=false;syncState.conflict=false;saveSync()}catch(e){syncState.dirty=true;saveSync();console.warn("Sync upload",e);if(force)globalError("Cloud-Upload fehlgeschlagen: "+e.message)}finally{syncState.busy=false;renderSync()}}
+async function syncPull(force){if(!syncState.enabled||!syncConfigured()||syncState.busy)return;syncState.busy=true;renderSync();try{var sh=await syncSecretHash(),r=await syncRpc("jgw_pull_garden",{p_garden_id:syncState.gardenId,p_secret_hash:sh});if(!r||r.ok!==true)throw new Error("Gemeinsamer Garten nicht erreichbar oder PIN falsch.");var remoteRev=Number(r.revision||0),localChanged=syncState.dirty||cloudPayloadHash()!==syncState.lastPayloadHash;if(remoteRev>Number(syncState.revision||0)&&localChanged&&!force){syncState.conflict=true;saveSync();return}if(force||remoteRev>Number(syncState.revision||0)){applyCloudPayload(r.payload||{});syncState.revision=remoteRev;syncState.lastPayloadHash=cloudPayloadHash();syncState.dirty=false;syncState.conflict=false}syncState.lastSync=r.updated_at||new Date().toISOString();saveSync()}catch(e){console.warn("Sync pull",e);if(force)globalError("Cloud-Stand konnte nicht geladen werden: "+e.message)}finally{syncState.busy=false;renderSync()}}
+async function syncCheckRemote(){if(!syncState.enabled||!syncConfigured()||syncState.busy||document.hidden)return;try{var sh=await syncSecretHash(),r=await syncRpc("jgw_status_garden",{p_garden_id:syncState.gardenId,p_secret_hash:sh});if(!r||r.ok!==true)return;var rr=Number(r.revision||0);if(rr>Number(syncState.revision||0)){var changed=syncState.dirty||cloudPayloadHash()!==syncState.lastPayloadHash;if(changed){syncState.conflict=true;saveSync();renderSync()}else await syncPull(false)}else if(syncState.dirty)await syncPush(false)}catch(e){console.warn("Sync status",e)}}
+async function syncManual(){if(!syncState.enabled){notice("Geräte-Sync ist auf diesem Gerät noch nicht verbunden.");return}if(syncState.dirty)await syncPush(false);if(!syncState.conflict)await syncCheckRemote();if(!syncState.conflict)notice("Synchronisierung geprüft.")}
+function syncDisconnect(){if(!confirm("Synchronisierung nur auf diesem Gerät trennen? Deine lokalen Gartendaten bleiben erhalten."))return;syncState.enabled=false;syncState.revision=0;syncState.lastSync="";syncState.lastPayloadHash="";syncState.dirty=false;syncState.conflict=false;saveSync();renderSync();notice("Synchronisierung auf diesem Gerät getrennt.")}
+function syncBootstrap(){renderSync();clearInterval(syncState.pollTimer);if(!syncState.enabled||!syncConfigured())return;var ph=cloudPayloadHash();if(syncState.lastPayloadHash&&ph!==syncState.lastPayloadHash){syncState.dirty=true;saveSync()}setTimeout(function(){if(syncState.dirty)syncPush(false);else syncCheckRemote()},900);syncState.pollTimer=setInterval(syncCheckRemote,30000)}
+function globalError(msg){el("globalError").textContent=msg;show("globalError",true);window.scrollTo({top:0,behavior:"smooth"})}
+function notice(msg){el("globalNotice").textContent=msg;show("globalNotice",true);setTimeout(function(){show("globalNotice",false)},4500)}
+function requestJSON(url,timeout){return new Promise(function(resolve,reject){var x=new XMLHttpRequest();x.open("GET",url,true);x.timeout=timeout||15000;x.onreadystatechange=function(){if(x.readyState===4){if(x.status>=200&&x.status<300){try{resolve(JSON.parse(x.responseText))}catch(e){reject(new Error("Ungültige Serverantwort"))}}else reject(new Error("HTTP "+x.status))}};x.onerror=function(){reject(new Error("Netzwerkfehler"))};x.ontimeout=function(){reject(new Error("Zeitüberschreitung"))};x.send()})}
+async function lookupPLZ(plz){var z=await requestJSON("https://api.zippopotam.us/de/"+encodeURIComponent(plz),12000);if(!z.places||!z.places.length)throw new Error("PLZ nicht gefunden");var p=z.places[0];return{name:p["place name"]||("PLZ "+plz),state:p.state||"",lat:parseFloat(p.latitude),lon:parseFloat(p.longitude)}}
+async function getWeather(lat,lon){var vars="precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max";return requestJSON("https://api.open-meteo.com/v1/forecast?latitude="+encodeURIComponent(lat)+"&longitude="+encodeURIComponent(lon)+"&daily="+vars+"&timezone=Europe%2FBerlin&past_days=92&forecast_days=8",18000)}
+function weatherRows(){if(!state.weather||!state.weather.daily)return[];var d=state.weather.daily,a=[];for(var i=0;i<d.time.length;i++)a.push({date:d.time[i],rain:Number(d.precipitation_sum[i]||0),et0:Number((d.et0_fao_evapotranspiration||[])[i]||0),min:Number(d.temperature_2m_min[i]),max:Number(d.temperature_2m_max[i])});return a}
+async function refreshWeather(showMsg){if(!state.plz){switchView("settings");notice("Bitte zuerst die PLZ einrichten.");return}el("locationStatus").textContent="Wetterdaten werden geladen …";try{var loc=await lookupPLZ(state.plz);var wc=state.gardenCenter||{lat:loc.lat,lon:loc.lon};var w=await getWeather(wc.lat,wc.lon);state.loc=loc;state.weather=w;save();el("locationStatus").textContent="Standort geladen: "+loc.name+".";renderAll();if(state.mapReady&&!state.gardenCenter)state.map.setView([loc.lat,loc.lon],19);if(showMsg)notice("Wetterdaten aktualisiert.")}catch(e){globalError("Wetterabruf nicht möglich: "+e.message+". Bitte Internetverbindung prüfen.");el("locationStatus").textContent="Abruf fehlgeschlagen."}}
+function switchView(name){document.querySelectorAll(".view").forEach(function(v){v.classList.toggle("active",v.id==="view-"+name)});document.querySelectorAll(".tab").forEach(function(b){b.classList.toggle("active",b.dataset.view===name)});if(name==="map"){setTimeout(function(){initMap();if(state.map)state.map.invalidateSize();renderMap()},40)}if(name==="calendar")renderCalendar();if(name==="plants")renderPlants()}
+function currentZoneForPlant(p){if(!p.lat||!p.lon)return null;for(var i=state.zones.length-1;i>=0;i--){if(pointInPolygon(p.lat,p.lon,state.zones[i].points))return state.zones[i]}return null}
+function pointInPolygon(lat,lon,points){if(!points||points.length<3)return false;var inside=false;for(var i=0,j=points.length-1;i<points.length;j=i++){var xi=points[i].lon,yi=points[i].lat,xj=points[j].lon,yj=points[j].lat;var intersect=((yi>lat)!=(yj>lat))&&(lon<(xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi);if(intersect)inside=!inside}return inside}
+function typeLabel(v){return v==="pot"?"Kübel / Topf":v==="raised"?"Hochbeet":v==="balcony"?"Balkonkasten":v==="other"?"Sonstige Pflanzung":"Gartenboden"}
+function sizeLabel(v){return v==="small"?"klein":v==="large"?"groß":"mittel"}
+function recentPlantingDate(p){var vals=[p.transplanted,p.plantedSince].filter(Boolean).sort();return vals.length?vals[vals.length-1]:null}
+function establishmentInfo(p){var d=recentPlantingDate(p);if(!d)return{factor:1,label:"etabliert / unbekannt",days:999};var days=daysSince(d);if(days<=30)return{factor:1.55,label:"frisch gepflanzt / umgesetzt",days:days};if(days<=90)return{factor:1.38,label:"in Anwachsphase",days:days};if(days<=365)return{factor:1.20,label:"noch nicht voll etabliert",days:days};if(days<=730)return{factor:1.08,label:"junger Standort",days:days};return{factor:1,label:"etabliert",days:days}}
+function ageFactor(p){var y=Number(p.birthYear);if(!y)return 1;var a=Math.max(0,new Date().getFullYear()-y);return a<=1?1.15:a<=2?1.08:1}
+function waterAssessment(p){if(!state.weather)return{level:"warn",title:"Wetter fehlt",reason:"Wetterdaten laden, um eine Gießempfehlung zu erhalten.",score:0};var all=weatherRows(),t=isoToday(),past=all.filter(function(x){return x.date<t}).slice(-7),future=all.filter(function(x){return x.date>=t}).slice(0,2);var rain=past.reduce(function(s,x){return s+x.rain},0),et0=past.reduce(function(s,x){return s+x.et0},0),fRain=future.reduce(function(s,x){return s+x.rain},0);var z=currentZoneForPlant(p);var light={fullsun:1.30,sunny:1.15,partial:.90,shade:.72};var rainF={open:1,partial:.72,protected:.42};var soil={normal:1,dry:1.18,moist:.82};var water={low:.72,normal:1,high:1.28};var type={bed:1,raised:1.20,pot:1.55,balcony:1.70,other:1.10};var size={small:.82,medium:1,large:1.28};var lf=z?light[z.light]||1:1,rf=z?rainF[z.rain]||1:1,sf=z?soil[z.soil]||1:1;var est=establishmentInfo(p),af=ageFactor(p),sz=size[p.size]||1;var score=(et0*(water[p.water]||1)*(type[p.type]||1)*lf*sf*est.factor*af*sz)-(rain*rf);var since=999;if(p.lastWatered){since=Math.max(0,Math.round((dateObj(t)-dateObj(p.lastWatered))/86400000));if(since===0)score-=12;else if(since===1)score-=8;else if(since===2)score-=4}if(fRain>=12)score-=7;else if(fRain>=6)score-=3;var isContainer=p.type==="pot"||p.type==="balcony"||p.type==="raised";var level="ok",title="Heute voraussichtlich nicht gießen";if(score>10||(isContainer&&since>=4&&rain<5)){level="bad";title="Gießen empfohlen"}else if(score>5||(isContainer&&since>=2&&rain<3)){level="warn";title="Feuchtigkeit prüfen"}if(est.days<=90&&level==="ok"&&rain<8){level="warn";title="Anwachsphase: Feuchtigkeit prüfen"}if(fRain>=12&&level==="bad"&&est.days>30){level="warn";title="Regen abwarten / Feuchtigkeit prüfen"}var zr=z?(" · Standort: "+lightLabel(z.light)+(z.rain!=="open"?", "+rainLabel(z.rain):"")):" · keine Standortzone";var er=est.days<999?(" · "+est.label):"";return{level:level,title:title,score:score,reason:"7 Tage: "+de1(rain)+" mm Regen, "+de1(et0)+" mm ET₀; nächste 2 Tage "+de1(fRain)+" mm Regen"+zr+er}}
+function lightLabel(v){return{fullsun:"Vollsonne",sunny:"sonnig",partial:"Halbschatten",shade:"Schatten"}[v]||"unbekannt"}
+function rainLabel(v){return{open:"offen",partial:"teilweise geschützt",protected:"Regenschatten"}[v]||"offen"}
+function soilLabel(v){return{normal:"normaler Boden",dry:"trocknet schnell",moist:"bleibt feucht"}[v]||"normal"}
+function applyCareRule(name,sci){var s=((name||"")+" "+(sci||"")).toLowerCase();for(var i=0;i<CARE_RULES.length;i++){if(CARE_RULES[i].keys.some(function(k){return s.indexOf(k)>=0}))return CARE_RULES[i]}return null}
+function daysSince(s){if(!s)return 999;return Math.max(0,Math.round((dateObj(isoToday())-dateObj(s))/86400000))}
+function getTodayTasks(){var tasks=[],m=new Date().getMonth()+1;state.plants.forEach(function(p){var wa=waterAssessment(p);if(wa.level!=="ok")tasks.push({plant:p,kind:"water",level:wa.level,icon:"💧",title:wa.title,why:wa.reason});if((p.fertMonths||[]).includes(m)&&daysSince(p.lastFertilized)>28&&establishmentInfo(p).days>42)tasks.push({plant:p,kind:"fert",level:"warn",icon:"🌱",title:"Düngung vorgesehen",why:"Für diese Pflanze ist "+MONTHS[m-1]+" als Düngemonat hinterlegt."});if((p.cutMonths||[]).includes(m)&&daysSince(p.lastCut)>28)tasks.push({plant:p,kind:"cut",level:"warn",icon:"✂️",title:"Schnittzeit prüfen",why:"Für diese Pflanze ist "+MONTHS[m-1]+" als Schnittmonat hinterlegt."})});return tasks}
+function icsEscape(s){return String(s==null?"":s).replace(/\\/g,"\\\\").replace(/\r?\n/g,"\\n").replace(/,/g,"\\,").replace(/;/g,"\\;")}
+function icsDateParts(y,m,d){return String(y)+String(m).padStart(2,"0")+String(d).padStart(2,"0")}
+function icsStamp(){return new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d{3}Z$/,"Z")}
+function careItemsForMonth(m){var items=[];state.plants.forEach(function(p){if((p.fertMonths||[]).includes(m))items.push({plant:p,kind:"fert"});if((p.cutMonths||[]).includes(m))items.push({plant:p,kind:"cut"})});return items}
+function careMonthDescription(items){var fert=items.filter(function(x){return x.kind==="fert"}).map(function(x){return x.plant.name+(x.plant.area?" ("+x.plant.area+")":"")});var cut=items.filter(function(x){return x.kind==="cut"}).map(function(x){return x.plant.name+(x.plant.area?" ("+x.plant.area+")":"")});var parts=[];if(fert.length)parts.push("Düngen:\n• "+fert.join("\n• "));if(cut.length)parts.push("Schnitt prüfen:\n• "+cut.join("\n• "));return parts.join("\n\n")}
+function downloadCareICS(months,filename,calendarName){var entries=[];(months||[]).forEach(function(mm){var items=careItemsForMonth(mm.m);if(items.length)entries.push({m:mm.m,y:mm.y,items:items})});if(!entries.length){notice("Für diesen Zeitraum sind keine saisonalen Pflegearbeiten hinterlegt.");return}var lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Johannas Gartenwelt//Pflegekalender//DE","CALSCALE:GREGORIAN","METHOD:PUBLISH","X-WR-CALNAME:"+icsEscape(calendarName||"Johanna´s Gartenwelt – Pflege")];entries.forEach(function(e){var monthName=new Date(e.y,e.m-1,1).toLocaleDateString("de-DE",{month:"long",year:"numeric"});lines.push("BEGIN:VEVENT","UID:"+icsEscape("pflege-"+e.y+"-"+e.m+"@johannas-gartenwelt.local"),"DTSTAMP:"+icsStamp(),"DTSTART;VALUE=DATE:"+icsDateParts(e.y,e.m,1),"DTEND;VALUE=DATE:"+icsDateParts(e.y,e.m,2),"SUMMARY:"+icsEscape("Johanna´s Gartenwelt – Gartenpflege im "+monthName),"DESCRIPTION:"+icsEscape(careMonthDescription(e.items)+"\n\nZeitfenster: im Laufe des Monats durchführen bzw. geeigneten Zeitpunkt prüfen."),"CATEGORIES:Gartenpflege","TRANSP:TRANSPARENT","STATUS:CONFIRMED","END:VEVENT")});lines.push("END:VCALENDAR");var blob=new Blob(["\ufeff"+lines.join("\r\n")+"\r\n"],{type:"text/calendar;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename||"Johannas_Gartenwelt_Pflege.ics";document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500)}
+function seasonWindow(key){var now=new Date(),y=now.getFullYear(),m=now.getMonth()+1,def={spring:{label:"Frühling",months:[3,4,5],start:3},summer:{label:"Sommer",months:[6,7,8],start:6},autumn:{label:"Herbst",months:[9,10,11],start:9},winter:{label:"Winter",months:[12,1,2],start:12}}[key];var sy=y;if(key==="winter"){if(m<=2)sy=y-1;else sy=y}else if(def.months.includes(m))sy=y;else if(m>def.start)sy=y+1;var months=def.months.map(function(mm){return{m:mm,y:key==="winter"&&mm<12?sy+1:sy}});var yearLabel=key==="winter"?sy+"/"+String(sy+1).slice(-2):String(sy);return{label:def.label+" "+yearLabel,months:months}}
+function nextTwelveMonths(){var now=new Date(),a=[];for(var i=0;i<12;i++){var d=new Date(now.getFullYear(),now.getMonth()+i,1);a.push({m:d.getMonth()+1,y:d.getFullYear()})}return a}
+function renderToday(){el("todayDate").textContent=new Date().toLocaleDateString("de-DE",{weekday:"long",day:"2-digit",month:"long",year:"numeric"});var tw=el("todayWeather");if(!state.weather){tw.className="recommend warn";tw.innerHTML='<div class="rtitle">Wetterdaten fehlen</div><div class="rtext">Unter Einstellungen die PLZ laden.</div>'}else{var rows=weatherRows(),t=isoToday(),p7=rows.filter(function(x){return x.date<t}).slice(-7),f2=rows.filter(function(x){return x.date>=t}).slice(0,2),r=p7.reduce(function(s,x){return s+x.rain},0),e=p7.reduce(function(s,x){return s+x.et0},0),fr=f2.reduce(function(s,x){return s+x.rain},0);tw.className="recommend "+(r-e<-12&&fr<6?"warn":"ok");tw.innerHTML='<div class="rtitle">'+esc(state.loc?state.loc.name:"Gartenwetter")+'</div><div class="rtext">Letzte 7 Tage: '+de1(r)+' mm Regen · '+de1(e)+' mm ET₀ · nächste 2 Tage '+de1(fr)+' mm Regen.</div>'}var tasks=getTodayTasks();el("taskCount").textContent=tasks.length?tasks.length+" offen":"nichts offen";if(!state.plants.length){el("tasks").innerHTML='<div class="empty">Noch keine Pflanzen angelegt. Unter „Pflanzen“ kannst du mit dem ersten Foto starten.</div>';return}if(!tasks.length){el("tasks").innerHTML='<div class="empty">Für heute ergibt sich aus den hinterlegten Daten keine Aufgabe.</div>';return}el("tasks").innerHTML=tasks.map(function(t){var action=t.kind==="water"?"Gegossen":t.kind==="fert"?"Gedüngt":"Geschnitten";return '<div class="task '+t.level+'"><div class="taskicon">'+t.icon+'</div><div><b>'+esc(t.plant.name)+' · '+esc(t.title)+'</b><div class="why">'+esc(t.why)+'</div></div><div class="actions"><button class="btn small taskDone" data-id="'+t.plant.id+'" data-kind="'+t.kind+'" type="button">'+action+'</button></div></div>'}).join("");document.querySelectorAll(".taskDone").forEach(function(b){b.addEventListener("click",function(){var p=state.plants.find(function(x){return x.id===b.dataset.id});if(!p)return;var key=b.dataset.kind==="water"?"lastWatered":b.dataset.kind==="fert"?"lastFertilized":"lastCut";p[key]=isoToday();save();renderAll()})})}
+function renderPlants(){var list=el("plantList");if(!state.plants.length){list.innerHTML='<div class="box empty" style="grid-column:1/-1">Noch keine Pflanzen gespeichert.</div>';return}list.innerHTML=state.plants.map(function(p){var wa=waterAssessment(p),z=currentZoneForPlant(p),photo=p.photo?'<img src="'+p.photo+'" alt="'+esc(p.name)+'">':'🌿',est=establishmentInfo(p);return '<article class="plantcard"><div class="plantphoto">'+photo+'</div><div class="plantbody"><div class="plantname"><span class="statusdot '+wa.level+'"></span>'+esc(p.name)+'</div><div class="latin">'+esc(p.scientific||"")+'</div><div class="chips"><span class="chip">'+typeLabel(p.type)+'</span><span class="chip">Größe: '+sizeLabel(p.size)+'</span><span class="chip">Wasser: '+(p.water==="high"?"hoch":p.water==="low"?"niedrig":"normal")+'</span>'+(p.birthYear?'<span class="chip">Jahrgang ca. '+esc(String(p.birthYear))+'</span>':'')+(est.days<999?'<span class="chip">'+esc(est.label)+'</span>':'')+(z?'<span class="chip">'+lightLabel(z.light)+'</span>':'')+(p.area?'<span class="chip">'+esc(p.area)+'</span>':'')+'</div><div class="muted" style="margin-top:9px">'+esc(wa.title)+'</div><div class="plantactions"><button class="btn small editPlant" data-id="'+p.id+'" type="button">Bearbeiten</button><button class="btn secondary small placePlant" data-id="'+p.id+'" type="button">'+(p.lat?"Position ändern":"Auf Karte setzen")+'</button><button class="btn ghost small deletePlant" data-id="'+p.id+'" type="button">Löschen</button></div></div></article>'}).join("");document.querySelectorAll(".editPlant").forEach(function(b){b.addEventListener("click",function(){openPlantEditor(b.dataset.id)})});document.querySelectorAll(".placePlant").forEach(function(b){b.addEventListener("click",function(){beginPlacePlant(b.dataset.id)})});document.querySelectorAll(".deletePlant").forEach(function(b){b.addEventListener("click",function(){var p=state.plants.find(function(x){return x.id===b.dataset.id});if(p&&confirm('Pflanze „'+p.name+'“ löschen?')){state.plants=state.plants.filter(function(x){return x.id!==p.id});save();renderAll()}})})}
+function buildMonthChecks(containerId,name){el(containerId).innerHTML=MONTHS.map(function(m,i){return '<label class="monthcheck"><input type="checkbox" name="'+name+'" value="'+(i+1)+'"><span>'+m+'</span></label>'}).join("")}
+function checkedMonths(name){return Array.from(document.querySelectorAll('input[name="'+name+'"]:checked')).map(function(x){return Number(x.value)})}
+function setCheckedMonths(name,vals){document.querySelectorAll('input[name="'+name+'"]').forEach(function(x){x.checked=(vals||[]).includes(Number(x.value))})}
+function resetPlantForm(){el("plantForm").reset();el("plantType").value="bed";el("plantSize").value="medium";el("plantId").value="";state.photoData="";state.photoFile=null;state.editPlantId=null;el("photoPreview").textContent="Foto";el("aiResults").innerHTML="";el("aiStatus").textContent="PlantNet ist eingerichtet. Foto aufnehmen und „Mit KI erkennen“ wählen.";setCheckedMonths("fert",[]);setCheckedMonths("cut",[])}
+function openPlantEditor(id){resetPlantForm();show("plantEditor",true);var p=id?state.plants.find(function(x){return x.id===id}):null;el("plantEditorTitle").textContent=p?"Pflanze bearbeiten":"Pflanze hinzufügen";if(p){state.editPlantId=p.id;el("plantId").value=p.id;el("plantName").value=p.name||"";el("plantScientific").value=p.scientific||"";el("plantArea").value=p.area||"";el("plantType").value=p.type||"bed";el("plantWater").value=p.water||"normal";el("plantSize").value=p.size||"medium";el("plantBirthYear").value=p.birthYear||"";el("plantSince").value=p.plantedSince||"";el("plantTransplanted").value=p.transplanted||"";el("plantNotes").value=p.notes||"";state.photoData=p.photo||"";if(p.photo)el("photoPreview").innerHTML='<img src="'+p.photo+'" alt="Vorschau">';setCheckedMonths("fert",p.fertMonths||[]);setCheckedMonths("cut",p.cutMonths||[])}el("plantEditor").scrollIntoView({behavior:"smooth",block:"start"})}
+async function compressPhoto(file){return new Promise(function(resolve,reject){var img=new Image(),url=URL.createObjectURL(file);img.onload=function(){var max=720,w=img.width,h=img.height;if(w>h&&w>max){h=Math.round(h*max/w);w=max}else if(h>=w&&h>max){w=Math.round(w*max/h);h=max}var c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);URL.revokeObjectURL(url);resolve(c.toDataURL("image/jpeg",.72))};img.onerror=function(){URL.revokeObjectURL(url);reject(new Error("Foto konnte nicht gelesen werden"))};img.src=url})}
+function plantFromForm(){var name=el("plantName").value.trim();if(!name)throw new Error("Bitte einen Pflanzenname eingeben.");var old=state.editPlantId?state.plants.find(function(x){return x.id===state.editPlantId}):null;var by=el("plantBirthYear").value.trim();if(by){var y=Number(by),now=new Date().getFullYear();if(!Number.isInteger(y)||y<1900||y>now)throw new Error("Bitte ein plausibles Pflanz-/Anzuchtjahr eingeben.")}return{id:old?old.id:uid(),name:name,scientific:el("plantScientific").value.trim(),area:el("plantArea").value.trim(),type:el("plantType").value||"bed",water:el("plantWater").value,size:el("plantSize").value||"medium",birthYear:by?Number(by):null,plantedSince:el("plantSince").value||null,transplanted:el("plantTransplanted").value||null,notes:el("plantNotes").value.trim(),fertMonths:checkedMonths("fert"),cutMonths:checkedMonths("cut"),photo:state.photoData||"",lat:old?old.lat:null,lon:old?old.lon:null,lastWatered:old?old.lastWatered:null,lastFertilized:old?old.lastFertilized:null,lastCut:old?old.lastCut:null,created:old?old.created:isoToday()}}
+function savePlant(placeAfter){try{var p=plantFromForm(),idx=state.plants.findIndex(function(x){return x.id===p.id});if(idx>=0)state.plants[idx]=p;else state.plants.push(p);if(!save())return null;show("plantEditor",false);renderAll();if(placeAfter)beginPlacePlant(p.id);return p}catch(e){globalError(e.message);return null}}
+async function identifyPlant(){if(!state.photoFile){el("aiStatus").textContent="Bitte zuerst ein Foto auswählen.";return}var key=(state.settings.plantnetKey||"").trim();if(!key){switchView("settings");notice("Für die KI-Erkennung zuerst den PlantNet-API-Key hinterlegen.");return}el("identifyBtn").disabled=true;el("aiStatus").textContent="Pflanze wird erkannt …";el("aiResults").innerHTML="";try{var fd=new FormData();fd.append("images",state.photoFile);var organ=el("plantOrgan").value;if(organ!=="auto")fd.append("organs",organ);var res=await fetch("https://my-api.plantnet.org/v2/identify/all?lang=de&include-related-images=false&api-key="+encodeURIComponent(key),{method:"POST",body:fd});if(!res.ok)throw new Error("PlantNet antwortet mit HTTP "+res.status);var data=await res.json();var rs=(data.results||[]).slice(0,5);if(!rs.length)throw new Error("Keine Pflanze erkannt");el("aiStatus").textContent="Vorschläge auswählen:";el("aiResults").innerHTML=rs.map(function(r,i){var s=r.species||{},sci=s.scientificNameWithoutAuthor||s.scientificName||"",common=(s.commonNames&&s.commonNames[0])||sci,pc=Math.round((r.score||0)*100);return '<button class="airesult" type="button" data-i="'+i+'"><b>'+esc(common)+'</b><small>'+esc(sci)+' · '+pc+' %</small></button>'}).join("");document.querySelectorAll(".airesult").forEach(function(b){b.addEventListener("click",function(){var r=rs[Number(b.dataset.i)],s=r.species||{},sci=s.scientificNameWithoutAuthor||s.scientificName||"",common=(s.commonNames&&s.commonNames[0])||sci;el("plantName").value=common;el("plantScientific").value=sci;var rule=applyCareRule(common,sci);if(rule){el("plantWater").value=rule.water;setCheckedMonths("fert",rule.fert);setCheckedMonths("cut",rule.cut);el("aiStatus").textContent="Übernommen. Pflegeprofil wurde aus der lokalen Regelbibliothek vorbelegt."}else el("aiStatus").textContent="Übernommen. Für diese Art bitte Pflegezeiten einmal prüfen bzw. ergänzen."})})}catch(e){el("aiStatus").textContent="Erkennung fehlgeschlagen: "+e.message+". Bei einer lokal geöffneten Datei kann zusätzlich eine CORS-Freigabe bei PlantNet erforderlich sein."}finally{el("identifyBtn").disabled=false}}
+function beginPlacePlant(id){var p=state.plants.find(function(x){return x.id===id});if(!p)return;state.placePlantId=id;state.setCenterMode=false;switchView("map");el("mapModeHint").textContent='Auf das Luftbild tippen, um „'+p.name+'“ zu positionieren.';show("mapModeHint",true)}
+function zoneStyle(z){var c={fullsun:"#f4c542",sunny:"#e99c38",partial:"#7caf6f",shade:"#607080"}[z.light]||"#7caf6f";return{color:c,weight:2,fillColor:c,fillOpacity:.28}}
+function initMap(){if(state.mapReady)return;if(typeof L==="undefined"){globalError("Kartenbibliothek konnte nicht geladen werden. Bitte Internetverbindung prüfen.");return}var center=state.gardenCenter?[state.gardenCenter.lat,state.gardenCenter.lon]:(state.loc?[state.loc.lat,state.loc.lon]:[48.7,9.1]);state.map=L.map("map",{zoomControl:true}).setView(center,(state.gardenCenter||state.loc)?19:8);var osm=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"© OpenStreetMap"});var dop=L.tileLayer.wms("https://owsproxy.lgl-bw.de/owsproxy/ows/WMS_LGL-BW_ATKIS_DOP_20_C",{layers:"IMAGES_DOP_20_RGB",format:"image/jpeg",transparent:false,version:"1.3.0",maxZoom:22,attribution:"Luftbild © LGL Baden-Württemberg"});dop.addTo(state.map);L.control.layers({"Luftbild BW":dop,"OpenStreetMap":osm},null,{collapsed:true}).addTo(state.map);state.zoneGroup=new L.FeatureGroup().addTo(state.map);state.markerGroup=new L.FeatureGroup().addTo(state.map);var dc=new L.Control.Draw({position:"topleft",draw:false,edit:{featureGroup:state.zoneGroup,remove:true}});state.map.addControl(dc);state.map.on("click",function(e){if(state.setCenterMode){state.gardenCenter={lat:e.latlng.lat,lon:e.latlng.lng};state.setCenterMode=false;show("mapModeHint",false);save();renderAll();refreshWeather(false);notice("Gartenmitte gespeichert. Wetter wird künftig für diese Position berechnet.");return}if(state.placePlantId){var p=state.plants.find(function(x){return x.id===state.placePlantId});if(p){p.lat=e.latlng.lat;p.lon=e.latlng.lng;state.placePlantId=null;show("mapModeHint",false);save();renderAll();notice("Pflanze auf der Karte positioniert.")}}});state.map.on(L.Draw.Event.CREATED,function(e){if(e.layerType!=="polygon")return;state.editingZoneId=null;state.pendingZone=e.layer.getLatLngs()[0].map(function(x){return{lat:x.lat,lon:x.lng}});state.map.addLayer(e.layer);e.layer._pendingZone=true;state._pendingLayer=e.layer;el("zoneName").value="";el("zoneLight").value="fullsun";el("zoneRain").value="open";el("zoneSoil").value="normal";show("zoneEditor",true);el("zoneEditor").scrollIntoView({behavior:"smooth",block:"nearest"})});state.map.on(L.Draw.Event.EDITED,function(e){e.layers.eachLayer(function(layer){if(!layer._zoneId)return;var z=state.zones.find(function(x){return x.id===layer._zoneId});if(z)z.points=layer.getLatLngs()[0].map(function(x){return{lat:x.lat,lon:x.lng}})});save();renderAll()});state.map.on(L.Draw.Event.DELETED,function(e){var ids=[];e.layers.eachLayer(function(layer){if(layer._zoneId)ids.push(layer._zoneId)});state.zones=state.zones.filter(function(z){return !ids.includes(z.id)});save();renderAll()});state.mapReady=true;renderMap()}
+function renderMap(){if(!state.mapReady)return;state.zoneGroup.clearLayers();state.markerGroup.clearLayers();if(state.gardenCenter){L.circleMarker([state.gardenCenter.lat,state.gardenCenter.lon],{radius:6,color:"#17324d",weight:2,fillColor:"#fff",fillOpacity:1}).addTo(state.markerGroup).bindTooltip("Gartenmitte")}state.zones.forEach(function(z){var poly=L.polygon(z.points.map(function(p){return[p.lat,p.lon]}),zoneStyle(z)).addTo(state.zoneGroup);poly._zoneId=z.id;poly.bindPopup('<b>'+esc(z.name||lightLabel(z.light))+'</b><br>'+lightLabel(z.light)+' · '+rainLabel(z.rain)+' · '+soilLabel(z.soil))});state.plants.filter(function(p){return p.lat&&p.lon}).forEach(function(p){var wa=waterAssessment(p);var icon=L.divIcon({className:"",html:'<div class="plant-marker '+wa.level+'">🌿</div>',iconSize:[26,26],iconAnchor:[13,13]});var m=L.marker([p.lat,p.lon],{icon:icon,draggable:true}).addTo(state.markerGroup);m.bindPopup('<b>'+esc(p.name)+'</b><br>'+esc(wa.title)+(currentZoneForPlant(p)?'<br>'+lightLabel(currentZoneForPlant(p).light):''));m.on("dragend",function(){var q=m.getLatLng();p.lat=q.lat;p.lon=q.lng;save();renderAll()})});renderZoneList()}
+function renderZoneList(){el("zoneList").innerHTML=state.zones.length?state.zones.map(function(z){return '<div class="zone-row"><div class="zmain"><b><span class="swatch" style="background:'+zoneStyle(z).color+'"></span>'+esc(z.name||lightLabel(z.light))+'</b><small>'+lightLabel(z.light)+' · '+rainLabel(z.rain)+' · '+soilLabel(z.soil)+'</small></div><div class="actions"><button class="btn secondary small zoneEdit" data-id="'+z.id+'" type="button">Bearbeiten</button><button class="btn ghost small zoneDelete" data-id="'+z.id+'" type="button">Löschen</button></div></div>'}).join(""):'';document.querySelectorAll(".zoneEdit").forEach(function(b){b.addEventListener("click",function(){var z=state.zones.find(function(x){return x.id===b.dataset.id});if(!z)return;state.editingZoneId=z.id;state.pendingZone=z.points.map(function(p){return{lat:p.lat,lon:p.lon}});el("zoneName").value=z.name||"";el("zoneLight").value=z.light||"partial";el("zoneRain").value=z.rain||"open";el("zoneSoil").value=z.soil||"normal";show("zoneEditor",true);el("zoneEditor").scrollIntoView({behavior:"smooth",block:"nearest"})})});document.querySelectorAll(".zoneDelete").forEach(function(b){b.addEventListener("click",function(){state.zones=state.zones.filter(function(z){return z.id!==b.dataset.id});save();renderAll()})})}
+function renderCalendar(){var months=nextTwelveMonths();var seasonKeys=["spring","summer","autumn","winter"];el("seasonExports").innerHTML=seasonKeys.map(function(k){var s=seasonWindow(k);return '<button class="btn secondary small seasonExport" data-season="'+k+'" type="button">'+esc(s.label)+'.ics</button>'}).join("");document.querySelectorAll(".seasonExport").forEach(function(b){b.addEventListener("click",function(){var s=seasonWindow(b.dataset.season);downloadCareICS(s.months,"Johannas_Gartenwelt_"+s.label.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g,"_")+".ics","Johanna´s Gartenwelt – "+s.label)})});el("calendarGrid").innerHTML=months.map(function(mm){var d=new Date(mm.y,mm.m-1,1),label=d.toLocaleDateString("de-DE",{month:"long",year:"numeric"}),items=careItemsForMonth(mm.m);return '<div class="calmonth"><div class="topline"><h3>'+esc(label)+'</h3>'+(items.length?'<button class="btn ghost small monthExport" data-month="'+mm.m+'" data-year="'+mm.y+'" type="button">Monat .ics</button>':'')+'</div>'+(items.length?items.map(function(x){return '<div class="calitem"><b>'+(x.kind==="fert"?'🌱':'✂️')+' '+esc(x.plant.name)+'</b>'+(x.kind==="fert"?'Düngen':'Schnitt prüfen')+'</div>'}).join(""):'<div class="muted">Keine saisonalen Pflegeaufgaben hinterlegt.</div>')+'</div>'}).join("");document.querySelectorAll(".monthExport").forEach(function(b){b.addEventListener("click",function(){var mm={m:Number(b.dataset.month),y:Number(b.dataset.year)},label=new Date(mm.y,mm.m-1,1).toLocaleDateString("de-DE",{month:"long",year:"numeric"});downloadCareICS([mm],"Johannas_Gartenwelt_"+label.replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g,"_")+".ics","Johanna´s Gartenwelt – "+label)})})}
+function ago(s){var diff=Math.round((dateObj(isoToday())-dateObj(s))/86400000);if(diff===0)return"heute";if(diff===1)return"gestern";return"vor "+diff+" Tagen"}
+function renderWeather(){if(!state.weather){el("weatherPlace").textContent="Wetter";el("weatherPlace2").textContent="Noch kein Standort eingerichtet.";return}var all=weatherRows(),t=isoToday(),past=all.filter(function(x){return x.date<t}),fc=all.filter(function(x){return x.date>=t}).slice(0,7),sel=past.slice(-state.days);var rain=sel.reduce(function(s,x){return s+x.rain},0),et=sel.reduce(function(s,x){return s+x.et0},0),wet=sel.filter(function(x){return x.rain>=1}).length,last=null;for(var i=sel.length-1;i>=0;i--){if(sel[i].rain>=2){last=sel[i];break}}var f7=fc.reduce(function(s,x){return s+x.rain},0);el("weatherPlace").textContent=state.loc?state.loc.name:"Wetter";el("weatherPlace2").textContent="PLZ "+state.plz+(state.loc&&state.loc.state?" · "+state.loc.state:"")+(state.gardenCenter?" · Wetter an Gartenposition":" · Wetter am PLZ-Mittelpunkt");el("wTotal").textContent=de1(rain)+" mm";el("wAvg").textContent=de1(rain/state.days)+" mm/Tag";el("wEt0").textContent=de1(et)+" mm";el("wBalance").textContent=(rain-et>=0?"+":"")+de1(rain-et)+" mm";el("wWet").textContent=wet+" / "+state.days;el("wLast").textContent=last?ago(last.date):"> "+state.days+" Tage";el("wFuture").textContent=de1(f7)+" mm";document.querySelectorAll(".period").forEach(function(b){b.className="btn small period "+(Number(b.dataset.days)===state.days?"":"secondary")});el("chartTitle").textContent="Niederschlag – letzte "+state.days+" Tage";var mx=5;sel.forEach(function(x){mx=Math.max(mx,x.rain)});el("chart").innerHTML=sel.map(function(x){var h=Math.max(2,Math.round(x.rain/mx*100));return '<div class="barw" title="'+fmtDate(x.date)+': '+de1(x.rain)+' mm"><div class="bar" style="height:'+h+'%"></div></div>'}).join("");el("chartFrom").textContent=sel.length?fmtDate(sel[0].date):"";el("chartTo").textContent=sel.length?fmtDate(sel[sel.length-1].date):"";el("weatherTbody").innerHTML=sel.slice().reverse().map(function(x){return'<tr><td>'+fmtDate(x.date)+'</td><td>'+de1(x.rain)+' mm</td><td>'+de1(x.et0)+' mm</td></tr>'}).join("");el("weatherForecast").innerHTML=fc.map(function(x,idx){var wd=idx===0?"Heute":dateObj(x.date).toLocaleDateString("de-DE",{weekday:"short"});return'<div class="day"><span class="muted">'+wd+'</span><b>'+de1(x.rain)+' mm</b><span class="muted">ET₀ '+de1(x.et0)+'<br>'+de1(x.min)+'° / '+de1(x.max)+'°</span></div>'}).join("")}
+function renderHeader(){el("headerLocation").textContent=state.loc?(state.loc.name+" · "+state.plz):(state.plz?"PLZ "+state.plz:"Noch kein Standort");el("plz").value=state.plz||"";el("plantnetKey").value=state.settings.plantnetKey||""}
+function renderAll(){renderHeader();renderToday();renderPlants();renderCalendar();renderWeather();renderSync();if(state.mapReady)renderMap()}
+function fitGarden(){if(!state.mapReady)return;var pts=[];if(state.gardenCenter)pts.push([state.gardenCenter.lat,state.gardenCenter.lon]);state.plants.forEach(function(p){if(p.lat&&p.lon)pts.push([p.lat,p.lon])});state.zones.forEach(function(z){z.points.forEach(function(p){pts.push([p.lat,p.lon])})});if(pts.length)state.map.fitBounds(L.latLngBounds(pts).pad(.2),{maxZoom:21});else if(state.gardenCenter)state.map.setView([state.gardenCenter.lat,state.gardenCenter.lon],20);else if(state.loc)state.map.setView([state.loc.lat,state.loc.lon],19)}
+function exportBackup(){var data={version:6,exported:new Date().toISOString(),plz:state.plz,loc:state.loc,gardenCenter:state.gardenCenter,plants:state.plants,zones:state.zones,settings:{plantnetKey:state.settings.plantnetKey||""},days:state.days};var blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Johannas_Gartenwelt_Backup_"+isoToday()+".json";document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},300)}
+async function importBackup(file){try{var data=JSON.parse(await file.text());if(!Array.isArray(data.plants)||!Array.isArray(data.zones))throw new Error("Keine gültige Johanna´s-Gartenwelt-Sicherung");state.plz=data.plz||state.plz;state.loc=data.loc||null;state.gardenCenter=data.gardenCenter||null;state.plants=data.plants;state.zones=data.zones;state.days=[7,14,30,60,90].includes(Number(data.days))?Number(data.days):30;state.settings=Object.assign({plantnetKey:DEFAULT_PLANTNET_KEY},state.settings||{},data.settings||{});if(data.settings&&Object.prototype.hasOwnProperty.call(data.settings,"plantnetKey"))state.settings.plantnetKey=data.settings.plantnetKey||"";save();renderAll();if(state.plz)refreshWeather(false);notice("Backup importiert. Enthaltener PlantNet-Schlüssel wurde ebenfalls übernommen.")}catch(e){globalError("Import fehlgeschlagen: "+e.message)}}
+function cancelPendingZone(){if(state._pendingLayer&&state.map){try{state.map.removeLayer(state._pendingLayer)}catch(e){}}state.pendingZone=null;state.editingZoneId=null;state._pendingLayer=null;show("zoneEditor",false)}
+load();buildMonthChecks("fertMonths","fert");buildMonthChecks("cutMonths","cut");document.querySelectorAll(".tab").forEach(function(b){b.addEventListener("click",function(){switchView(b.dataset.view)})});el("refreshWeather").addEventListener("click",function(){refreshWeather(true)});el("locationForm").addEventListener("submit",function(e){e.preventDefault();var p=el("plz").value.replace(/\D/g,"").slice(0,5);el("plz").value=p;if(!/^\d{5}$/.test(p)){globalError("Bitte eine gültige 5-stellige deutsche PLZ eingeben.");return}state.plz=p;save();refreshWeather(true)});el("newPlantBtn").addEventListener("click",function(){openPlantEditor(null)});el("closePlantEditor").addEventListener("click",function(){show("plantEditor",false)});el("plantPhoto").addEventListener("change",async function(){var f=this.files&&this.files[0];if(!f)return;state.photoFile=f;try{state.photoData=await compressPhoto(f);el("photoPreview").innerHTML='<img src="'+state.photoData+'" alt="Vorschau">'}catch(e){globalError(e.message)}});el("identifyBtn").addEventListener("click",identifyPlant);el("plantForm").addEventListener("submit",function(e){e.preventDefault();savePlant(false)});el("saveAndPlaceBtn").addEventListener("click",function(){savePlant(true)});el("saveApiKey").addEventListener("click",function(){state.settings.plantnetKey=el("plantnetKey").value.trim();save();notice("API-Schlüssel lokal gespeichert.")});document.querySelectorAll(".period").forEach(function(b){b.addEventListener("click",function(){state.days=Number(b.dataset.days);save();renderWeather()})});el("drawZoneBtn").addEventListener("click",function(){initMap();if(!state.mapReady)return;state.placePlantId=null;state.setCenterMode=false;show("mapModeHint",false);var drawer=new L.Draw.Polygon(state.map,{allowIntersection:false,showArea:true,shapeOptions:{color:"#2f6d8d",weight:2,fillOpacity:.2}});drawer.enable()});el("saveZoneBtn").addEventListener("click",function(){if(!state.pendingZone)return;var z={id:state.editingZoneId||uid(),name:el("zoneName").value.trim()||lightLabel(el("zoneLight").value),light:el("zoneLight").value,rain:el("zoneRain").value,soil:el("zoneSoil").value,points:state.pendingZone};var zi=state.zones.findIndex(function(x){return x.id===z.id});if(zi>=0)state.zones[zi]=z;else state.zones.push(z);if(state._pendingLayer&&state.map){try{state.map.removeLayer(state._pendingLayer)}catch(e){}}state.pendingZone=null;state.editingZoneId=null;state._pendingLayer=null;show("zoneEditor",false);save();renderAll();notice("Standortzone gespeichert.")});el("cancelZoneBtn").addEventListener("click",cancelPendingZone);el("fitGardenBtn").addEventListener("click",fitGarden);el("setGardenCenterBtn").addEventListener("click",function(){initMap();if(!state.mapReady)return;state.placePlantId=null;state.setCenterMode=true;el("mapModeHint").textContent="Auf die Mitte deines Gartens tippen. Diese Position wird lokal gespeichert und für Wetterdaten verwendet.";show("mapModeHint",true)});el("exportCareYear").addEventListener("click",function(){downloadCareICS(nextTwelveMonths(),"Johannas_Gartenwelt_Pflege_naechste_12_Monate.ics","Johanna´s Gartenwelt – Pflegejahr")});el("exportBtn").addEventListener("click",exportBackup);el("importFile").addEventListener("change",function(){var f=this.files&&this.files[0];if(f)importBackup(f);this.value=""});el("clearBtn").addEventListener("click",function(){if(confirm("Alle Pflanzen, Zonen und Pflegehistorien löschen?")){state.plants=[];state.zones=[];save();renderAll();notice("Gartendaten gelöscht.")}});el("generateGardenId").addEventListener("click",function(){el("syncGardenId").value=randomGardenId();syncReadForm();renderSync()});el("saveSyncConfig").addEventListener("click",function(){syncReadForm();renderSync();notice("Sync-Zugang auf diesem Gerät gespeichert.")});el("createCloudGarden").addEventListener("click",syncCreateGarden);el("joinCloudGarden").addEventListener("click",syncJoinGarden);el("syncNow").addEventListener("click",syncManual);el("disconnectSync").addEventListener("click",syncDisconnect);el("useCloudVersion").addEventListener("click",function(){syncPull(true)});el("useLocalVersion").addEventListener("click",function(){syncPush(true)});document.addEventListener("visibilitychange",function(){if(!document.hidden)syncCheckRemote()});window.addEventListener("error",function(e){console.error(e.error||e.message)});renderAll();syncBootstrap();if(state.plz)refreshWeather(false);
+})();
+</script>
+</body>
+</html>
