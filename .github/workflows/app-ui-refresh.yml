@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply focused mobile UX polish
+      - name: Apply final mobile UX polish
         run: python tools/app_ux_polish_runner.py
       - name: Check JavaScript and PWA assets
         shell: bash
