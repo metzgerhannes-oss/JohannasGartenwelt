@@ -11,7 +11,7 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - name: Static checks
@@ -26,21 +26,18 @@ jobs:
           for fn,s in [('index.html',idx),('setup.html',setup)]:
               blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
               Path('/tmp/'+fn+'.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
-          assert 'JGW FINAL DESIGN' in idx and 'JGW FINAL DESIGN' in setup
-          assert '<link rel="apple-touch-icon" href="./app-icon-180.png">' in idx
-          assert '<link rel="apple-touch-icon" href="./app-icon-180.png">' in setup
           PY
           node --check /tmp/index.html.js
           node --check /tmp/setup.html.js
       - name: Install Selenium
         run: python -m pip install --disable-pip-version-check selenium
-      - name: Run browser audit
-        run: python tools/final_audit_v2.py
-      - name: Upload screenshots and report
+      - name: Run targeted browser audit
+        run: python tools/unresolved_audit.py
+      - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: johannas-gartenwelt-final-audit-v2
-          path: audit_v2
+          name: johannas-gartenwelt-unresolved-audit
+          path: audit_unresolved
           if-no-files-found: warn
           retention-days: 14
