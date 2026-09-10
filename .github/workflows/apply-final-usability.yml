@@ -85,3 +85,5 @@ jobs:
           git diff --cached --check
           git commit -m "Polish final app usability"
           git push origin main
+
+# one-shot workflow
