@@ -1,0 +1,23 @@
+{
+  "name": "Johanna´s Gartenwelt",
+  "short_name": "Gartenwelt",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fbf6ef",
+  "theme_color": "#567a57",
+  "description": "Persönlicher Gartenplan mit Pflanzenpflege, Wetter und Gießempfehlungen.",
+  "icons": [
+    {
+      "src": "./app-icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "./app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
