@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply UI refresh
+      - name: Apply seasonal garden UX
         run: python tools/app_ui_refresh.py
       - name: Check JavaScript syntax
         shell: bash
@@ -32,5 +32,5 @@ jobs:
           git config user.name "Johannas Gartenwelt Bot"
           git config user.email "actions@users.noreply.github.com"
           git add index.html
-          git commit -m "Simplify settings and add garden weather status"
+          git commit -m "Add seasonal design, fixed garden map and comfort UX"
           git push
