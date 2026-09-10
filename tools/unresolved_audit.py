@@ -10,7 +10,9 @@ BASE='https://metzgerhannes-oss.github.io/JohannasGartenwelt/'
 OUT=Path('audit_unresolved'); OUT.mkdir(exist_ok=True)
 DLS=OUT/'downloads'; DLS.mkdir(exist_ok=True)
 R=[]
-def rec(n,s='PASS',d=''): R.append({'name':n,'status':s,'detail':d}); print(f'[{s}] {n}: {d}')
+def rec(n,s='PASS',d='',detail=None):
+    if detail is not None:d=detail
+    R.append({'name':n,'status':s,'detail':d}); print(f'[{s}] {n}: {d}')
 def dvr():
     o=webdriver.ChromeOptions()
     for a in ['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--lang=de-DE']: o.add_argument(a)
@@ -20,6 +22,7 @@ def wait(d,n=15):return WebDriverWait(d,n)
 def click(d,css,n=15):
     x=wait(d,n).until(EC.presence_of_element_located((By.CSS_SELECTOR,css))); d.execute_script("arguments[0].scrollIntoView({block:'center'})",x); wait(d,n).until(lambda z:x.is_displayed() and x.is_enabled()); d.execute_script('arguments[0].click()',x); return x
 def txt(d,css):return d.find_element(By.CSS_SELECTOR,css).text.strip()
+def domtxt(d,id):return (d.execute_script("return document.getElementById(arguments[0]).textContent",id) or '').strip()
 def dl(suf,before,n=15):
     end=time.time()+n
     while time.time()<end:
@@ -30,44 +33,37 @@ def dl(suf,before,n=15):
 
 d=dvr()
 try:
-    d.get(BASE+'?unresolved='+str(int(time.time()))); wait(d,20).until(EC.presence_of_element_located((By.TAG_NAME,'body')))
-    # navigation labels and touch sizes
+    d.get(BASE+'?unresolved2='+str(int(time.time()))); wait(d,20).until(EC.presence_of_element_located((By.TAG_NAME,'body')))
     try:
         labels=[x.find_elements(By.CSS_SELECTOR,'span')[-1].text.strip() for x in d.find_elements(By.CSS_SELECTOR,'.tabs .tab')]
         sizes={sel:d.execute_script('return arguments[0].getBoundingClientRect()',d.find_element(By.CSS_SELECTOR,sel)) for sel in ['#settingsGear','#quickAddPlant','.tabs .tab']}
         assert labels==['Heute','Pflanzen','Karte','Kalender','Wetter']; assert all(v['height']>=44 and v['width']>=44 for v in sizes.values())
-        rec('Navigation/Touch',detail=str(labels)+' '+str({k:round(v['height']) for k,v in sizes.items()}))
+        # Ensure the page itself does not overflow horizontally at 390px.
+        overflow=d.execute_script('return {sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,sx:window.scrollX}')
+        rec('Navigation/Touch',detail=str(labels)+' heights='+str({k:round(v['height']) for k,v in sizes.items()})+' overflow='+str(overflow))
     except Exception as e:rec('Navigation/Touch','FAIL',repr(e))
-    # location + weather diagnostics
     try:
-        click(d,'#settingsGear'); p=d.find_element(By.ID,'plz'); p.clear(); p.send_keys('72144'); click(d,"#locationForm button[type='submit']"); wait(d,25).until(lambda z:'72144' in txt(z,'#headerLocation')); click(d,'#settingsClose')
-        # Wait on the actual garden summary because it proves weather data arrived.
-        wait(d,45).until(lambda z:txt(z,'#gardenState') not in ('','Wetter wird geladen','Noch keine Wetterdaten'))
-        click(d,".tab[data-view='weather']"); time.sleep(1)
-        vals={k:txt(d,'#'+k) for k in ['wTotal','wEt0','wBalance','wWet','wLast','wFuture']}
-        if vals['wTotal'] in ('','–','-'):
-            # Diagnose whether only the weather-detail view missed a render.
-            d.execute_script("if(typeof renderWeather==='function')renderWeather()")
-            time.sleep(.5); vals2={k:txt(d,'#'+k) for k in vals}
-        else: vals2=vals
-        assert vals2['wTotal'] not in ('','–','-')
-        rec('Wetter Detailansicht',detail='vor='+json.dumps(vals,ensure_ascii=False)+' nach='+json.dumps(vals2,ensure_ascii=False))
-    except Exception as e: rec('Wetter Detailansicht','FAIL',repr(e))
-    # create plant and explicitly assign current care month, then ICS
+        click(d,'#settingsGear'); p=d.find_element(By.ID,'plz'); p.clear(); p.send_keys('72144'); click(d,"#locationForm button[type='submit']"); wait(d,30).until(lambda z:'72144' in domtxt(z,'headerLocation')); click(d,'#settingsClose')
+        wait(d,45).until(lambda z:domtxt(z,'gardenState') not in ('','Wetter wird geladen','Noch keine Wetterdaten'))
+        before={k:domtxt(d,k) for k in ['wTotal','wEt0','wBalance','wWet','wLast','wFuture']}
+        click(d,".tab[data-view='weather']"); time.sleep(.8)
+        after={k:domtxt(d,k) for k in before}
+        active=d.execute_script("return {weather:document.getElementById('view-weather').className,totalVisible:!!(document.getElementById('wTotal').offsetWidth||document.getElementById('wTotal').offsetHeight)}")
+        assert after['wTotal'] not in ('','–','-')
+        rec('Wetter Detailansicht',detail='vor='+json.dumps(before,ensure_ascii=False)+' nach='+json.dumps(after,ensure_ascii=False)+' '+json.dumps(active))
+    except Exception as e: rec('Wetter Detailansicht','FAIL',repr(e)+' DOM='+json.dumps({k:domtxt(d,k) for k in ['headerLocation','gardenState','wTotal','wEt0','wFuture']},ensure_ascii=False))
     try:
         click(d,".tab[data-view='plants']"); click(d,'#newPlantBtn'); d.find_element(By.ID,'plantName').send_keys('ICS-Testpflanze'); d.find_element(By.ID,'plantArea').send_keys('Testbeet')
         adv=d.find_element(By.ID,'plantAdvanced'); d.execute_script('arguments[0].open=true',adv)
-        m=str(time.localtime().tm_mon); cb=d.find_element(By.CSS_SELECTOR,f"#fertMonths input[value='{m}']"); d.execute_script('arguments[0].click()',cb); click(d,"#plantForm button[type='submit']"); wait(d,10).until(lambda z:'ICS-Testpflanze' in txt(z,'#plantList'))
+        m=str(time.localtime().tm_mon); cb=d.find_element(By.CSS_SELECTOR,f"#fertMonths input[value='{m}']"); d.execute_script('arguments[0].click()',cb); click(d,"#plantForm button[type='submit']"); wait(d,10).until(lambda z:'ICS-Testpflanze' in domtxt(z,'plantList'))
         click(d,".tab[data-view='calendar']"); d.execute_script("document.querySelector('.calendar-tools').open=true")
         before={p for p in DLS.iterdir() if p.suffix.lower()=='.ics'}; click(d,'#exportCareYear'); f=dl('.ics',before,15); body=f.read_text(encoding='utf-8-sig'); assert 'BEGIN:VCALENDAR' in body and 'ICS-Testpflanze' in body
         rec('ICS Export',detail=f.name)
     except Exception as e:rec('ICS Export','FAIL',repr(e))
-    # season/animation exact ids
     try:
         click(d,'#settingsGear'); Select(d.find_element(By.ID,'seasonMode')).select_by_value('winter'); time.sleep(.2); assert d.find_element(By.TAG_NAME,'body').get_attribute('data-season')=='winter'
         a=d.find_element(By.ID,'animationToggle'); old=a.is_selected(); d.execute_script('arguments[0].click()',a); assert a.is_selected()!=old; d.execute_script('arguments[0].click()',a); Select(d.find_element(By.ID,'seasonMode')).select_by_value('auto'); click(d,'#settingsClose'); rec('Jahreszeit/Animation')
     except Exception as e:rec('Jahreszeit/Animation','FAIL',repr(e))
-    # generated garden id is normalized lower-case in storage/input; verify semantically
     try:
         click(d,'#settingsGear'); d.execute_script("document.getElementById('generateGardenId').closest('details').open=true"); click(d,'#generateGardenId'); gid=d.find_element(By.ID,'syncGardenId').get_attribute('value'); assert gid.upper().startswith('JOHANNA-') and len(gid)>=10; rec('Garten-ID Generator',detail=gid); click(d,'#settingsClose')
     except Exception as e:rec('Garten-ID Generator','FAIL',repr(e))
