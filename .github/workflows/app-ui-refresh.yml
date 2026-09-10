@@ -13,20 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fix current render anchor
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('tools/app_ux_polish.py')
-          s=p.read_text(encoding='utf-8')
-          old="s = s.replace('function renderAll(){renderHeader();', onboarding_fn + 'function renderAll(){renderOnboardingGuide();renderHeader();', 1)"
-          new="s = s.replace('function renderAll(){', onboarding_fn + 'function renderAll(){renderOnboardingGuide();', 1)"
-          assert old in s
-          p.write_text(s.replace(old,new,1),encoding='utf-8')
-          PY
       - name: Apply focused mobile UX polish
-        run: python tools/app_ux_polish.py
+        run: python tools/app_ux_polish_runner.py
       - name: Check JavaScript and PWA assets
         shell: bash
         run: |
@@ -42,7 +30,9 @@ jobs:
           assert 'id="setupGuide"' in s
           assert 'id="plantAdvanced"' in s
           assert 'id="calendarToggle"' in s
+          assert 'function renderOnboardingGuide()' in s
           assert 'id="setGardenCenterBtn"' not in s
+          assert 'id="openGardenCenter"' not in s
           PY
           node --check /tmp/jgw.js
       - name: Commit polished app
