@@ -13,8 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply seasonal garden UX
-        run: python tools/app_ui_refresh.py
+      - name: Apply UX V3 UI
+        run: python tools/ux3_ui.py
+      - name: Apply UX V3 logic
+        run: python tools/ux3_logic.py
+      - name: Build PWA assets
+        run: python tools/ux3_assets.py
       - name: Check JavaScript syntax
         shell: bash
         run: |
@@ -26,11 +30,24 @@ jobs:
           Path('/tmp/jgw.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
           PY
           node --check /tmp/jgw.js
+      - name: Check UX markers
+        shell: bash
+        run: |
+          grep -q 'JGW UX V3' index.html
+          grep -q 'firstRunGuide' index.html
+          grep -q 'calendarMoreBtn' index.html
+          grep -q 'friendlyGardenExplanation' index.html
+          grep -q 'manifest.webmanifest' index.html
+          ! grep -q 'id="setGardenCenterBtn"' index.html
+          ! grep -q 'id="openGardenCenter"' index.html
+          test -s apple-touch-icon.png
+          test -s icon-192.png
+          test -s icon-512.png
       - name: Commit refreshed UI
         shell: bash
         run: |
           git config user.name "Johannas Gartenwelt Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add index.html
-          git commit -m "Add seasonal design, fixed garden map and comfort UX"
+          git add index.html manifest.webmanifest icon.svg apple-touch-icon.png icon-192.png icon-512.png
+          git commit -m "Polish mobile UX and simplify core garden flows"
           git push
