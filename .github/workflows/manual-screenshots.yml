@@ -1,0 +1,98 @@
+name: Manual screenshots
+
+on:
+  push:
+    paths:
+      - '.github/workflows/manual-screenshots.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Selenium
+        run: python -m pip install --disable-pip-version-check selenium
+      - name: Capture current UI
+        shell: bash
+        run: |
+          cat > /tmp/capture.py <<'PY'
+          import json, os, subprocess, time
+          from pathlib import Path
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+
+          out=Path('manual_screenshots'); out.mkdir(exist_ok=True)
+          server=subprocess.Popen(['python','-m','http.server','8000','--bind','127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+          time.sleep(1)
+          opt=Options(); opt.add_argument('--headless=new'); opt.add_argument('--no-sandbox'); opt.add_argument('--disable-dev-shm-usage'); opt.add_argument('--window-size=390,844'); opt.add_argument('--force-device-scale-factor=1')
+          d=webdriver.Chrome(options=opt)
+          d.set_window_size(390,844)
+          base='http://127.0.0.1:8000/'
+          try:
+              d.get(base+'index.html')
+              demo={
+                'plz':'72144',
+                'loc':{'lat':48.532,'lon':9.143,'name':'Dußlingen','state':'Baden-Württemberg'},
+                'gardenCenter':{'lat':48.5322,'lon':9.1433},
+                'plants':[
+                  {'id':'p1','name':'Hortensie','scientific':'Hydrangea macrophylla','area':'Terrasse','type':'bed','water':'high','size':'medium','birthYear':2024,'since':'2025-04-15','transplanted':'','organ':'auto','fert':[3,4,5,6,7],'cut':[2,3],'notes':'','photo':'','lat':48.53225,'lon':9.1432,'history':[]},
+                  {'id':'p2','name':'Lavendel','scientific':'Lavandula angustifolia','area':'Südbeet','type':'bed','water':'low','size':'medium','birthYear':2023,'since':'2024-05-10','transplanted':'','organ':'auto','fert':[3,4],'cut':[3,4,7,8],'notes':'','photo':'','lat':48.5321,'lon':9.14345,'history':[]},
+                  {'id':'p3','name':'Apfelbaum','scientific':'Malus domestica','area':'Rasen','type':'bed','water':'normal','size':'large','birthYear':2020,'since':'2020-10-01','transplanted':'','organ':'auto','fert':[3,4],'cut':[2,3,7,8],'notes':'','photo':'','lat':48.53235,'lon':9.14355,'history':[]}
+                ],
+                'zones':[],
+                'settings':{'plantnetKey':'DEMO-KEY-FUER-DOKU','seasonMode':'autumn','animations':True,'mapView':{'lat':48.5322,'lon':9.1433,'zoom':20},'onboardingDismissed':True},
+                'days':30
+              }
+              sync={'url':'https://example.supabase.co','key':'sb_publishable_demo_key_1234567890','gardenId':'johanna-demo12','pin':'123456','enabled':False,'revision':0,'lastSync':'','lastPayloadHash':'','dirty':False}
+              d.execute_script("localStorage.setItem('giess_check_garten_v3', arguments[0]); localStorage.setItem('johannas_gartenwelt_sync_v1', arguments[1]);",json.dumps(demo),json.dumps(sync))
+              d.refresh(); time.sleep(5)
+              # Keep screenshots clean and stable.
+              d.execute_script("document.getElementById('globalError')?.classList.add('hidden'); document.getElementById('globalNotice')?.classList.add('hidden'); window.scrollTo(0,0)")
+              d.save_screenshot(str(out/'01_heute.png'))
+
+              def tab(view,name,delay=1.0):
+                  el=d.find_element(By.CSS_SELECTOR,f'.tab[data-view="{view}"]'); d.execute_script('arguments[0].click()',el); time.sleep(delay); d.execute_script('window.scrollTo(0,0)'); time.sleep(.2); d.save_screenshot(str(out/name))
+              tab('plants','02_pflanzen.png')
+              d.execute_script("document.getElementById('newPlantBtn').click(); window.scrollTo(0,0)"); time.sleep(.5); d.save_screenshot(str(out/'03_pflanze_anlegen.png'))
+              d.execute_script("document.getElementById('closePlantEditor').click()")
+              tab('map','04_karte.png',2.0)
+              tab('calendar','05_kalender.png')
+              tab('weather','06_wetter.png',1.0)
+              d.execute_script("document.getElementById('settingsGear').click();"); time.sleep(.5); d.save_screenshot(str(out/'07_einstellungen.png'))
+              d.execute_script("document.getElementById('settingsClose').click();")
+
+              # Setup generator with demo credentials - no personal secrets.
+              d.get(base+'setup.html'); time.sleep(2)
+              d.execute_script("localStorage.setItem('giess_check_garten_v3', arguments[0]); localStorage.setItem('johannas_gartenwelt_sync_v1', arguments[1]);",json.dumps(demo),json.dumps(sync))
+              d.refresh(); time.sleep(2)
+              # Fill PIN only to generate the encrypted demo QR if required.
+              for sel,val in [('#pin','123456'),('#setupPin','123456')]:
+                  try:
+                      e=d.find_element(By.CSS_SELECTOR,sel); e.clear(); e.send_keys(val)
+                  except Exception: pass
+              # Try likely QR-generator button texts/ids.
+              clicked=False
+              for css in ['#generateQr','#generateQR','#makeQr','button[data-action="generate"]']:
+                  try:
+                      e=d.find_element(By.CSS_SELECTOR,css); d.execute_script('arguments[0].click()',e); clicked=True; break
+                  except Exception: pass
+              if not clicked:
+                  for e in d.find_elements(By.TAG_NAME,'button'):
+                      if 'QR' in e.text and ('erzeugen' in e.text or 'generieren' in e.text):
+                          d.execute_script('arguments[0].click()',e); clicked=True; break
+              time.sleep(2); d.execute_script('window.scrollTo(0,0)'); d.save_screenshot(str(out/'08_qr_einrichtung.png'))
+          finally:
+              d.quit(); server.terminate(); server.wait(timeout=5)
+          PY
+          python /tmp/capture.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manual-screenshots-final
+          path: manual_screenshots
+          retention-days: 7
