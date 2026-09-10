@@ -1,0 +1,112 @@
+from pathlib import Path
+import re
+
+path = Path('index.html')
+s = path.read_text(encoding='utf-8')
+
+# 1) New UI styles
+marker = '@media(max-width:850px)'
+assert marker in s
+css = r'''
+.brandtools{display:flex;align-items:center;gap:8px;position:relative;z-index:2}
+.gearbtn{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(200,165,106,.38);background:rgba(255,253,249,.92);color:var(--forest-dark);font-size:21px;line-height:1;box-shadow:0 4px 14px rgba(109,135,104,.09);padding:0}
+.gearbtn:hover{background:#fff}
+.settings-overlay{position:fixed;inset:0;background:rgba(54,49,44,.34);backdrop-filter:blur(4px);z-index:5000;display:flex;justify-content:flex-end;padding:0}
+.settings-overlay.hidden{display:none!important}
+.settings-sheet{width:min(620px,100%);height:100%;overflow:auto;background:linear-gradient(180deg,#fbf6ef,#f7f4ef);box-shadow:-18px 0 50px rgba(54,49,44,.18);padding:18px 18px 32px}
+.settings-head{position:sticky;top:-18px;z-index:3;margin:-18px -18px 12px;padding:19px 18px 12px;background:rgba(251,246,239,.96);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.settings-head h2{margin:0;color:var(--forest-dark)}
+.settings-close{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:#fffdf9;color:var(--forest-dark);font-size:22px;line-height:1}
+.settings-section{background:rgba(255,253,249,.96);border:1px solid var(--line);border-radius:18px;padding:15px;margin-top:11px;box-shadow:0 7px 18px rgba(109,135,104,.07)}
+.settings-section h3{margin:0 0 5px;color:var(--forest-dark)}
+.settings-section details{margin-top:10px;border-top:1px solid #f0e7dd;padding-top:9px}
+.settings-section .section-status{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:5px 8px;border-radius:999px;background:#f4ede4;color:var(--forest-dark);font-size:11px;font-weight:700}
+.settings-section .section-status.ok{background:var(--ok)}
+.settings-danger{border-color:#e8c6bd;background:#fffafa}
+body.settings-open{overflow:hidden}
+.state-card{margin-top:12px;border:1px solid var(--line);border-radius:20px;padding:16px;background:linear-gradient(135deg,#f7f3ec,#f2f7ef);box-shadow:0 7px 18px rgba(109,135,104,.06)}
+.state-card.state-wet{background:linear-gradient(135deg,#eef5f7,#edf4f2)}
+.state-card.state-moist{background:linear-gradient(135deg,#eef6eb,#f4f8f1)}
+.state-card.state-balanced{background:linear-gradient(135deg,#f4f6ec,#f8f5ed)}
+.state-card.state-dryish{background:linear-gradient(135deg,#fff6df,#faf1e5)}
+.state-card.state-dry{background:linear-gradient(135deg,#faeee4,#fff4e6)}
+.state-card.state-verydry{background:linear-gradient(135deg,#faece7,#fff1e6)}
+.state-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.state-kicker{font-size:11px;text-transform:uppercase;letter-spacing:.09em;font-weight:800;color:var(--muted)}
+.state-title{font-size:27px;line-height:1.1;font-weight:700;color:var(--forest-dark);margin-top:3px}
+.state-badge{border-radius:999px;padding:7px 10px;background:rgba(255,255,255,.72);border:1px solid rgba(200,165,106,.28);font-size:11px;font-weight:800;color:var(--forest-dark)}
+.state-text{font-size:13px;color:var(--muted);line-height:1.45;margin-top:6px}
+.state-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:13px}
+.state-item{background:rgba(255,255,255,.68);border:1px solid rgba(231,217,203,.9);border-radius:14px;padding:10px;min-width:0}
+.state-item .state-label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800}
+.state-item .state-value{font-size:14px;font-weight:700;color:var(--forest-dark);margin-top:4px;line-height:1.3}
+.state-item.frost{border-color:#cbdbe2;background:rgba(240,247,250,.86)}
+@media(max-width:560px){.brand{align-items:center;flex-wrap:nowrap}.brand h1{font-size:26px}.brandtools{margin-left:auto}.locpill{display:none}.gearbtn{width:40px;height:40px}.state-grid{grid-template-columns:1fr}.state-title{font-size:24px}.settings-sheet{padding:14px 12px 28px}.settings-head{top:-14px;margin:-14px -12px 10px;padding:15px 12px 10px}}
+'''
+s = s.replace(marker, css + '\n' + marker, 1)
+
+# 2) Header: settings moves to gear
+old_header = '''  <div class="brand">\n    <div><h1>Johanna´s Gartenwelt</h1></div>\n    <div class="locpill" id="headerLocation">Noch kein Standort</div>\n  </div>\n  <nav class="tabs" aria-label="Bereiche">\n    <button class="tab active" data-view="today" type="button">Heute</button>\n    <button class="tab" data-view="map" type="button">Karte</button>\n    <button class="tab" data-view="plants" type="button">Pflanzen</button>\n    <button class="tab" data-view="calendar" type="button">Kalender</button>\n    <button class="tab" data-view="weather" type="button">Wetter</button>\n    <button class="tab" data-view="settings" type="button">Einstellungen</button>\n  </nav>'''
+new_header = '''  <div class="brand">\n    <div><h1>Johanna´s Gartenwelt</h1></div>\n    <div class="brandtools">\n      <div class="locpill" id="headerLocation">Noch kein Standort</div>\n      <button class="gearbtn" id="settingsGear" type="button" aria-label="Einstellungen öffnen" title="Einstellungen">⚙</button>\n    </div>\n  </div>\n  <nav class="tabs" aria-label="Bereiche">\n    <button class="tab active" data-view="today" type="button">Heute</button>\n    <button class="tab" data-view="map" type="button">Karte</button>\n    <button class="tab" data-view="plants" type="button">Pflanzen</button>\n    <button class="tab" data-view="calendar" type="button">Kalender</button>\n    <button class="tab" data-view="weather" type="button">Wetter</button>\n  </nav>'''
+assert s.count(old_header) == 1, 'header pattern changed'
+s = s.replace(old_header, new_header, 1)
+
+# 3) Today: readable garden state
+old_today = '''<section class="view active" id="view-today">\n  <div class="box">\n    <div class="topline"><div><h2>Heute im Garten</h2><div class="muted" id="todayDate"></div></div><div class="actions"><button class="btn secondary small" id="refreshWeather" type="button">Wetter aktualisieren</button></div></div>\n    <div id="todayWeather" class="recommend warn"><div class="rtitle">Standort einrichten</div><div class="rtext">Lege unter Einstellungen zuerst deine PLZ fest.</div></div>\n  </div>\n  <div class="box">\n    <div class="topline"><h3>Aufgaben</h3><span class="muted" id="taskCount"></span></div>\n    <div id="tasks" class="tasklist"></div>\n  </div>\n</section>'''
+new_today = '''<section class="view active" id="view-today">\n  <div class="box">\n    <div class="topline"><div><h2>Heute im Garten</h2><div class="muted" id="todayDate"></div></div><div class="actions"><button class="btn ghost small" id="refreshWeather" type="button">↻ Aktualisieren</button></div></div>\n    <div id="todayWeather" class="state-card">\n      <div class="state-head">\n        <div><div class="state-kicker">Gartenlage</div><div class="state-title" id="gardenState">Wetter wird geladen</div></div>\n        <div class="state-badge" id="gardenStateBadge">–</div>\n      </div>\n      <div class="state-text" id="gardenStateText">Die Gartenlage wird aus Regen und Verdunstung der vergangenen Tage berechnet.</div>\n      <div class="state-grid">\n        <div class="state-item"><div class="state-label">Trockentage</div><div class="state-value" id="gardenDryDays">–</div></div>\n        <div class="state-item"><div class="state-label">Nächster Regen</div><div class="state-value" id="gardenNextRain">–</div></div>\n        <div class="state-item" id="gardenFrostBox"><div class="state-label">Frost</div><div class="state-value" id="gardenFrost">–</div></div>\n      </div>\n    </div>\n  </div>\n  <div class="box">\n    <div class="topline"><h3>Heute zu tun</h3><span class="muted" id="taskCount"></span></div>\n    <div id="tasks" class="tasklist"></div>\n  </div>\n</section>'''
+assert s.count(old_today) == 1, 'today pattern changed'
+s = s.replace(old_today, new_today, 1)
+
+# 4) Settings into compact overlay
+settings_re = re.compile(r'<section class="view" id="view-settings">.*?</section>\n\n<div class="foot">', re.S)
+assert len(settings_re.findall(s)) == 1, 'settings section pattern changed'
+new_settings = '''<div class="settings-overlay hidden" id="settingsOverlay" aria-hidden="true">\n  <aside class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">\n    <div class="settings-head"><div><h2 id="settingsTitle">Einstellungen</h2><div class="muted">Nur Dinge, die selten geändert werden.</div></div><button class="settings-close" id="settingsClose" type="button" aria-label="Einstellungen schließen">×</button></div>\n\n    <section class="settings-section" id="settingsLocation">\n      <h3>Standort</h3>\n      <div class="muted">Für Wetter und Gießempfehlungen genügt die Postleitzahl. Die genaue Gartenmitte kann bei Bedarf auf der Karte gesetzt werden.</div>\n      <form id="locationForm" style="margin-top:11px"><div class="field"><label for="plz">Postleitzahl</label><input id="plz" maxlength="5" inputmode="numeric" pattern="[0-9]{5}" placeholder="z. B. 72144" required></div><div class="actions" style="margin-top:8px"><button class="btn small" type="submit">Standort laden</button><button class="btn ghost small" id="openGardenCenter" type="button">Gartenmitte auf Karte</button></div></form>\n      <div class="muted" id="locationStatus" style="margin-top:8px"></div>\n    </section>\n\n    <section class="settings-section" id="settingsSync">\n      <h3>Geräte & Synchronisation</h3>\n      <div class="muted">Damit iPhone, iPad und PC denselben Garten verwenden.</div>\n      <div id="syncStatus" class="sync-status warn"><b>Nicht eingerichtet</b><small>Die App funktioniert weiterhin lokal.</small></div>\n      <div class="actions" style="margin-top:9px"><a class="btn small" href="./setup.html">Neues Gerät hinzufügen</a><div id="syncActiveActions"><button class="btn secondary small" id="syncNow" type="button">Jetzt synchronisieren</button></div></div>\n      <div id="syncConflict" class="sync-conflict hidden"><b>Änderungskonflikt</b><div class="muted">Auf einem anderen Gerät wurde der Garten geändert, während dieses Gerät noch nicht synchronisiert war.</div><div class="actions" style="margin-top:8px"><button class="btn small" id="useCloudVersion" type="button">Cloud-Stand laden</button><button class="btn danger small" id="useLocalVersion" type="button">Dieses Gerät übernehmen</button></div></div>\n      <details>\n        <summary>Technische Verbindungsdaten</summary>\n        <div class="muted" style="margin-top:7px">Normalerweise nur bei der Ersteinrichtung oder Fehlersuche notwendig.</div>\n        <div class="sync-fields">\n          <div class="field full"><label for="syncUrl">Supabase Project URL</label><input id="syncUrl" inputmode="url" autocomplete="off" placeholder="https://…supabase.co"></div>\n          <div class="field full"><label for="syncKey">Supabase Publishable Key</label><input id="syncKey" type="password" autocomplete="off" placeholder="sb_publishable_…"></div>\n          <div class="field"><label for="syncGardenId">Garten-ID</label><input id="syncGardenId" autocomplete="off" spellcheck="false" placeholder="z. B. JOHANNA-AB12CD"></div>\n          <div class="field"><label for="syncPin">Garten-PIN / Passwort</label><input id="syncPin" type="password" autocomplete="new-password" minlength="6" placeholder="mind. 6 Zeichen"></div>\n        </div>\n        <div class="actions" style="margin-top:9px"><button class="btn secondary small" id="generateGardenId" type="button">Garten-ID erzeugen</button><button class="btn secondary small" id="saveSyncConfig" type="button">Zugang speichern</button></div>\n        <div class="actions" style="margin-top:8px"><button class="btn small" id="createCloudGarden" type="button">Diesen Garten freigeben</button><button class="btn secondary small" id="joinCloudGarden" type="button">Gemeinsamen Garten verbinden</button><button class="btn ghost small" id="disconnectSync" type="button">Sync trennen</button></div>\n      </details>\n    </section>\n\n    <section class="settings-section" id="settingsPlantnet">\n      <h3>Pflanzenerkennung</h3>\n      <div class="muted">PlantNet ist nur für die automatische Bestimmung von Pflanzen nötig.</div>\n      <div class="section-status" id="plantnetStatus">Status wird geprüft</div>\n      <details>\n        <summary>API-Schlüssel ändern</summary>\n        <div class="field" style="margin-top:9px"><label for="plantnetKey">PlantNet API-Key</label><input id="plantnetKey" type="password" autocomplete="off" placeholder="API-Key"></div>\n        <div class="actions" style="margin-top:8px"><button class="btn secondary small" id="saveApiKey" type="button">Schlüssel speichern</button></div>\n        <div class="muted" style="margin-top:8px">Die App funktioniert auch ohne Pflanzenerkennung.</div>\n      </details>\n    </section>\n\n    <section class="settings-section">\n      <h3>Datensicherung</h3>\n      <div class="muted">Zusätzliche lokale Sicherung von Pflanzen, Fotos, Zonen und Pflegehistorie.</div>\n      <div class="actions" style="margin-top:10px"><button class="btn secondary small" id="exportBtn" type="button">Backup exportieren</button><label class="btn ghost small" for="importFile" style="display:inline-block">Backup importieren</label><input class="hidden" id="importFile" type="file" accept="application/json,.json"></div>\n    </section>\n\n    <details class="settings-section settings-danger">\n      <summary>Erweiterte Einstellungen</summary>\n      <div class="muted" style="margin-top:8px">Diese Funktion wird im normalen Betrieb nicht benötigt.</div>\n      <div class="actions" style="margin-top:10px"><button class="btn danger small" id="clearBtn" type="button">Lokale Gartendaten löschen</button></div>\n    </details>\n  </aside>\n</div>\n\n<div class="foot">'''
+s = settings_re.sub(new_settings, s, count=1)
+
+# 5) Helpers for settings panel and garden state
+anchor = 'function switchView(name){'
+assert anchor in s
+helpers = r'''function openSettings(sectionId){var o=el("settingsOverlay");if(!o)return;o.classList.remove("hidden");o.setAttribute("aria-hidden","false");document.body.classList.add("settings-open");setTimeout(function(){if(sectionId&&el(sectionId))el(sectionId).scrollIntoView({behavior:"smooth",block:"start"})},60)}
+function closeSettings(){var o=el("settingsOverlay");if(!o)return;o.classList.add("hidden");o.setAttribute("aria-hidden","true");document.body.classList.remove("settings-open")}
+function relativeDayLabel(date){var t=isoToday(),tom=new Date(dateObj(t).getTime()+86400000),tomIso=tom.getFullYear()+"-"+String(tom.getMonth()+1).padStart(2,"0")+"-"+String(tom.getDate()).padStart(2,"0");if(date===t)return"Heute";if(date===tomIso)return"Morgen";return dateObj(date).toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit"})}
+function gardenWeatherSummary(){if(!state.weather)return null;var rows=weatherRows(),t=isoToday(),past=rows.filter(function(x){return x.date<t}).slice(-30),r14=past.slice(-14),fc=rows.filter(function(x){return x.date>=t}).slice(0,7);var rain14=r14.reduce(function(s,x){return s+x.rain},0),et14=r14.reduce(function(s,x){return s+x.et0},0),balance=rain14-et14,dryDays=0;for(var i=past.length-1;i>=0;i--){if(past[i].rain>=2)break;dryDays++}var levels=[{name:"Nass",cls:"state-wet"},{name:"Feucht",cls:"state-moist"},{name:"Ausgeglichen",cls:"state-balanced"},{name:"Eher trocken",cls:"state-dryish"},{name:"Trocken",cls:"state-dry"},{name:"Sehr trocken",cls:"state-verydry"}],idx;if(balance>=20||rain14>=45)idx=0;else if(balance>=5||rain14>=30)idx=1;else if(balance>-8)idx=2;else if(balance>-22)idx=3;else if(balance>-38)idx=4;else idx=5;if(dryDays>=10&&idx<3)idx=3;if(dryDays>=18&&idx<4)idx=4;var nextRain=null;for(var j=0;j<fc.length;j++){if(fc[j].rain>=2){nextRain=fc[j];break}}var frost=null;for(var k=0;k<Math.min(4,fc.length);k++){if(fc[k].min<=0){frost=fc[k];break}}var explanation="14-Tage-Bilanz "+(balance>=0?"+":"")+de1(balance)+" mm · "+de1(rain14)+" mm Regen, "+de1(et14)+" mm Verdunstung.";return{name:levels[idx].name,cls:levels[idx].cls,balance:balance,dryDays:dryDays,nextRain:nextRain,frost:frost,explanation:explanation}}
+'''
+s = s.replace(anchor, helpers + anchor, 1)
+
+# Settings links instead of old tab
+old = 'if(!state.plz){switchView("settings");notice("Bitte zuerst die PLZ einrichten.");return}'
+assert old in s
+s = s.replace(old, 'if(!state.plz){openSettings("settingsLocation");notice("Bitte zuerst die PLZ einrichten.");return}', 1)
+old = 'if(!key){switchView("settings");notice("Für die KI-Erkennung zuerst den PlantNet-API-Key hinterlegen.");return}'
+assert old in s
+s = s.replace(old, 'if(!key){openSettings("settingsPlantnet");notice("Für die KI-Erkennung zuerst die Pflanzenerkennung einrichten.");return}', 1)
+s = s.replace('function switchView(name){document.querySelectorAll', 'function switchView(name){closeSettings();document.querySelectorAll', 1)
+
+# 6) Replace Today rendering
+rt = re.compile(r'function renderToday\(\)\{.*?\}\nfunction renderPlants', re.S)
+assert len(rt.findall(s)) == 1, 'renderToday pattern changed'
+new_render_today = r'''function renderToday(){el("todayDate").textContent=new Date().toLocaleDateString("de-DE",{weekday:"long",day:"2-digit",month:"long",year:"numeric"});var tw=el("todayWeather"),gs=el("gardenState"),gb=el("gardenStateBadge"),gt=el("gardenStateText"),gd=el("gardenDryDays"),gn=el("gardenNextRain"),gf=el("gardenFrost"),gfb=el("gardenFrostBox");var summary=gardenWeatherSummary();if(!summary){tw.className="state-card";gs.textContent="Noch keine Wetterdaten";gb.textContent="Standort fehlt";gt.innerHTML='Öffne oben rechts das <b>Zahnrad</b> und hinterlege einmal deine Postleitzahl.';gd.textContent="–";gn.textContent="–";gf.textContent="–";gfb.classList.remove("frost")}else{tw.className="state-card "+summary.cls;gs.textContent=summary.name;gb.textContent=summary.name.toUpperCase();gt.textContent=summary.explanation;gd.textContent=summary.dryDays===0?"Heute Regen":summary.dryDays+" "+(summary.dryDays===1?"Tag":"Tage");gn.textContent=summary.nextRain?(relativeDayLabel(summary.nextRain.date)+" · "+de1(summary.nextRain.rain)+" mm"):"Nicht in 7 Tagen";if(summary.frost){gf.textContent=relativeDayLabel(summary.frost.date)+" · "+de1(summary.frost.min)+" °C";gfb.classList.add("frost")}else{gf.textContent="Kein Frost in Sicht";gfb.classList.remove("frost")}}var tasks=getTodayTasks();el("taskCount").textContent=tasks.length?tasks.length+" offen":"nichts offen";if(!state.plants.length){el("tasks").innerHTML='<div class="empty">Noch keine Pflanzen angelegt. Unter „Pflanzen“ kannst du mit dem ersten Foto starten.</div>';return}if(!tasks.length){el("tasks").innerHTML='<div class="empty">Für heute ergibt sich aus den hinterlegten Daten keine Aufgabe.</div>';return}el("tasks").innerHTML=tasks.map(function(t){var action=t.kind==="water"?"Gegossen":t.kind==="fert"?"Gedüngt":"Geschnitten";return '<div class="task '+t.level+'"><div class="taskicon">'+t.icon+'</div><div><b>'+esc(t.plant.name)+' · '+esc(t.title)+'</b><div class="why">'+esc(t.why)+'</div></div><div class="actions"><button class="btn small taskDone" data-id="'+t.plant.id+'" data-kind="'+t.kind+'" type="button">'+action+'</button></div></div>'}).join("");document.querySelectorAll(".taskDone").forEach(function(b){b.addEventListener("click",function(){var p=state.plants.find(function(x){return x.id===b.dataset.id});if(!p)return;var key=b.dataset.kind==="water"?"lastWatered":b.dataset.kind==="fert"?"lastFertilized":"lastCut";p[key]=isoToday();save();renderAll()})})}
+function renderPlants'''
+s = rt.sub(new_render_today, s, count=1)
+
+# 7) PlantNet status in compact settings
+rh = re.compile(r'function renderHeader\(\)\{.*?\}\nfunction renderAll', re.S)
+assert len(rh.findall(s)) == 1, 'renderHeader pattern changed'
+new_header_render = r'''function renderHeader(){el("headerLocation").textContent=state.loc?(state.loc.name+" · "+state.plz):(state.plz?"PLZ "+state.plz:"Noch kein Standort");el("plz").value=state.plz||"";el("plantnetKey").value=state.settings.plantnetKey||"";var ps=el("plantnetStatus");if(ps){var active=!!String(state.settings.plantnetKey||"").trim();ps.className="section-status "+(active?"ok":"");ps.textContent=active?"Pflanzenerkennung aktiv":"Nicht eingerichtet"}}
+function renderAll'''
+s = rh.sub(new_header_render, s, count=1)
+
+# 8) Settings panel events
+event_anchor = 'load();buildMonthChecks("fertMonths","fert");buildMonthChecks("cutMonths","cut");'
+assert event_anchor in s
+event_code = event_anchor + r'''el("settingsGear").addEventListener("click",function(){openSettings()});el("settingsClose").addEventListener("click",closeSettings);el("settingsOverlay").addEventListener("click",function(e){if(e.target===this)closeSettings()});document.addEventListener("keydown",function(e){if(e.key==="Escape")closeSettings()});el("openGardenCenter").addEventListener("click",function(){closeSettings();switchView("map");setTimeout(function(){el("setGardenCenterBtn").click()},80)});'''
+s = s.replace(event_anchor, event_code, 1)
+
+# Guardrails
+assert 'data-view="settings"' not in s
+assert 'switchView("settings")' not in s
+for ident in ['settingsGear','settingsOverlay','gardenState','gardenDryDays','gardenNextRain','gardenFrost','syncNow','plantnetKey']:
+    assert s.count('id="'+ident+'"') == 1, (ident, s.count('id="'+ident+'"'))
+
+path.write_text(s, encoding='utf-8')
+print('index.html patched successfully')
