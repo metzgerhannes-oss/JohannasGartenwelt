@@ -1,0 +1,76 @@
+name: iPhone Home Screen navigation fix
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/ios-nav-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply iOS navigation fix
+        run: python tools/ios_nav_safe_area_fix.py
+      - name: Validate markup and JavaScript
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          for marker in ['apple-mobile-web-app-capable','apple-mobile-web-app-status-bar-style','--jgw-browser-bottom','display-mode: standalone','window.navigator.standalone']:
+              assert marker in s, marker
+          assert 'bottom:var(--jgw-browser-bottom,0px)' in s
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          PY
+          node --check /tmp/index.js
+          git diff --check
+      - name: Install Selenium
+        run: python -m pip install --disable-pip-version-check selenium
+      - name: Mobile navigation smoke test
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess,time
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+          server=subprocess.Popen(['python','-m','http.server','8000','--bind','127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+          opt=Options();opt.add_argument('--headless=new');opt.add_argument('--no-sandbox');opt.add_argument('--disable-dev-shm-usage');opt.add_argument('--window-size=390,844')
+          d=webdriver.Chrome(options=opt);d.set_window_size(390,844)
+          try:
+              d.get('http://127.0.0.1:8000/index.html');time.sleep(.4)
+              tabs=d.find_element(By.CSS_SELECTOR,'.tabs')
+              assert tabs.value_of_css_property('position')=='fixed'
+              assert len(d.find_elements(By.CSS_SELECTOR,'.tabs .tab'))==5
+              # Simulate a browser-chrome offset and ensure CSS actually moves the tab bar.
+              d.execute_script("document.documentElement.style.setProperty('--jgw-browser-bottom','64px')")
+              time.sleep(.1)
+              bottom=tabs.value_of_css_property('bottom')
+              assert bottom=='64px',bottom
+              rect=d.execute_script('return arguments[0].getBoundingClientRect()',tabs)
+              assert rect['bottom'] <= d.execute_script('return window.innerHeight')-63
+              # Navigation remains clickable.
+              d.find_element(By.CSS_SELECTOR,'.tab[data-view="plants"]').click();time.sleep(.1)
+              assert 'active' in d.find_element(By.CSS_SELECTOR,'.tab[data-view="plants"]').get_attribute('class')
+              print('iPhone navigation smoke test OK')
+          finally:
+              d.quit();server.terminate();server.wait(timeout=5)
+          PY
+      - name: Commit and clean temporary files
+        shell: bash
+        run: |
+          rm -f tools/ios_nav_safe_area_fix.py .github/workflows/ios-nav-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix iPhone Home Screen bottom navigation"
+          git push origin main
