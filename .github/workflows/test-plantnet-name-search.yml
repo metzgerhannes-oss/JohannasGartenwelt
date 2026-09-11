@@ -53,7 +53,7 @@ jobs:
               WebDriverWait(d,4).until(EC.visibility_of_element_located((By.CSS_SELECTOR,'.plant-name-result')))
               result=d.find_element(By.CSS_SELECTOR,'.plant-name-result')
               assert 'Hortensie' in result.text and 'Hydrangea macrophylla' in result.text, result.text
-              result.click(); time.sleep(.2)
+              d.execute_script('arguments[0].click()',result); time.sleep(.2)
               assert d.find_element(By.ID,'plantName').get_attribute('value')=='Hortensie'
               assert d.find_element(By.ID,'plantScientific').get_attribute('value')=='Hydrangea macrophylla'
               assert d.find_element(By.ID,'plantWater').get_attribute('value')=='high'
