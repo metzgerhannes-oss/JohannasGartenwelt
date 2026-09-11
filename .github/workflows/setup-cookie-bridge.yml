@@ -1,0 +1,55 @@
+name: Reliable iOS setup bridge
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/setup-cookie-bridge.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply setup bridge
+        run: python tools/setup_cookie_bridge.py
+      - name: Validate setup flow
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re, json
+          s=Path('setup.html').read_text(encoding='utf-8')
+          for marker in [
+              '<link rel="manifest" href="./setup.webmanifest">',
+              'SETUP_COOKIE="jgw_setup_install"',
+              'function setInstallCookie',
+              'function getInstallCookie',
+              'function clearInstallCookie',
+              'cookieToken=getInstallCookie()',
+              'else if(cookieToken)showReceiver(cookieToken,"standalone")',
+              'clearInstallCookie();clearSetupUrl()'
+          ]:
+              assert marker in s, marker
+          m=json.loads(Path('setup.webmanifest').read_text(encoding='utf-8'))
+          assert m['display']=='standalone'
+          assert m['start_url']=='./setup.html'
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/setup.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          PY
+          node --check /tmp/setup.js
+          git diff --check
+      - name: Commit and clean temporary files
+        shell: bash
+        run: |
+          rm -f tools/setup_cookie_bridge.py .github/workflows/setup-cookie-bridge.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Make iOS web app setup reliable with cookie bridge"
+          git push origin main
