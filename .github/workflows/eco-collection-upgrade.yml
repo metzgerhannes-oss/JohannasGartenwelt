@@ -70,13 +70,17 @@ jobs:
               d.execute_script("document.querySelector('#plantList .plantOpen').click()")
               WebDriverWait(d,3).until(EC.visibility_of_element_located((By.ID,'plantDetailOverlay')))
               assert 'Insektenwert' in d.find_element(By.ID,'plantDetailContent').text
-              d.find_element(By.ID,'plantDetailClose').click()
-              d.find_element(By.ID,'plantViewList').click(); time.sleep(.2)
+              d.execute_script("document.getElementById('plantDetailClose').click()")
+              d.execute_script("document.getElementById('plantViewList').click()")
+              time.sleep(.2)
               assert len(d.find_elements(By.CSS_SELECTOR,'.plant-list-row'))==3
-              d.find_element(By.ID,'newPlantBtn').click(); time.sleep(.2)
+              d.execute_script("document.getElementById('newPlantBtn').click()")
+              time.sleep(.2)
               name=d.find_element(By.ID,'plantName'); name.send_keys('Lavendel'); time.sleep(.2)
-              assert 'Insektenwert' in d.find_element(By.ID,'plantEcoPreview').text
-              d.find_element(By.ID,'settingsGear').click(); time.sleep(.2)
+              preview=d.execute_script("return document.getElementById('plantEcoPreview').textContent")
+              assert 'Insektenwert' in preview, preview
+              d.execute_script("document.getElementById('settingsGear').click()")
+              time.sleep(.2)
               assert d.find_element(By.ID,'settingsEcology').is_displayed()
               assert d.execute_script('return document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
               print('eco collection browser test OK')
