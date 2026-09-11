@@ -1,0 +1,98 @@
+name: Updated manual screenshots
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/manual-v2-screens.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Selenium
+        run: python -m pip install --disable-pip-version-check selenium
+      - name: Capture screenshots
+        shell: bash
+        run: |
+          mkdir -p manual-v2-screens
+          python - <<'PY'
+          import json, subprocess, time
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+
+          server=subprocess.Popen(['python','-m','http.server','8000','--bind','127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+          time.sleep(1)
+          opt=Options(); opt.add_argument('--headless=new'); opt.add_argument('--no-sandbox'); opt.add_argument('--disable-dev-shm-usage'); opt.add_argument('--window-size=430,932')
+          d=webdriver.Chrome(options=opt); d.set_window_size(430,932)
+          demo={
+            'plz':'72116','loc':{'lat':48.4,'lon':9.05},'gardenCenter':{'lat':48.4,'lon':9.05},
+            'plants':[
+              {'id':'p1','name':'Wilder Dost','scientific':'Origanum vulgare','family':'Lamiaceae','area':'Wildbeet','type':'bed','water':'low','size':'medium','photo':'','ecoNative':'auto','bloomMonths':[],'favorite':True},
+              {'id':'p2','name':'Wiesensalbei','scientific':'Salvia pratensis','family':'Lamiaceae','area':'Südbeet','type':'bed','water':'low','size':'medium','photo':'','ecoNative':'auto','bloomMonths':[]},
+              {'id':'p3','name':'Schafgarbe','scientific':'Achillea millefolium','family':'Asteraceae','area':'Wiese','type':'bed','water':'low','size':'medium','photo':'','ecoNative':'auto','bloomMonths':[]},
+              {'id':'p4','name':'Schlüsselblume','scientific':'Primula veris','family':'Primulaceae','area':'Wiese','type':'bed','water':'normal','size':'small','photo':'','ecoNative':'auto','bloomMonths':[]},
+              {'id':'p5','name':'Efeu','scientific':'Hedera helix','family':'Araliaceae','area':'Zaun','type':'bed','water':'normal','size':'large','photo':'','ecoNative':'auto','bloomMonths':[]},
+              {'id':'p6','name':'Lavendel','scientific':'Lavandula angustifolia','family':'Lamiaceae','area':'Terrasse','type':'bed','water':'low','size':'medium','photo':'','ecoNative':'auto','bloomMonths':[]}
+            ],
+            'habitats':[
+              {'id':'h1','type':'bare_soil','status':'present','area':'Südhang','notes':'Sonnige offene Bodenstelle'},
+              {'id':'h2','type':'water_station','status':'present','area':'Terrasse','notes':'Flache Schale mit Steinen'},
+              {'id':'h3','type':'deadwood','status':'optimized','area':'Hinten','notes':'Dauerhaft liegen lassen'},
+              {'id':'h4','type':'wild_corner','status':'present','area':'Hinteres Beet','notes':'Wird erst im Frühjahr zurückgeschnitten'}
+            ],
+            'animals':[
+              {'id':'a1','taxonId':'12345','name':'Tagpfauenauge','scientific':'Aglais io','group':'butterfly','date':'2026-09-08','area':'Wildbeet','linkedPlantId':'p1'},
+              {'id':'a2','taxonId':'','name':'Wildbiene','scientific':'','group':'bee','date':'2026-09-10','area':'Südhang','linkedHabitatId':'h1'},
+              {'id':'a3','taxonId':'','name':'Wildbiene','scientific':'','group':'bee','date':'2026-09-11','area':'Wildbeet','linkedPlantId':'p2'}
+            ],
+            'zones':[],
+            'ecology':{'practice':{'noPesticides':True,'leaveStemsInWinter':True,'leavesPartlyRemain':True,'peatFree':False,'lessFrequentMowing':True,'reducedNightLight':True}},
+            'settings':{'plantnetKey':'','seasonMode':'auto','animations':False,'mapView':{'lat':48.4,'lon':9.05,'zoom':19},'onboardingDismissed':True,'plantView':'collection','plantSort':'name','natureTab':'plants'},
+            'days':30
+          }
+          try:
+            d.get('http://127.0.0.1:8000/index.html')
+            d.execute_script("localStorage.setItem('giess_check_garten_v3', arguments[0])", json.dumps(demo)); d.refresh(); time.sleep(.8)
+            # Keep screenshots focused and deterministic; weather may be unavailable in test runner.
+            d.save_screenshot('manual-v2-screens/01_dashboard_score.png')
+
+            d.execute_script("document.querySelector('.tab[data-view=\"plants\"]').click()")
+            time.sleep(.3); d.save_screenshot('manual-v2-screens/02_naturgarten_pflanzen.png')
+
+            d.find_element(By.CSS_SELECTOR,'[data-nature="habitats"]').click(); time.sleep(.25)
+            d.save_screenshot('manual-v2-screens/03_lebensraeume.png')
+
+            d.find_element(By.CSS_SELECTOR,'[data-nature="animals"]').click(); time.sleep(.25)
+            d.save_screenshot('manual-v2-screens/04_tiere.png')
+
+            d.find_element(By.ID,'newAnimalBtn').click(); time.sleep(.2)
+            d.execute_script("window.fetch=async function(url){if(String(url).includes('api.inaturalist.org'))return {ok:true,json:async()=>({results:[]})};return {ok:false,status:500,json:async()=>({})};};")
+            name=d.find_element(By.ID,'animalName'); name.send_keys('Wildbiene'); time.sleep(.6)
+            d.save_screenshot('manual-v2-screens/05_tier_suche_wildbiene.png')
+
+            d.execute_script("document.getElementById('closeAnimalEditor').click();document.querySelector('.tab[data-view=\"map\"]').click()")
+            time.sleep(2); d.save_screenshot('manual-v2-screens/06_karte.png')
+
+            d.execute_script("document.querySelector('.tab[data-view=\"calendar\"]').click()")
+            time.sleep(.4); d.save_screenshot('manual-v2-screens/07_kalender.png')
+
+            d.execute_script("document.querySelector('.tab[data-view=\"weather\"]').click()")
+            time.sleep(.4); d.save_screenshot('manual-v2-screens/08_wetter.png')
+
+            d.execute_script("document.getElementById('settingsGear').click();")
+            time.sleep(.3)
+            d.execute_script("document.getElementById('settingsEcology').scrollIntoView({block:'start'});")
+            time.sleep(.2); d.save_screenshot('manual-v2-screens/09_naturnahe_praxis.png')
+          finally:
+            d.quit(); server.terminate(); server.wait(timeout=5)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manual-v2-screens
+          path: manual-v2-screens/*.png
