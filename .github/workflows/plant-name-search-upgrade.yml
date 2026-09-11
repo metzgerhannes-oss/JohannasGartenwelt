@@ -61,7 +61,6 @@ jobs:
           from selenium.webdriver.common.by import By
           from selenium.webdriver.chrome.options import Options
           from selenium.webdriver.support.ui import WebDriverWait
-          from selenium.webdriver.support import expected_conditions as EC
           server=subprocess.Popen(['python','-m','http.server','8000','--bind','127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(1)
           opt=Options(); opt.add_argument('--headless=new'); opt.add_argument('--no-sandbox'); opt.add_argument('--disable-dev-shm-usage'); opt.add_argument('--window-size=390,844')
           d=webdriver.Chrome(options=opt); d.set_window_size(390,844)
@@ -70,10 +69,9 @@ jobs:
               d.execute_script("document.querySelector('.tab[data-view=\"plants\"]').click();document.getElementById('newPlantBtn').click()")
               field=d.find_element(By.ID,'plantName')
               for q,expected in [('Schmetterlingsflieder','Buddleja davidii'),('Eisenholzbaum','Parrotia persica')]:
-                  field.clear(); field.send_keys(q)
-                  WebDriverWait(d,8).until(EC.visibility_of_element_located((By.ID,'plantNameResults')))
-                  rows=d.find_elements(By.CSS_SELECTOR,'#plantNameResults .plant-name-result')
-                  texts=[x.text for x in rows]
+                  d.execute_script("arguments[0].value=arguments[1];arguments[0].dispatchEvent(new Event('input',{bubbles:true}));",field,q)
+                  WebDriverWait(d,10).until(lambda drv: expected in drv.find_element(By.ID,'plantNameResults').text)
+                  texts=[x.text for x in d.find_elements(By.CSS_SELECTOR,'#plantNameResults .plant-name-result')]
                   print(q,texts)
                   assert any(expected in x for x in texts),(q,texts)
               assert d.execute_script('return document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
