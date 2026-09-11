@@ -1,0 +1,20 @@
+name: Mobile usability audit
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/mobile-usability-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Selenium
+        run: python -m pip install --disable-pip-version-check selenium
+      - name: Audit mobile views
+        run: python tools/mobile_usability_audit.py
