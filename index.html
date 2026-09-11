@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Johanna´s Gartenwelt">
 <meta id="themeColor" name="theme-color" content="#8faa7e">
 <title>Johanna´s Gartenwelt</title>
 <link rel="manifest" href="./manifest.webmanifest">
@@ -218,14 +222,14 @@ body,.head,.box,.tab,.btn,.plantcard,.state-card{transition:background-color .35
 .plant-quick-note{margin:7px 0 11px;padding:9px 11px;border-radius:12px;background:var(--ok);color:var(--forest-dark);font-size:12px;line-height:1.4}.plant-advanced{margin-top:13px;border:1px solid var(--line);border-radius:14px;padding:11px 12px;background:rgba(255,255,255,.58)}.plant-advanced>summary{font-size:13px}.plantcard-main{display:block;width:100%;padding:0;border:0;background:transparent;text-align:left;color:inherit;cursor:pointer}.plantcard-main:focus-visible{outline:3px solid rgba(86,122,87,.26);outline-offset:-3px}.plant-more{margin:0 13px 13px;border-top:1px solid #f0e7dd;padding-top:8px}.plant-more>summary{list-style:none;width:38px;height:34px;margin-left:auto;border:1px solid var(--line);border-radius:999px;display:grid;place-items:center;background:#fffdf9;font-size:17px}.plant-more>summary::-webkit-details-marker{display:none}.plant-more-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px}
 .calendar-tools{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}.calendar-tools>summary{font-size:13px}.calendar-now{margin-top:14px}.calendar-now .calmonth:first-child{border-color:rgba(86,122,87,.35);box-shadow:0 7px 18px rgba(86,122,87,.09)}
 @media(max-width:700px){
-  body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+  body{padding-bottom:calc(76px + env(safe-area-inset-bottom) + var(--jgw-browser-bottom,0px))}
   .wrap{padding-bottom:12px}
   .head{padding-bottom:14px}
-  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:4000;margin:0;padding:6px 6px calc(6px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,1fr);gap:3px;background:rgba(255,253,249,.94);backdrop-filter:blur(14px);border-top:1px solid var(--line);box-shadow:0 -8px 26px rgba(54,49,44,.10);overflow:visible}
+  .tabs{position:fixed;left:0;right:0;bottom:var(--jgw-browser-bottom,0px);z-index:4000;margin:0;padding:6px 6px calc(6px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,1fr);gap:3px;background:rgba(255,253,249,.94);backdrop-filter:blur(14px);border-top:1px solid var(--line);box-shadow:0 -8px 26px rgba(54,49,44,.10);overflow:visible}
   .tab{min-width:0;border:0;background:transparent;box-shadow:none;border-radius:13px;padding:6px 2px 5px;display:grid;place-items:center;gap:1px;font-size:10.5px;line-height:1.1;font-weight:700;color:var(--muted)}
   .tab.active{background:var(--ok);color:var(--forest-dark)}
   .navicon{font-size:17px;line-height:1.05;font-weight:400}
-  #globalNotice.toast-message,.undo-toast{bottom:calc(82px + env(safe-area-inset-bottom))}
+  #globalNotice.toast-message,.undo-toast{bottom:calc(82px + env(safe-area-inset-bottom) + var(--jgw-browser-bottom,0px))}
   .setup-guide-grid{grid-template-columns:1fr}.setup-step{display:grid;grid-template-columns:1fr auto;column-gap:9px}.setup-step small{grid-column:1/-1}.setup-step .step-state{align-self:center}
   .plant-quick-note{margin-top:4px}.plant-advanced{padding:10px}.calendar{grid-template-columns:1fr}
   .brand h1{font-size:22px;white-space:nowrap}.brandtools{gap:5px}.gearbtn,.quickbtn{width:38px;height:38px}.syncmini{height:38px;min-width:38px;padding:0 7px}.seasonmark{display:none}
@@ -1112,6 +1116,34 @@ el("useLocalVersion").addEventListener("click",function(){syncPush(true)});
 document.addEventListener("visibilitychange",function(){if(!document.hidden)syncCheckRemote()});
 window.addEventListener("error",function(e){console.error(e.error||e.message)});
 renderAll();syncBootstrap();if(state.plz)refreshWeather(false);
+})();
+</script>
+
+<script>
+/* iOS/Safari: keep the app navigation above browser chrome when a Home Screen
+   shortcut opens as a browser tab instead of standalone. In standalone mode the
+   normal safe-area inset is sufficient. */
+(function(){
+  function standalone(){
+    return (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
+  }
+  function updateJgwBrowserInset(){
+    var px=0;
+    if(!standalone()&&window.visualViewport){
+      var vv=window.visualViewport;
+      px=Math.max(0,Math.round(window.innerHeight-(vv.height+vv.offsetTop)));
+      /* Ignore tiny rounding differences; cap pathological keyboard values. */
+      if(px<4||px>180)px=0;
+    }
+    document.documentElement.style.setProperty('--jgw-browser-bottom',px+'px');
+  }
+  updateJgwBrowserInset();
+  window.addEventListener('resize',updateJgwBrowserInset,{passive:true});
+  window.addEventListener('orientationchange',function(){setTimeout(updateJgwBrowserInset,120)},{passive:true});
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize',updateJgwBrowserInset,{passive:true});
+    window.visualViewport.addEventListener('scroll',updateJgwBrowserInset,{passive:true});
+  }
 })();
 </script>
 </body>
