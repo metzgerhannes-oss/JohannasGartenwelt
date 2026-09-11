@@ -56,7 +56,7 @@ h1,h2,h3,.brand h1,.plantname,.state-title{
     </div>
     <div id="qrResult" class="hidden">
       <div class="qrwrap"><div class="qrpanel"><div id="qrCanvas"></div></div></div>
-      <div class="status ok"><b>QR-Code fertig.</b><br>Auf dem neuen iPhone oder iPad mit der Kamera scannen. Danach führt die Seite durch die Einrichtung als Home-Screen-App.</div>
+      <div class="status ok"><b>QR-Code fertig.</b><br>Auf dem neuen iPhone oder iPad mit der Kamera scannen. <b>Wichtig:</b> Öffnet sich danach eine Vorschau mit einem Kompass-Symbol unten rechts, zuerst auf den Kompass tippen und die Seite im echten Safari öffnen. Erst dort zum Home-Bildschirm hinzufügen.</div>
       <div class="actions"><button class="btn secondary" id="copyLink" type="button">Einrichtungslink kopieren</button></div>
       <div class="linkbox" id="setupLink"></div>
     </div>
@@ -65,14 +65,15 @@ h1,h2,h3,.brand h1,.plantname,.state-title{
   <section class="box hidden" id="installBox">
     <span class="modepill">iPhone / iPad</span>
     <h2>Jetzt auf den Home-Bildschirm</h2>
-    <div class="installhero"><b>Wichtig:</b> Die PIN jetzt noch nicht eingeben. Zuerst diese Seite zum Home-Bildschirm hinzufügen und <b>„Als Web-App öffnen“ eingeschaltet lassen</b>. Danach ausschließlich das neue Gartenwelt-Symbol auf dem Home-Bildschirm öffnen. <b>Wenn oben noch eine Internetadresse oder unten Safari-Schaltflächen sichtbar sind, bist du noch im Browser und nicht in der Web-App.</b></div>
+    <div class="installhero"><b>Wichtig:</b> Wenn unten rechts ein <b>Kompass-Symbol</b> sichtbar ist, bist du noch in der QR-/In-App-Vorschau. <b>Zuerst auf den Kompass tippen und in Safari öffnen.</b> Erst dort die Seite zum Home-Bildschirm hinzufügen und <b>„Als Web-App öffnen“ eingeschaltet lassen</b>. Danach ausschließlich das neue Gartenwelt-Symbol auf dem Home-Bildschirm öffnen.</div>
     <div class="steps">
-      <div class="step"><div class="stepno">1</div><div class="steptext">In Safari unten auf <b>Teilen</b> tippen.</div></div>
-      <div class="step"><div class="stepno">2</div><div class="steptext"><b>Zum Home-Bildschirm</b> auswählen.</div></div>
-      <div class="step"><div class="stepno">3</div><div class="steptext"><b>Als Web-App öffnen</b> eingeschaltet lassen.</div></div>
-      <div class="step"><div class="stepno">4</div><div class="steptext"><b>Hinzufügen</b> bestätigen.</div></div>
-      <div class="step"><div class="stepno">5</div><div class="steptext">Danach das neue Symbol <b>Johanna´s Gartenwelt</b> auf dem Home-Bildschirm öffnen.</div></div>
-      <div class="step"><div class="stepno">6</div><div class="steptext">Dort einmal die <b>Garten-PIN</b> eingeben. Danach sind Garten, Sync und PlantNet dauerhaft in der Home-Screen-App eingerichtet.</div></div>
+      <div class="step"><div class="stepno">1</div><div class="steptext">Nach dem QR-Scan: Ist unten rechts ein <b>Kompass-Symbol</b> sichtbar, darauf tippen. Dadurch öffnet sich die Seite im echten Safari.</div></div>
+      <div class="step"><div class="stepno">2</div><div class="steptext">Erst jetzt in Safari auf <b>Teilen</b> tippen.</div></div>
+      <div class="step"><div class="stepno">3</div><div class="steptext"><b>Zum Home-Bildschirm</b> auswählen.</div></div>
+      <div class="step"><div class="stepno">4</div><div class="steptext"><b>Als Web-App öffnen</b> eingeschaltet lassen.</div></div>
+      <div class="step"><div class="stepno">5</div><div class="steptext"><b>Hinzufügen</b> bestätigen.</div></div>
+      <div class="step"><div class="stepno">6</div><div class="steptext">Safari verlassen und das neue Symbol <b>Johanna´s Gartenwelt</b> auf dem Home-Bildschirm öffnen.</div></div>
+      <div class="step"><div class="stepno">7</div><div class="steptext">Dort einmal die <b>Garten-PIN</b> eingeben. Danach sind Garten, Sync und PlantNet dauerhaft in der Home-Screen-App eingerichtet.</div></div>
     </div>
     <div class="status warn"><b>Warum dieser Zwischenschritt?</b><br>Safari und eine zum Home-Bildschirm hinzugefügte Web-App verwenden auf iPhone/iPad getrennte lokale Speicherbereiche. Deshalb muss die Einrichtung innerhalb der Home-Screen-App abgeschlossen werden.</div>
     <div class="actions"><button class="btn secondary hidden" id="safariOnly" type="button" aria-hidden="true" tabindex="-1">Nur in Safari einrichten</button><button class="btn ghost" id="cancelInstall" type="button">Abbrechen</button></div>
