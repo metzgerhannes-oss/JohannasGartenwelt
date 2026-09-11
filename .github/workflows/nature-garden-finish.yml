@@ -1,0 +1,91 @@
+name: Naturgarten upgrade final check
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/nature-garden-finish.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply Naturgarten upgrade
+        run: python tools/nature_garden_upgrade.py
+      - name: Validate syntax
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          for marker in ['id="natureTabs"','id="natureHabitatsPane"','id="natureAnimalsPane"','function searchInaturalistTaxa','function habitatCollectionScore','function nativePlantStatus','version:3','taxon_id=1&locale=de']:
+              assert marker in s, marker
+          assert 'data-habitat=' not in s
+          PY
+          node --check /tmp/index.js
+          git diff --check
+      - name: Install Selenium
+        run: python -m pip install --disable-pip-version-check selenium
+      - name: Mobile browser smoke test
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, subprocess, time
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+          server=subprocess.Popen(['python','-m','http.server','8000','--bind','127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(1)
+          opt=Options(); opt.add_argument('--headless=new'); opt.add_argument('--no-sandbox'); opt.add_argument('--disable-dev-shm-usage'); opt.add_argument('--window-size=390,844')
+          d=webdriver.Chrome(options=opt); d.set_window_size(390,844)
+          demo={'plz':'','loc':None,'gardenCenter':None,'plants':[
+            {'id':'p1','name':'Wilder Dost','scientific':'Origanum vulgare','family':'Lamiaceae','area':'Wildbeet','type':'bed','water':'low','size':'medium','photo':'','ecoNative':'auto','bloomMonths':[]},
+            {'id':'p2','name':'Wiesensalbei','scientific':'Salvia pratensis','family':'Lamiaceae','area':'Südbeet','type':'bed','water':'low','size':'medium','photo':'','ecoNative':'auto','bloomMonths':[]},
+            {'id':'p3','name':'Schafgarbe','scientific':'Achillea millefolium','family':'Asteraceae','area':'Wiese','type':'bed','water':'low','size':'medium','photo':'','ecoNative':'auto','bloomMonths':[]},
+            {'id':'p4','name':'Schlüsselblume','scientific':'Primula veris','family':'Primulaceae','area':'Wiese','type':'bed','water':'normal','size':'small','photo':'','ecoNative':'auto','bloomMonths':[]},
+            {'id':'p5','name':'Efeu','scientific':'Hedera helix','family':'Araliaceae','area':'Zaun','type':'bed','water':'normal','size':'large','photo':'','ecoNative':'auto','bloomMonths':[]},
+            {'id':'p6','name':'Lavendel','scientific':'Lavandula angustifolia','family':'Lamiaceae','area':'Terrasse','type':'bed','water':'low','size':'medium','photo':'','ecoNative':'auto','bloomMonths':[]}
+          ],'habitats':[],'animals':[],'zones':[],'ecology':{'practice':{'noPesticides':True,'leaveStemsInWinter':True,'leavesPartlyRemain':True,'peatFree':False,'lessFrequentMowing':True,'reducedNightLight':True}},'settings':{'plantnetKey':'','seasonMode':'auto','animations':False,'mapView':None,'onboardingDismissed':True,'plantView':'collection','plantSort':'name','natureTab':'plants'},'days':30}
+          try:
+              d.get('http://127.0.0.1:8000/index.html'); d.execute_script("localStorage.setItem('giess_check_garten_v3', arguments[0])",json.dumps(demo)); d.refresh(); time.sleep(.5)
+              d.execute_script("document.querySelector('.tab[data-view=\"plants\"]').click()")
+              WebDriverWait(d,3).until(EC.visibility_of_element_located((By.ID,'natureTabs')))
+              assert 'Naturgarten' in d.find_element(By.CSS_SELECTOR,'.tab[data-view="plants"]').text
+              native=d.execute_script("return document.getElementById('nativePlantAutoStatus').textContent")
+              assert 'automatisch erkannt' in native.lower(), native
+              d.find_element(By.CSS_SELECTOR,'[data-nature="habitats"]').click(); d.find_element(By.ID,'newHabitatBtn').click()
+              d.execute_script("document.getElementById('habitatType').value='bare_soil';document.getElementById('habitatStatus').value='present';document.getElementById('habitatArea').value='Südhang';document.getElementById('habitatForm').requestSubmit()")
+              time.sleep(.15); assert 'Offene Bodenstelle' in d.find_element(By.ID,'habitatList').text
+              d.find_element(By.CSS_SELECTOR,'[data-nature="animals"]').click(); d.find_element(By.ID,'newAnimalBtn').click()
+              d.execute_script("""window.fetch=async function(url){if(String(url).includes('api.inaturalist.org'))return {ok:true,json:async()=>({results:[{id:12345,name:'Aglais io',preferred_common_name:'Tagpfauenauge',iconic_taxon_name:'Insecta',ancestor_ids:[1,47158,47157],default_photo:{square_url:'',medium_url:'',attribution:'CC BY Test'}}]})};return {ok:false,status:500,json:async()=>({})};};""")
+              d.find_element(By.ID,'animalName').send_keys('Tagp'); time.sleep(.55)
+              WebDriverWait(d,2).until(EC.visibility_of_element_located((By.CSS_SELECTOR,'#animalTaxonResults .tax-result')))
+              d.find_element(By.CSS_SELECTOR,'#animalTaxonResults .tax-result').click(); assert d.find_element(By.ID,'animalScientific').get_attribute('value')=='Aglais io'
+              d.execute_script("document.getElementById('animalArea').value='Wildbeet';document.getElementById('animalForm').requestSubmit()")
+              time.sleep(.15); txt=d.find_element(By.ID,'animalList').text; assert 'Tagpfauenauge' in txt and '1× beobachtet' in txt, txt
+              stored=json.loads(d.execute_script("return localStorage.getItem('giess_check_garten_v3')")); assert len(stored['habitats'])==1 and len(stored['animals'])==1 and stored['animals'][0]['taxonId']=='12345'
+              d.execute_script("document.getElementById('syncConflict').classList.remove('hidden')"); c=d.execute_script("return getComputedStyle(document.getElementById('useCloudVersion')).color"); assert c=='rgb(255, 255, 255)', c
+              assert d.execute_script('return document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
+              print('Naturgarten final smoke test OK')
+          finally:
+              d.quit(); server.terminate(); server.wait(timeout=5)
+          PY
+      - name: Commit upgraded app and clean temporary files
+        shell: bash
+        run: |
+          rm -f tools/nature_garden_upgrade.py .github/workflows/nature-garden-upgrade.yml .github/workflows/nature-garden-finish.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add Naturgarten habitats and animal observations"
+          git push origin main
