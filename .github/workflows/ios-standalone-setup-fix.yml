@@ -1,0 +1,47 @@
+name: iOS standalone setup fix
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/ios-standalone-setup-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply setup fix
+        run: python tools/ios_standalone_setup_fix.py
+      - name: Validate setup flow
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('setup.html').read_text(encoding='utf-8')
+          for marker in [
+              'apple-mobile-web-app-capable',
+              'mobile-web-app-capable',
+              'apple-mobile-web-app-title',
+              'Web-App-Modus erkannt',
+              'Wenn oben noch eine Internetadresse',
+              'id="safariOnly" type="button" aria-hidden="true"'
+          ]:
+              assert marker in s, marker
+          assert 'display-mode: standalone' in s
+          PY
+          git diff --check
+      - name: Commit and clean temporary files
+        shell: bash
+        run: |
+          rm -f tools/ios_standalone_setup_fix.py .github/workflows/ios-standalone-setup-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix iOS Home Screen setup flow"
+          git push origin main
