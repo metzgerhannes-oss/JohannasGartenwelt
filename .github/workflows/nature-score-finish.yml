@@ -1,0 +1,89 @@
+name: Naturgarten score final check
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/nature-score-finish.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply score upgrade
+        run: python tools/nature_score_upgrade.py
+      - name: Validate syntax
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          for marker in ['>Naturgarten-Score<','id="ecoAnimalProof"','function natureDataQuality','Pflanzen & Nahrung','Jahresversorgung','Vielfalt & Regionalität','_jgwGeneric:true']:
+              assert marker in s, marker
+          PY
+          node --check /tmp/index.js
+          git diff --check
+      - name: Install Selenium
+        run: python -m pip install --disable-pip-version-check selenium
+      - name: Browser smoke test
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, subprocess, time
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+          server=subprocess.Popen(['python','-m','http.server','8000','--bind','127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(1)
+          opt=Options(); opt.add_argument('--headless=new'); opt.add_argument('--no-sandbox'); opt.add_argument('--disable-dev-shm-usage'); opt.add_argument('--window-size=390,844')
+          d=webdriver.Chrome(options=opt); d.set_window_size(390,844)
+          demo={'plz':'','loc':None,'gardenCenter':None,'plants':[
+            {'id':'p1','name':'Wilder Dost','scientific':'Origanum vulgare','family':'Lamiaceae','area':'Wildbeet','type':'bed','water':'low','size':'medium','photo':'','ecoNative':'auto','bloomMonths':[]},
+            {'id':'p2','name':'Wiesensalbei','scientific':'Salvia pratensis','family':'Lamiaceae','area':'Südbeet','type':'bed','water':'low','size':'medium','photo':'','ecoNative':'auto','bloomMonths':[]},
+            {'id':'p3','name':'Schafgarbe','scientific':'Achillea millefolium','family':'Asteraceae','area':'Wiese','type':'bed','water':'low','size':'medium','photo':'','ecoNative':'auto','bloomMonths':[]},
+            {'id':'p4','name':'Schlüsselblume','scientific':'Primula veris','family':'Primulaceae','area':'Wiese','type':'bed','water':'normal','size':'small','photo':'','ecoNative':'auto','bloomMonths':[]},
+            {'id':'p5','name':'Efeu','scientific':'Hedera helix','family':'Araliaceae','area':'Zaun','type':'bed','water':'normal','size':'large','photo':'','ecoNative':'auto','bloomMonths':[]},
+            {'id':'p6','name':'Lavendel','scientific':'Lavandula angustifolia','family':'Lamiaceae','area':'Terrasse','type':'bed','water':'low','size':'medium','photo':'','ecoNative':'auto','bloomMonths':[]}
+          ],'habitats':[{'id':'h1','type':'bare_soil','status':'present'},{'id':'h2','type':'water_station','status':'present'},{'id':'h3','type':'deadwood','status':'present'}],'animals':[],'zones':[],'ecology':{'practice':{'noPesticides':True,'leaveStemsInWinter':True,'leavesPartlyRemain':True,'peatFree':False,'lessFrequentMowing':True,'reducedNightLight':True}},'settings':{'plantnetKey':'','seasonMode':'auto','animations':False,'mapView':None,'onboardingDismissed':True,'plantView':'collection','plantSort':'name','natureTab':'plants'},'days':30}
+          try:
+              d.get('http://127.0.0.1:8000/index.html'); d.execute_script("localStorage.setItem('giess_check_garten_v3', arguments[0])",json.dumps(demo)); d.refresh(); time.sleep(.5)
+              assert d.find_element(By.CSS_SELECTOR,'#ecoDashboard .label').text.lower()=='naturgarten-score'
+              before=d.find_element(By.ID,'ecoGardenScore').text
+              texts=[x.text for x in d.find_elements(By.CSS_SELECTOR,'#ecoScoreBreakdown .score-part')]
+              assert len(texts)==5 and any('/30' in x and 'Pflanzen' in x for x in texts) and any('/25' in x and 'Lebensräume' in x for x in texts), texts
+              assert 'Datenbasis' in d.find_element(By.ID,'ecoGardenLevel').text
+              stored=json.loads(d.execute_script("return localStorage.getItem('giess_check_garten_v3')")); stored['animals']=[{'id':'a1','taxonId':'12345','name':'Tagpfauenauge','scientific':'Aglais io','group':'butterfly','date':'2026-09-11'}]
+              d.execute_script("localStorage.setItem('giess_check_garten_v3', arguments[0])",json.dumps(stored)); d.refresh(); time.sleep(.3)
+              assert d.find_element(By.ID,'ecoGardenScore').text==before
+              assert '1 Tierarten/-gruppen' in d.find_element(By.ID,'ecoAnimalProof').text
+              d.execute_script("document.querySelector('.tab[data-view=\"plants\"]').click();document.querySelector('[data-nature=\"animals\"]').click();document.getElementById('newAnimalBtn').click();window.fetch=async function(url){if(String(url).includes('api.inaturalist.org'))return {ok:true,json:async()=>({results:[]})};return {ok:false,status:500,json:async()=>({})};};")
+              d.find_element(By.ID,'animalName').send_keys('Wildbiene'); time.sleep(.6)
+              hit=WebDriverWait(d,2).until(EC.visibility_of_element_located((By.CSS_SELECTOR,'#animalTaxonResults .tax-result')))
+              assert 'Wildbiene' in hit.text and 'Gruppe' in hit.text, hit.text
+              d.execute_script('arguments[0].click()',hit)
+              assert d.find_element(By.ID,'animalGroup').get_attribute('value')=='bee'
+              assert d.find_element(By.ID,'animalTaxonId').get_attribute('value')==''
+              assert d.execute_script('return document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
+              print('Naturgarten score + Wildbiene OK')
+          finally:
+              d.quit(); server.terminate(); server.wait(timeout=5)
+          PY
+      - name: Commit and clean temporary files
+        shell: bash
+        run: |
+          rm -f tools/nature_score_upgrade.py .github/workflows/nature-score-upgrade.yml .github/workflows/nature-score-finish.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add Naturgarten score dashboard"
+          git push origin main
