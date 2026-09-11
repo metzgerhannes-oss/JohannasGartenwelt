@@ -1,0 +1,92 @@
+name: Broader plant name search
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/plant-name-search-upgrade.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply plant search upgrade
+        run: python tools/plant_name_search_upgrade.py
+      - name: Validate syntax and markers
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          assert 'async function searchPlantNames' in s
+          assert 'api.inaturalist.org/v1/taxa/autocomplete' in s
+          assert 'taxon_id=47126' in s
+          assert 'searchPlantNames(q)' in s
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          PY
+          node --check /tmp/index.js
+          git diff --check
+      - name: Check live plant-name examples
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+          tests=[('Schmetterlingsflieder','Buddleja davidii'),('Eisenholzbaum','Parrotia persica')]
+          for q,expected in tests:
+              url='https://api.inaturalist.org/v1/taxa/autocomplete?'+urllib.parse.urlencode({'q':q,'taxon_id':47126,'locale':'de','per_page':10})
+              req=urllib.request.Request(url,headers={'Accept':'application/json','User-Agent':'JohannasGartenwelt/1.0'})
+              with urllib.request.urlopen(req,timeout=20) as r:
+                  data=json.load(r)
+              names=[x.get('name','') for x in data.get('results',[])]
+              common=[x.get('preferred_common_name','') for x in data.get('results',[])]
+              print(q, list(zip(common,names))[:10])
+              assert expected in names, (q,expected,names)
+          PY
+      - name: Install Selenium
+        run: python -m pip install --disable-pip-version-check selenium
+      - name: Mobile browser smoke test
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess,time
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+          server=subprocess.Popen(['python','-m','http.server','8000','--bind','127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(1)
+          opt=Options(); opt.add_argument('--headless=new'); opt.add_argument('--no-sandbox'); opt.add_argument('--disable-dev-shm-usage'); opt.add_argument('--window-size=390,844')
+          d=webdriver.Chrome(options=opt); d.set_window_size(390,844)
+          try:
+              d.get('http://127.0.0.1:8000/index.html')
+              d.execute_script("document.querySelector('.tab[data-view=\"plants\"]').click();document.getElementById('newPlantBtn').click()")
+              field=d.find_element(By.ID,'plantName')
+              for q,expected in [('Schmetterlingsflieder','Buddleja davidii'),('Eisenholzbaum','Parrotia persica')]:
+                  field.clear(); field.send_keys(q)
+                  WebDriverWait(d,8).until(EC.visibility_of_element_located((By.ID,'plantNameResults')))
+                  rows=d.find_elements(By.CSS_SELECTOR,'#plantNameResults .plant-name-result')
+                  texts=[x.text for x in rows]
+                  print(q,texts)
+                  assert any(expected in x for x in texts),(q,texts)
+              assert d.execute_script('return document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
+              print('Plant name search mobile smoke test OK')
+          finally:
+              d.quit(); server.terminate(); server.wait(timeout=5)
+          PY
+      - name: Commit and clean temporary files
+        shell: bash
+        run: |
+          rm -f tools/plant_name_search_upgrade.py .github/workflows/plant-name-search-upgrade.yml .github/workflows/manual-v2-screens.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Broaden plant name search with iNaturalist"
+          git push origin main
