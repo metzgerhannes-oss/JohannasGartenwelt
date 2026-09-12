@@ -1,0 +1,55 @@
+name: Selective plant data update
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/plant-selective-update.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply upgrade
+        run: python tools/plant_selective_update.py
+      - name: Validate syntax and selective flow
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          required=[
+            'Pflanzendaten prüfen &amp; aktualisieren',
+            'function previewPlantDataUpdate',
+            'function showPlantUpdateChooser',
+            'function applySelectedPlantUpdates',
+            'Nur fehlende auswählen',
+            'Alle Änderungen auswählen',
+            'data-update-key',
+            'detailRefresh'
+          ]
+          for marker in required:
+              assert marker in s, marker
+          assert 'el("refreshPlantDataBtn").addEventListener("click",previewPlantDataUpdate);' in s
+          assert 'enrichPlantForm({common:el("plantName").value.trim(),sci:el("plantScientific").value.trim(),family:el("plantFamily").value.trim(),source:"manuell"},true)});' not in s
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          PY
+          node --check /tmp/index.js
+          git diff --check
+      - name: Commit and clean temporary files
+        shell: bash
+        run: |
+          rm -f tools/plant_selective_update.py .github/workflows/plant-selective-update.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add selective updates for existing plant data"
+          git push origin main
