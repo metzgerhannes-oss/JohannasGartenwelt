@@ -46,7 +46,7 @@ one('show("animalEditor",true);el("animalEditor").scrollIntoView({behavior:"smoo
 # Make existing detail delete actions unmistakable.
 s=s.replace('class="btn ghost detailDelete"','class="btn danger detailDelete"')
 s=s.replace('class="btn ghost habitatDetailDelete"','class="btn danger habitatDetailDelete"')
-s=s.replace('class="btn ghost small animalObsDelete" data-id="'+"'"+'+o.id+"'"+'">×</button>','class="btn danger small animalObsDelete" data-id="'+"'"+'+o.id+"'"+'">Löschen</button>')
+s=s.replace('class="btn ghost small animalObsDelete"','class="btn danger small animalObsDelete"')
 
 # Shared deletion / map-removal helpers.
 one(
