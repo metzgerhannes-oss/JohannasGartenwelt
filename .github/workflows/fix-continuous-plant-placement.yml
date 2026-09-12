@@ -1,0 +1,94 @@
+name: Fix continuous plant placement
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-continuous-plant-placement.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Keep +1 placement active until finished
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          old='placePlantId:null,placePlantDraftPositions:[],placePlantAddId:null,placeHabitatId:null'
+          new='placePlantId:null,placePlantDraftPositions:[],placePlantAddId:null,placePlantAddCount:0,placeHabitatId:null'
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='function beginAddPlantInstance(id){var p=state.plants.find(function(x){return x.id===id});if(!p)return;var q=Math.max(1,Number(p.quantity||1));if(q>=99){notice("Maximal 99 Pflanzen pro Karte möglich.");return}state.placePlantAddId=id;state.placePlantId=null;state.placePlantDraftPositions=[];state.placeHabitatId=null;state.placeAnimalId=null;state.setCenterMode=false;switchView("map");setTimeout(function(){setMapEditing(true);el("mapModeHint").textContent=\'Standort für eine weitere „\'+p.name+\'“ setzen. Vorhandene Pflanzen und Bereiche sind währenddessen ausgeblendet.\';show("mapModeHint",true);renderMap()},90)}'
+          new='function beginAddPlantInstance(id){var p=state.plants.find(function(x){return x.id===id});if(!p)return;var q=Math.max(1,Number(p.quantity||1));if(q>=99){notice("Maximal 99 Pflanzen pro Karte möglich.");return}state.placePlantAddId=id;state.placePlantAddCount=0;state.placePlantId=null;state.placePlantDraftPositions=[];state.placeHabitatId=null;state.placeAnimalId=null;state.setCenterMode=false;switchView("map");setTimeout(function(){setMapEditing(true);el("mapModeHint").textContent=\'Standort für eine weitere „\'+p.name+\'“ setzen. Danach kannst du direkt weitere Exemplare positionieren. Mit „Fertig“ beenden.\';show("mapModeHint",true);renderMap()},90)}'
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='function beginPlacePlant(id){var p=state.plants.find(function(x){return x.id===id});if(!p)return;state.placePlantId=id;state.placePlantAddId=null;state.placePlantDraftPositions=[];state.placeHabitatId=null;state.placeAnimalId=null;state.setCenterMode=false;switchView("map");'
+          new='function beginPlacePlant(id){var p=state.plants.find(function(x){return x.id===id});if(!p)return;state.placePlantId=id;state.placePlantAddId=null;state.placePlantAddCount=0;state.placePlantDraftPositions=[];state.placeHabitatId=null;state.placeAnimalId=null;state.setCenterMode=false;switchView("map");'
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='if(state.placePlantAddId){var ap=state.plants.find(function(x){return x.id===state.placePlantAddId});if(ap){var aq=Math.max(1,Number(ap.quantity||1));if(aq>=99){state.placePlantAddId=null;show("mapModeHint",false);renderMap();notice("Maximal 99 Pflanzen pro Karte möglich.");return}var aid=ap.id,apos=plantPositions(ap);apos.push({lat:e.latlng.lat,lon:e.latlng.lng});ap.quantity=aq+1;ap.positions=apos;syncPlantLegacyPosition(ap);state.placePlantAddId=null;show("mapModeHint",false);save();renderAll();finishNaturePlacement("plant",aid,"Weitere Pflanze hinzugefügt · jetzt "+ap.quantity+"×")}return}'
+          new='if(state.placePlantAddId){var ap=state.plants.find(function(x){return x.id===state.placePlantAddId});if(ap){var aq=Math.max(1,Number(ap.quantity||1));if(aq>=99){var maxId=ap.id,addedMax=Number(state.placePlantAddCount||0);state.placePlantAddId=null;state.placePlantAddCount=0;show("mapModeHint",false);save();renderAll();finishNaturePlacement("plant",maxId,addedMax?addedMax+" weitere Pflanze"+(addedMax===1?"":"n")+" positioniert · Maximum 99× erreicht":"Maximum 99× erreicht");return}var aid=ap.id,apos=plantPositions(ap);apos.push({lat:e.latlng.lat,lon:e.latlng.lng});ap.quantity=aq+1;ap.positions=apos;syncPlantLegacyPosition(ap);state.placePlantAddCount=Number(state.placePlantAddCount||0)+1;save();renderAll();el("mapModeHint").textContent=ap.quantity+"× „"+ap.name+"“ · nächste Position antippen oder mit „Fertig“ beenden.";show("mapModeHint",true);renderMap()}return}'
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='function renderMapMode(){var edit=!!state.mapEditMode,has=!!(state.settings&&state.settings.mapView),placing=placementActive();show("mapEditTools",edit&&!placing);show("saveMapViewBtn",edit&&!placing);show("mapEditToggle",!placing);show("cancelPlacementBtn",placing);show("mapSetupHint",edit&&!has&&!placing);var b=el("mapEditToggle"),st=el("mapViewStatus");if(b)b.textContent=edit?(has?"Bearbeitung beenden":"Ausschnitt festlegen"):"Karte bearbeiten";if(st){st.className="map-status"+(edit?" editing":"");st.textContent=placing?"Standort setzen":(edit?(has?"Bearbeitung aktiv":"Ersteinrichtung"):"Fester Gartenausschnitt")}}'
+          new='function renderMapMode(){var edit=!!state.mapEditMode,has=!!(state.settings&&state.settings.mapView),placing=placementActive();show("mapEditTools",edit&&!placing);show("saveMapViewBtn",edit&&!placing);show("mapEditToggle",!placing);show("cancelPlacementBtn",placing);show("mapSetupHint",edit&&!has&&!placing);var b=el("mapEditToggle"),st=el("mapViewStatus"),cb=el("cancelPlacementBtn");if(b)b.textContent=edit?(has?"Bearbeitung beenden":"Ausschnitt festlegen"):"Karte bearbeiten";if(cb)cb.textContent=state.placePlantAddId?"Fertig":"Setzen abbrechen";if(st){st.className="map-status"+(edit?" editing":"");st.textContent=placing?(state.placePlantAddId?"Weitere Pflanzen setzen":"Standort setzen"):(edit?(has?"Bearbeitung aktiv":"Ersteinrichtung"):"Fester Gartenausschnitt")}}'
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='var forced=!!(state.placePlantId||state.setCenterMode);'
+          new='var forced=!!(state.placePlantId||state.placePlantAddId||state.setCenterMode);'
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='el("cancelPlacementBtn").addEventListener("click",function(){state.placePlantId=null;state.placePlantAddId=null;state.placePlantDraftPositions=[];state.placeHabitatId=null;state.placeAnimalId=null;show("mapModeHint",false);if(state.settings.mapView){setMapEditing(false);applySavedMapView()}else setMapEditing(true);renderMap();notice("Standort setzen abgebrochen.")});'
+          new='el("cancelPlacementBtn").addEventListener("click",function(){if(state.placePlantAddId){var id=state.placePlantAddId,count=Number(state.placePlantAddCount||0);state.placePlantAddId=null;state.placePlantAddCount=0;state.placePlantDraftPositions=[];show("mapModeHint",false);if(id){finishNaturePlacement("plant",id,count?count+" weitere Pflanze"+(count===1?"":"n")+" positioniert":"Hinzufügen beendet");return}}state.placePlantId=null;state.placePlantAddId=null;state.placePlantAddCount=0;state.placePlantDraftPositions=[];state.placeHabitatId=null;state.placeAnimalId=null;show("mapModeHint",false);if(state.settings.mapView){setMapEditing(false);applySavedMapView()}else setMapEditing(true);renderMap();notice("Standort setzen abgebrochen.")});'
+          assert old in s
+          s=s.replace(old,new,1)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Static syntax and feature audit
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          required=[
+            'placePlantAddCount:0',
+            'nächste Position antippen oder mit „Fertig“ beenden',
+            'cb.textContent=state.placePlantAddId?"Fertig":"Setzen abbrechen"',
+            'state.placePlantId||state.placePlantAddId||state.setCenterMode',
+            'state.placePlantAddCount=Number(state.placePlantAddCount||0)+1',
+            'finishNaturePlacement("plant",id,count?count+" weitere Pflanze"'
+          ]
+          for x in required: assert x in s, x
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          print('continuous placement audit OK')
+          PY
+          node --check /tmp/index.js
+          git diff --check
+      - name: Commit fix and remove workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/fix-continuous-plant-placement.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Keep same-species placement active until finished"
+          git push origin main
