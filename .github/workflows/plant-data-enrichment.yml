@@ -73,16 +73,46 @@ jobs:
           from selenium import webdriver
           from selenium.webdriver.common.by import By
           from selenium.webdriver.chrome.options import Options
-          server=subprocess.Popen(['python','-m','http.server','8000','--bind','127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(1)
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+
+          server=subprocess.Popen(['python','-m','http.server','8000','--bind','127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+          time.sleep(1)
           opt=Options();opt.add_argument('--headless=new');opt.add_argument('--no-sandbox');opt.add_argument('--disable-dev-shm-usage');opt.add_argument('--window-size=390,844')
-          d=webdriver.Chrome(options=opt);d.set_window_size(390,844);d.set_script_timeout(30)
-          try:
+          d=webdriver.Chrome(options=opt);d.set_window_size(390,844)
+          wait=WebDriverWait(d,15)
+
+          def open_new_plant():
               d.get('http://127.0.0.1:8000/index.html')
+              wait.until(lambda x: x.find_elements(By.CSS_SELECTOR,'.tab[data-view="plants"]'))
               d.execute_script("document.querySelector('.tab[data-view=\"plants\"]').click();document.getElementById('newPlantBtn').click()")
-              # Buddleja: local profiles must immediately fill all important fields.
-              d.execute_script("enrichPlantForm({common:'Schmetterlingsflieder',sci:'Buddleja davidii',family:'Scrophulariaceae'},true)")
-              time.sleep(.4)
-              vals=d.execute_script("return {water:plantWater.value,fert:checkedMonths('fert'),cut:checkedMonths('cut'),bloom:checkedMonths('bloom'),native:plantNative.value,flower:plantFlowerAccess.value,status:plantDataStatus.innerText}")
+              wait.until(EC.visibility_of_element_located((By.ID,'plantName')))
+
+          def select_species(query, scientific):
+              field=d.find_element(By.ID,'plantName')
+              field.clear();field.send_keys(query)
+              wait.until(lambda x: scientific in x.find_element(By.ID,'plantNameResults').text)
+              rows=d.find_elements(By.CSS_SELECTOR,'#plantNameResults .plant-name-result')
+              target=next((r for r in rows if scientific in r.text),None)
+              assert target is not None,[r.text for r in rows]
+              d.execute_script('arguments[0].click()',target)
+              # Local profile data are filled immediately; the external enrichment may continue afterwards.
+              wait.until(lambda x: x.find_element(By.ID,'plantScientific').get_attribute('value').lower()==scientific.lower())
+              time.sleep(.6)
+
+          def months(name):
+              return [int(x.get_attribute('value')) for x in d.find_elements(By.CSS_SELECTOR,f'input[name="{name}"]:checked')]
+
+          try:
+              open_new_plant()
+              select_species('Schmetterlingsflieder','Buddleja davidii')
+              vals={
+                  'water':d.find_element(By.ID,'plantWater').get_attribute('value'),
+                  'fert':months('fert'),'cut':months('cut'),'bloom':months('bloom'),
+                  'native':d.find_element(By.ID,'plantNative').get_attribute('value'),
+                  'flower':d.find_element(By.ID,'plantFlowerAccess').get_attribute('value'),
+                  'status':d.find_element(By.ID,'plantDataStatus').text,
+              }
               print('Buddleja',vals)
               assert vals['water']=='normal'
               assert vals['fert']==[3,4,5]
@@ -90,10 +120,15 @@ jobs:
               assert vals['bloom']==[7,8,9,10]
               assert vals['native']=='no'
               assert vals['flower']=='open'
-              # Parrotia: dedicated care profile + safe non-native hint.
-              d.execute_script("resetPlantForm();plantName.value='Eisenholzbaum';plantScientific.value='Parrotia persica';plantFamily.value='Hamamelidaceae';enrichPlantForm({common:'Eisenholzbaum',sci:'Parrotia persica',family:'Hamamelidaceae'},true)")
-              time.sleep(.4)
-              vals2=d.execute_script("return {water:plantWater.value,fert:checkedMonths('fert'),cut:checkedMonths('cut'),native:plantNative.value,status:plantDataStatus.innerText}")
+
+              open_new_plant()
+              select_species('Eisenholzbaum','Parrotia persica')
+              vals2={
+                  'water':d.find_element(By.ID,'plantWater').get_attribute('value'),
+                  'fert':months('fert'),'cut':months('cut'),
+                  'native':d.find_element(By.ID,'plantNative').get_attribute('value'),
+                  'status':d.find_element(By.ID,'plantDataStatus').text,
+              }
               print('Parrotia',vals2)
               assert vals2['water']=='normal'
               assert vals2['fert']==[3,4]
