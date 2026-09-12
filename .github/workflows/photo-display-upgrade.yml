@@ -1,0 +1,87 @@
+name: Photo display upgrade
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/photo-display-upgrade.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply photo display upgrade
+        run: python tools/photo_display_upgrade.py
+      - name: Validate static code
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          for marker in ['JGW PHOTO DISPLAY UPGRADE','object-fit:contain!important','function enhancePhotoFrames','has-photo-bg','max-height:60svh']:
+              assert marker in s, marker
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          PY
+          node --check /tmp/index.js
+          git diff --check
+      - name: Install Selenium
+        run: python -m pip install --disable-pip-version-check selenium
+      - name: Mobile browser photo-fit test
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess,time,base64
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+          server=subprocess.Popen(['python','-m','http.server','8000','--bind','127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); time.sleep(1)
+          opt=Options(); opt.add_argument('--headless=new'); opt.add_argument('--no-sandbox'); opt.add_argument('--disable-dev-shm-usage'); opt.add_argument('--window-size=390,844')
+          d=webdriver.Chrome(options=opt); d.set_window_size(390,844)
+          try:
+              d.get('http://127.0.0.1:8000/index.html')
+              svg='<svg xmlns="http://www.w3.org/2000/svg" width="300" height="600"><rect width="300" height="600" fill="green"/><circle cx="150" cy="80" r="60" fill="white"/></svg>'
+              src='data:image/svg+xml;base64,'+base64.b64encode(svg.encode()).decode()
+              d.execute_script('''
+                var c=document.createElement('div');c.className='collection-photo';
+                var i=document.createElement('img');i.src=arguments[0];c.appendChild(i);document.body.appendChild(c);
+                var h=document.createElement('div');h.className='detail-hero';
+                var j=document.createElement('img');j.src=arguments[0];h.appendChild(j);document.body.appendChild(h);
+              ''',src)
+              time.sleep(.5)
+              vals=d.execute_script('''
+                var c=document.querySelector('body > .collection-photo'), h=document.querySelector('body > .detail-hero');
+                return {
+                  cardFit:getComputedStyle(c.querySelector('img')).objectFit,
+                  cardBg:c.classList.contains('has-photo-bg'),
+                  detailFit:getComputedStyle(h.querySelector('img')).objectFit,
+                  detailBg:h.classList.contains('has-photo-bg'),
+                  detailRatio:getComputedStyle(h).aspectRatio,
+                  overflow:document.documentElement.scrollWidth<=document.documentElement.clientWidth+1
+                };
+              ''')
+              print(vals)
+              assert vals['cardFit']=='contain'
+              assert vals['cardBg'] is True
+              assert vals['detailFit']=='contain'
+              assert vals['detailBg'] is True
+              assert vals['overflow'] is True
+          finally:
+              d.quit(); server.terminate(); server.wait(timeout=5)
+          PY
+      - name: Commit and clean temporary files
+        shell: bash
+        run: |
+          rm -f tools/photo_display_upgrade.py .github/workflows/photo-display-upgrade.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Show garden photos without cropping"
+          git push origin main
