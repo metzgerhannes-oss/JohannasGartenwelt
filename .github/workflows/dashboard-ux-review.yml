@@ -74,7 +74,7 @@ jobs:
           try:
               d.get('http://127.0.0.1:8000/index.html')
               wait.until(lambda x:x.find_element(By.ID,'todayDate').text.strip()!='')
-              assert d.find_element(By.ID,'view-today').get_attribute('class').find('active')>=0
+              assert 'active' in d.find_element(By.ID,'view-today').get_attribute('class')
               y_tasks=d.find_element(By.ID,'tasks').rect['y']; y_eco=d.find_element(By.ID,'ecoDashboardCompact').rect['y']
               assert y_tasks < y_eco, (y_tasks,y_eco)
               for bid in ['addPlantToday','addHabitatToday','addAnimalToday']:
@@ -86,13 +86,15 @@ jobs:
               d.execute_script("document.getElementById('addHabitatToday').click()")
               wait.until(EC.visibility_of_element_located((By.ID,'habitatEditor')))
               assert 'active' in d.find_element(By.CSS_SELECTOR,'.nature-tab[data-nature="habitats"]').get_attribute('class')
-              d.execute_script("document.getElementById('habitatEditor').classList.add('hidden');switchView('today')")
+              d.execute_script("document.getElementById('habitatEditor').classList.add('hidden');document.querySelector('.tab[data-view=\"today\"]').click()")
               wait.until(EC.visibility_of_element_located((By.ID,'ecoDashboardCompact')))
+
               d.execute_script("document.getElementById('addAnimalToday').click()")
               wait.until(EC.visibility_of_element_located((By.ID,'animalEditor')))
               assert 'active' in d.find_element(By.CSS_SELECTOR,'.nature-tab[data-nature="animals"]').get_attribute('class')
-              d.execute_script("document.getElementById('animalEditor').classList.add('hidden');switchView('today')")
+              d.execute_script("document.getElementById('animalEditor').classList.add('hidden');document.querySelector('.tab[data-view=\"today\"]').click()")
               wait.until(EC.visibility_of_element_located((By.ID,'ecoDashboardCompact')))
+
               d.execute_script("document.getElementById('addPlantToday').click()")
               wait.until(EC.visibility_of_element_located((By.ID,'plantEditor')))
               assert 'active' in d.find_element(By.CSS_SELECTOR,'.nature-tab[data-nature="plants"]').get_attribute('class')
