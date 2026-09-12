@@ -1,0 +1,4 @@
+project_id = "ilfblkqxbldkzmqczbgo"
+
+[functions.trefle-enrich]
+verify_jwt = false
