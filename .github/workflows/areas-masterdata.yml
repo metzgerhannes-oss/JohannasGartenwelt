@@ -41,8 +41,8 @@ jobs:
           assert '<input id="plantArea"' not in s
           assert '<input id="habitatArea"' not in s
           assert '<input id="animalArea"' not in s
-          # Existing structured fields are already enumerations or real collections:
-          # plant type/water/size/origin, habitat type/status, animal group, and map zones.
+          # Other repeatable classifications are already controlled selects or collections,
+          # so they do not need another user-maintained master table.
           for field in ['plantType','plantWater','plantSize','plantNative','plantFlowerAccess','habitatType','habitatStatus','animalGroup']:
               assert f'<select id="{field}"' in s
           blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
@@ -79,7 +79,7 @@ jobs:
               d.execute_script("localStorage.setItem('giess_check_garten_v3', arguments[0]);",json.dumps(legacy))
               d.refresh()
               wait.until(lambda x:x.find_element(By.ID,'todayDate').text.strip()!='')
-              # Open plant editor via dashboard shortcut.
+              # Legacy free-text values are deduplicated into one shared dropdown list.
               d.execute_script("document.getElementById('addPlantToday').click()")
               wait.until(EC.visibility_of_element_located((By.ID,'plantEditor')))
               ps=d.find_element(By.ID,'plantArea')
@@ -87,21 +87,19 @@ jobs:
               texts=[o.text for o in ps.find_elements(By.TAG_NAME,'option')]
               assert 'Vorgarten' in texts and 'Terrasse' in texts, texts
               assert texts.count('Vorgarten')==1, texts
-              # Existing plant keeps its migrated area through edit.
-              d.execute_script("document.getElementById('closePlantEditor').click()")
-              d.find_element(By.CSS_SELECTOR,'.plantOpen[data-id="p1"]').click()
-              wait.until(EC.visibility_of_element_located((By.ID,'plantDetailOverlay')))
-              d.find_element(By.CSS_SELECTOR,'.plantDetailEdit').click()
-              wait.until(EC.visibility_of_element_located((By.ID,'plantEditor')))
-              assert d.find_element(By.ID,'plantArea').get_attribute('value') not in ('','__new__')
-              # Add a new master-data area in settings.
               d.find_element(By.ID,'closePlantEditor').click()
+              # Add a new master-data area in settings; this also persists the migration.
               d.find_element(By.ID,'settingsGear').click()
               wait.until(EC.visibility_of_element_located((By.ID,'settingsOverlay')))
               inp=d.find_element(By.ID,'areaNewName'); inp.send_keys('Naschgarten')
               d.find_element(By.ID,'areaAddBtn').click()
               wait.until(lambda x:'Naschgarten' in x.find_element(By.ID,'areaMasterList').text)
-              # All area fields are selects and touch-friendly.
+              stored=json.loads(d.execute_script("return localStorage.getItem('giess_check_garten_v3')"))
+              assert len(stored.get('areas',[]))==3, stored.get('areas')
+              assert stored['plants'][0].get('areaId') and stored['plants'][0].get('area')=='Vorgarten'
+              assert stored['habitats'][0].get('areaId')==stored['plants'][0].get('areaId')
+              assert stored['animals'][0].get('areaId') and stored['animals'][0].get('area')=='Terrasse'
+              # All three creation workflows expose the same touch-friendly dropdown.
               d.find_element(By.ID,'settingsClose').click()
               for bid in ['addPlantToday','addHabitatToday','addAnimalToday']:
                   d.find_element(By.CSS_SELECTOR,'.tab[data-view="today"]').click()
@@ -109,7 +107,8 @@ jobs:
                   target={'addPlantToday':'plantArea','addHabitatToday':'habitatArea','addAnimalToday':'animalArea'}[bid]
                   sel=wait.until(EC.visibility_of_element_located((By.ID,target)))
                   assert sel.tag_name=='select' and sel.rect['height']>=44, (target,sel.rect['height'])
-                  assert 'Naschgarten' in [o.text for o in sel.find_elements(By.TAG_NAME,'option')]
+                  opts=[o.text for o in sel.find_elements(By.TAG_NAME,'option')]
+                  assert 'Naschgarten' in opts and '＋ Neuen Bereich anlegen …' in opts
               assert d.execute_script('return document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
               print('mobile area master-data smoke test OK')
           finally:
