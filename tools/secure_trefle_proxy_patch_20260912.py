@@ -87,16 +87,20 @@ regex_once(
     'remove Trefle token event handler'
 )
 
-# Safety assertions: no browser-side Trefle credential handling remains.
-for forbidden in ('id="trefleKey"', 'savePlantDataKey', 'state.settings.trefleKey', 'token="+encodeURIComponent(token)', 'https://trefle.io/api/v1/species/search'):
+# Safety assertions: direct browser-side credential use is gone. A single reference is
+# intentionally retained only to delete a legacy localStorage value during migration.
+for forbidden in ('id="trefleKey"', 'savePlantDataKey', 'token="+encodeURIComponent(token)', 'https://trefle.io/api/v1/species/search'):
     if forbidden in s:
         raise SystemExit(f'forbidden browser-side Trefle credential/reference remains: {forbidden}')
+if s.count('state.settings.trefleKey') > 1:
+    raise SystemExit('unexpected Trefle token references remain outside the one-time deletion migration')
 
 required = [
     '/functions/v1/trefle-enrich',
     'scientific_name:sci',
     'garden_id:String(syncState.gardenId||"")',
     'secret_hash:secretHash',
+    'delete state.settings.trefleKey',
     'Trefle-Zusatzdaten geschützt über Supabase aktiv',
 ]
 for item in required:
