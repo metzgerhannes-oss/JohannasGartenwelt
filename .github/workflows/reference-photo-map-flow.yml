@@ -1,0 +1,101 @@
+name: Reference photos and map placement flow
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/reference-photo-map-flow.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply upgrade
+        run: python tools/reference_photos_and_map_flow.py
+      - name: Validate syntax and markers
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          for marker in [
+            'function plantPhotoInfo',
+            'Referenz · iNaturalist',
+            'refPhoto:rp.medium_url',
+            'function backfillPlantReferencePhotos',
+            'function finishNaturePlacement',
+            'Zurück in Naturgarten'
+          ]:
+              assert marker in s, marker
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          PY
+          node --check /tmp/index.js
+          git diff --check
+      - name: Check iNaturalist reference image
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+          q='Buddleja davidii'
+          u='https://api.inaturalist.org/v1/taxa/autocomplete?'+urllib.parse.urlencode({'q':q,'taxon_id':47126,'locale':'de','per_page':6})
+          req=urllib.request.Request(u,headers={'Accept':'application/json','User-Agent':'JohannasGartenwelt/1.0'})
+          with urllib.request.urlopen(req,timeout=20) as r: d=json.load(r)
+          t=next((x for x in d.get('results',[]) if x.get('name','').lower()==q.lower()),None)
+          assert t and t.get('default_photo'), t
+          ph=t['default_photo']
+          assert ph.get('medium_url') or ph.get('square_url'), ph
+          print('reference image OK:',ph.get('medium_url') or ph.get('square_url'))
+          PY
+      - name: Install Selenium
+        run: python -m pip install --disable-pip-version-check selenium
+      - name: Mobile placement return smoke test
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess,time
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+
+          server=subprocess.Popen(['python','-m','http.server','8000','--bind','127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+          time.sleep(1)
+          opt=Options();opt.add_argument('--headless=new');opt.add_argument('--no-sandbox');opt.add_argument('--disable-dev-shm-usage');opt.add_argument('--window-size=390,844')
+          d=webdriver.Chrome(options=opt);d.set_window_size(390,844)
+          wait=WebDriverWait(d,15)
+          try:
+              d.get('http://127.0.0.1:8000/index.html')
+              wait.until(lambda x:x.find_elements(By.CSS_SELECTOR,'.tab[data-view="plants"]'))
+              d.execute_script("document.querySelector('.tab[data-view=\"plants\"]').click();document.getElementById('newPlantBtn').click()")
+              wait.until(EC.visibility_of_element_located((By.ID,'plantName'))).send_keys('Testpflanze')
+              d.execute_script("document.getElementById('saveAndPlaceBtn').click()")
+              m=wait.until(EC.visibility_of_element_located((By.ID,'map')))
+              d.execute_script("arguments[0].scrollIntoView({block:'center'})",m);time.sleep(.5)
+              d.execute_script("var r=arguments[0].getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;var el=document.elementFromPoint(x,y);el.dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:x,clientY:y,view:window}));",m)
+              wait.until(lambda x:x.find_element(By.CSS_SELECTOR,'.tab[data-view="plants"]').get_attribute('class').find('active')>=0)
+              wait.until(EC.visibility_of_element_located((By.ID,'plantDetailOverlay')))
+              detail=d.find_element(By.ID,'plantDetailContent').text
+              assert 'auf Karte positioniert' in detail, detail
+              assert d.execute_script('return document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
+              print('placement return flow OK')
+          finally:
+              d.quit();server.terminate();server.wait(timeout=5)
+          PY
+      - name: Commit and clean temporary files
+        shell: bash
+        run: |
+          rm -f tools/reference_photos_and_map_flow.py .github/workflows/reference-photo-map-flow.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add plant reference photos and smooth map placement flow"
+          git push origin main
