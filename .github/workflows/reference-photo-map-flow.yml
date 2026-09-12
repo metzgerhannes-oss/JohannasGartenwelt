@@ -64,6 +64,7 @@ jobs:
           from selenium import webdriver
           from selenium.webdriver.common.by import By
           from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.action_chains import ActionChains
           from selenium.webdriver.support.ui import WebDriverWait
           from selenium.webdriver.support import expected_conditions as EC
 
@@ -79,8 +80,8 @@ jobs:
               wait.until(EC.visibility_of_element_located((By.ID,'plantName'))).send_keys('Testpflanze')
               d.execute_script("document.getElementById('saveAndPlaceBtn').click()")
               m=wait.until(EC.visibility_of_element_located((By.ID,'map')))
-              d.execute_script("arguments[0].scrollIntoView({block:'center'})",m);time.sleep(.5)
-              d.execute_script("var r=arguments[0].getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;var el=document.elementFromPoint(x,y);el.dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:x,clientY:y,view:window}));",m)
+              d.execute_script("arguments[0].scrollIntoView({block:'center'})",m);time.sleep(.8)
+              ActionChains(d).move_to_element_with_offset(m,120,120).click().perform()
               wait.until(lambda x:x.find_element(By.CSS_SELECTOR,'.tab[data-view="plants"]').get_attribute('class').find('active')>=0)
               wait.until(EC.visibility_of_element_located((By.ID,'plantDetailOverlay')))
               detail=d.find_element(By.ID,'plantDetailContent').text
