@@ -1,3 +1,4 @@
+# retry after patch-script syntax fix
 name: Fix mapping status and deletion controls
 
 "on":
