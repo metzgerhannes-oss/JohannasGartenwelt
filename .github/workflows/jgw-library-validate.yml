@@ -1,0 +1,31 @@
+name: One-time library navigation validation
+
+on:
+  push:
+    paths:
+      - '.github/workflows/jgw-library-validate.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and integration checks
+        shell: bash
+        run: |
+          node --check jgw-library-nav.js
+          grep -Fq '<script src="./jgw-library-nav.js"></script>' index.html
+          grep -Fq 'Mein Garten' jgw-library-nav.js
+          grep -Fq 'Bibliothek' jgw-library-nav.js
+          grep -Fq 'jgwLibraryAnimals' jgw-library-nav.js
+      - name: Remove one-time validation workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/jgw-library-validate.yml
+          git commit -m "Remove one-time library validation workflow"
+          git push
