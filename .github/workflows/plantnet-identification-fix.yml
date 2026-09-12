@@ -22,43 +22,16 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-
-          path = Path('index.html')
-          s = path.read_text(encoding='utf-8')
-          start_marker = 'async function identifyPlant(){'
-          end_marker = '\nfunction finishNaturePlacement'
-          start = s.find(start_marker)
-          if start < 0:
-              raise SystemExit('identifyPlant start marker not found')
-          end = s.find(end_marker, start)
-          if end < 0:
-              raise SystemExit('identifyPlant end marker not found')
-
-          new_function = r'''async function identifyPlant(){
- if(!state.photoFile){el("aiStatus").textContent="Bitte zuerst ein Foto auswählen.";return}
- var key=(state.settings.plantnetKey||"").trim();
- if(!key){openSettings("settingsPlantnet");notice("Für die KI-Erkennung zuerst die Pflanzenerkennung einrichten.");return}
- el("identifyBtn").disabled=true;
- el("aiStatus").textContent="Pflanze wird erkannt …";
- el("aiResults").innerHTML="";
- function plantNetFormData(){var fd=new FormData();fd.append("images",state.photoFile);var organ=el("plantOrgan").value;if(organ!=="auto")fd.append("organs",organ);return fd}
- async function plantNetRequest(noReject){var url="https://my-api.plantnet.org/v2/identify/all?lang=de&include-related-images=false&api-key="+encodeURIComponent(key);if(noReject)url+="&no-reject=true";return fetch(url,{method:"POST",body:plantNetFormData()})}
- async function plantNetErrorMessage(res){try{var text=await res.text();if(!text)return"";try{var data=JSON.parse(text);return String(data.message||data.error||data.detail||data.statusMessage||"").trim()}catch(_){return text.replace(/\s+/g," ").trim().slice(0,180)}}catch(_){return""}}
- try{
-   var retried=false,res=await plantNetRequest(false);
-   if(res.status===404){retried=true;el("aiStatus").textContent="Pl@ntNet war beim ersten Versuch nicht sicher. Mögliche Treffer werden trotzdem geprüft …";res=await plantNetRequest(true)}
-   if(!res.ok){var apiMessage=await plantNetErrorMessage(res),msg="";if(res.status===401||res.status===403)msg="Die Pflanzenerkennung wurde von Pl@ntNet abgelehnt. Bitte den API-Schlüssel in den Einstellungen prüfen.";else if(res.status===429)msg="Das tägliche Pl@ntNet-Limit ist erreicht. Bitte später erneut versuchen.";else if(res.status===404)msg="Die Pflanze konnte auf diesem Foto nicht sicher erkannt werden. Bitte ein weiteres Foto aufnehmen – möglichst Blüte, Blatt oder die ganze Pflanze scharf und ohne störenden Hintergrund.";else msg="Pl@ntNet konnte die Anfrage nicht verarbeiten (HTTP "+res.status+").";if(apiMessage&&res.status!==404)msg+=" "+apiMessage;throw new Error(msg)}
-   var data=await res.json(),rs=(data.results||[]).slice(0,5);
-   if(!rs.length)throw new Error("Es wurden keine passenden Pflanzen gefunden. Bitte ein weiteres Foto mit gut sichtbarer Blüte, Blatt oder Gesamtpflanze versuchen.");
-   el("aiStatus").textContent=retried?"Mögliche Treffer – bitte Ergebnis prüfen:":"Vorschlag auswählen:";
-   el("aiResults").innerHTML=rs.map(function(r,i){var sp=r.species||{},sci=sp.scientificNameWithoutAuthor||sp.scientificName||"",common=(sp.commonNames&&sp.commonNames[0])||sci,pc=Math.round((r.score||0)*100);return '<button class="airesult" type="button" data-i="'+i+'"><b>'+esc(common)+'</b><small>'+esc(sci)+' · '+pc+' %</small></button>'}).join("");
-   document.querySelectorAll(".airesult").forEach(function(b){b.addEventListener("click",async function(){var r=rs[Number(b.dataset.i)],sp=r.species||{},sci=sp.scientificNameWithoutAuthor||sp.scientificName||"",common=(sp.commonNames&&sp.commonNames[0])||sci;el("plantName").value=common;el("plantScientific").value=sci;el("plantFamily").value=sp.family||"";hidePlantNameResults();if(el("plantNameAssist"))el("plantNameAssist").textContent="Aus der Fotoerkennung übernommen.";el("aiStatus").textContent="Übernommen. Pflege, Blüte und Herkunft werden ergänzt …";await enrichPlantForm({common:common,sci:sci,family:sp.family||"",source:"Pl@ntNet"},true);el("aiStatus").textContent="Übernommen. Verfügbare Pflege- und Herkunftsdaten wurden automatisch ergänzt."})})
- }catch(e){var m=String(e&&e.message||e||"");if(m.indexOf("Failed to fetch")>=0||m.indexOf("NetworkError")>=0||m.indexOf("Load failed")>=0)m="Pflanzenerkennung konnte nicht erreicht werden. Bitte Internetverbindung prüfen und erneut versuchen.";el("aiStatus").textContent="Erkennung fehlgeschlagen: "+m}
- finally{el("identifyBtn").disabled=false}
-}'''
-
-          patched = s[:start] + new_function + s[end:]
-          path.write_text(patched, encoding='utf-8')
+          import base64
+          path=Path('index.html')
+          s=path.read_text(encoding='utf-8')
+          start=s.find('async function identifyPlant(){')
+          end=s.find('\nfunction finishNaturePlacement',start)
+          if start < 0 or end < 0:
+              raise SystemExit('identifyPlant markers not found')
+          payload='YXN5bmMgZnVuY3Rpb24gaWRlbnRpZnlQbGFudCgpewogaWYoIXN0YXRlLnBob3RvRmlsZSl7ZWwoImFpU3RhdHVzIikudGV4dENvbnRlbnQ9IkJpdHRlIHp1ZXJzdCBlaW4gRm90byBhdXN3w6RobGVuLiI7cmV0dXJufQogdmFyIGtleT0oc3RhdGUuc2V0dGluZ3MucGxhbnRuZXRLZXl8fCIiKS50cmltKCk7CiBpZigha2V5KXtvcGVuU2V0dGluZ3MoInNldHRpbmdzUGxhbnRuZXQiKTtub3RpY2UoIkbDvHIgZGllIEtJLUVya2VubnVuZyB6dWVyc3QgZGllIFBmbGFuemVuZXJrZW5udW5nIGVpbnJpY2h0ZW4uIik7cmV0dXJufQogZWwoImlkZW50aWZ5QnRuIikuZGlzYWJsZWQ9dHJ1ZTsKIGVsKCJhaVN0YXR1cyIpLnRleHRDb250ZW50PSJQZmxhbnplIHdpcmQgZXJrYW5udCDigKYiOwogZWwoImFpUmVzdWx0cyIpLmlubmVySFRNTD0iIjsKIGZ1bmN0aW9uIHBsYW50TmV0Rm9ybURhdGEoKXt2YXIgZmQ9bmV3IEZvcm1EYXRhKCk7ZmQuYXBwZW5kKCJpbWFnZXMiLHN0YXRlLnBob3RvRmlsZSk7dmFyIG9yZ2FuPWVsKCJwbGFudE9yZ2FuIikudmFsdWU7aWYob3JnYW4hPT0iYXV0byIpZmQuYXBwZW5kKCJvcmdhbnMiLG9yZ2FuKTtyZXR1cm4gZmR9CiBhc3luYyBmdW5jdGlvbiBwbGFudE5ldFJlcXVlc3Qobm9SZWplY3Qpe3ZhciB1cmw9Imh0dHBzOi8vbXktYXBpLnBsYW50bmV0Lm9yZy92Mi9pZGVudGlmeS9hbGw/bGFuZz1kZSZpbmNsdWRlLXJlbGF0ZWQtaW1hZ2VzPWZhbHNlJmFwaS1rZXk9IitlbmNvZGVVUklDb21wb25lbnQoa2V5KTtpZihub1JlamVjdCl1cmwrPSImbm8tcmVqZWN0PXRydWUiO3JldHVybiBmZXRjaCh1cmwse21ldGhvZDoiUE9TVCIsYm9keTpwbGFudE5ldEZvcm1EYXRhKCl9KX0KIGFzeW5jIGZ1bmN0aW9uIHBsYW50TmV0RXJyb3JNZXNzYWdlKHJlcyl7dHJ5e3ZhciB0ZXh0PWF3YWl0IHJlcy50ZXh0KCk7aWYoIXRleHQpcmV0dXJuIiI7dHJ5e3ZhciBkYXRhPUpTT04ucGFyc2UodGV4dCk7cmV0dXJuIFN0cmluZyhkYXRhLm1lc3NhZ2V8fGRhdGEuZXJyb3J8fGRhdGEuZGV0YWlsfHxkYXRhLnN0YXR1c01lc3NhZ2V8fCIiKS50cmltKCl9Y2F0Y2goXyl7cmV0dXJuIHRleHQucmVwbGFjZSgvXHMrL2csIiAiKS50cmltKCkuc2xpY2UoMCwxODApfX1jYXRjaChfKXtyZXR1cm4iIn19CiB0cnl7CiAgIHZhciByZXRyaWVkPWZhbHNlLHJlcz1hd2FpdCBwbGFudE5ldFJlcXVlc3QoZmFsc2UpOwogICBpZihyZXMuc3RhdHVzPT09NDA0KXtyZXRyaWVkPXRydWU7ZWwoImFpU3RhdHVzIikudGV4dENvbnRlbnQ9IlBsQG50TmV0IHdhciBiZWltIGVyc3RlbiBWZXJzdWNoIG5pY2h0IHNpY2hlci4gTcO2Z2xpY2hlIFRyZWZmZXIgd2VyZGVuIHRyb3R6ZGVtIGdlcHLDvGZ0IOKApiI7cmVzPWF3YWl0IHBsYW50TmV0UmVxdWVzdCh0cnVlKX0KICAgaWYoIXJlcy5vayl7dmFyIGFwaU1lc3NhZ2U9YXdhaXQgcGxhbnROZXRFcnJvck1lc3NhZ2UocmVzKSxtc2c9IiI7aWYocmVzLnN0YXR1cz09PTQwMXx8cmVzLnN0YXR1cz09PTQwMyltc2c9IkRpZSBQZmxhbnplbmVya2VubnVuZyB3dXJkZSB2b24gUGxAbnROZXQgYWJnZWxlaG50LiBCaXR0ZSBkZW4gQVBJLVNjaGzDvHNzZWwgaW4gZGVuIEVpbnN0ZWxsdW5nZW4gcHLDvGZlbi4iO2Vsc2UgaWYocmVzLnN0YXR1cz09PTQyOSltc2c9IkRhcyB0w6RnbGljaGUgUGxAbnROZXQtTGltaXQgaXN0IGVycmVpY2h0LiBCaXR0ZSBzcMOkdGVyIGVybmV1dCB2ZXJzdWNoZW4uIjtlbHNlIGlmKHJlcy5zdGF0dXM9PT00MDQpbXNnPSJEaWUgUGZsYW56ZSBrb25udGUgYXVmIGRpZXNlbSBGb3RvIG5pY2h0IHNpY2hlciBlcmthbm50IHdlcmRlbi4gQml0dGUgZWluIHdlaXRlcmVzIEZvdG8gYXVmbmVobWVuIOKAkyBtw7ZnbGljaHN0IEJsw7x0ZSwgQmxhdHQgb2RlciBkaWUgZ2FuemUgUGZsYW56ZSBzY2hhcmYgdW5kIG9obmUgc3TDtnJlbmRlbiBIaW50ZXJncnVuZC4iO2Vsc2UgbXNnPSJQbEBudE5ldCBrb25udGUgZGllIEFuZnJhZ2UgbmljaHQgdmVyYXJiZWl0ZW4gKEhUVFAgIityZXMuc3RhdHVzKyIpLiI7aWYoYXBpTWVzc2FnZSYmcmVzLnN0YXR1cyE9PTQwNCltc2crPSIgIithcGlNZXNzYWdlO3Rocm93IG5ldyBFcnJvcihtc2cpfQogICB2YXIgZGF0YT1hd2FpdCByZXMuanNvbigpLHJzPShkYXRhLnJlc3VsdHN8fFtdKS5zbGljZSgwLDUpOwogICBpZighcnMubGVuZ3RoKXRocm93IG5ldyBFcnJvcigiRXMgd3VyZGVuIGtlaW5lIHBhc3NlbmRlbiBQZmxhbnplbiBnZWZ1bmRlbi4gQml0dGUgZWluIHdlaXRlcmVzIEZvdG8gbWl0IGd1dCBzaWNodGJhcmVyIEJsw7x0ZSwgQmxhdHQgb2RlciBHZXNhbXRwZmxhbnplIHZlcnN1Y2hlbi4iKTsKICAgZWwoImFpU3RhdHVzIikudGV4dENvbnRlbnQ9cmV0cmllZD8iTcO2Z2xpY2hlIFRyZWZmZXIg4oCTIGJpdHRlIEVyZ2VibmlzIHByw7xmZW46IjoiVm9yc2NobGFnIGF1c3fDpGhsZW46IjsKICAgZWwoImFpUmVzdWx0cyIpLmlubmVySFRNTD1ycy5tYXAoZnVuY3Rpb24ocixpKXt2YXIgc3A9ci5zcGVjaWVzfHx7fSxzY2k9c3Auc2NpZW50aWZpY05hbWVXaXRob3V0QXV0aG9yfHxzcC5zY2llbnRpZmljTmFtZXx8IiIsY29tbW9uPShzcC5jb21tb25OYW1lcyYmc3AuY29tbW9uTmFtZXNbMF0pfHxzY2kscGM9TWF0aC5yb3VuZCgoci5zY29yZXx8MCkqMTAwKTtyZXR1cm4gJzxidXR0b24gY2xhc3M9ImFpcmVzdWx0IiB0eXBlPSJidXR0b24iIGRhdGEtaT0iJytpKyciPjxiPicrZXNjKGNvbW1vbikrJzwvYj48c21hbGw+Jytlc2Moc2NpKSsnIMK3ICcrcGMrJyAlPC9zbWFsbD48L2J1dHRvbj4nfSkuam9pbigiIik7CiAgIGRvY3VtZW50LnF1ZXJ5U2VsZWN0b3JBbGwoIi5haXJlc3VsdCIpLmZvckVhY2goZnVuY3Rpb24oYil7Yi5hZGRFdmVudExpc3RlbmVyKCJjbGljayIsYXN5bmMgZnVuY3Rpb24oKXt2YXIgcj1yc1tOdW1iZXIoYi5kYXRhc2V0LmkpXSxzcD1yLnNwZWNpZXN8fHt9LHNjaT1zcC5zY2llbnRpZmljTmFtZVdpdGhvdXRBdXRob3J8fHNwLnNjaWVudGlmaWNOYW1lfHwiIixjb21tb249KHNwLmNvbW1vbk5hbWVzJiZzcC5jb21tb25OYW1lc1swXSl8fHNjaTtlbCgicGxhbnROYW1lIikudmFsdWU9Y29tbW9uO2VsKCJwbGFudFNjaWVudGlmaWMiKS52YWx1ZT1zY2k7ZWwoInBsYW50RmFtaWx5IikudmFsdWU9c3AuZmFtaWx5fHwiIjtoaWRlUGxhbnROYW1lUmVzdWx0cygpO2lmKGVsKCJwbGFudE5hbWVBc3Npc3QiKSllbCgicGxhbnROYW1lQXNzaXN0IikudGV4dENvbnRlbnQ9IkF1cyBkZXIgRm90b2Vya2VubnVuZyDDvGJlcm5vbW1lbi4iO2VsKCJhaVN0YXR1cyIpLnRleHRDb250ZW50PSLDnGJlcm5vbW1lbi4gUGZsZWdlLCBCbMO8dGUgdW5kIEhlcmt1bmZ0IHdlcmRlbiBlcmfDpG56dCDigKYiO2F3YWl0IGVucmljaFBsYW50Rm9ybSh7Y29tbW9uOmNvbW1vbixzY2k6c2NpLGZhbWlseTpzcC5mYW1pbHl8fCIiLHNvdXJjZToiUGxAbnROZXQifSx0cnVlKTtlbCgiYWlTdGF0dXMiKS50ZXh0Q29udGVudD0iw5xiZXJub21tZW4uIFZlcmbDvGdiYXJlIFBmbGVnZS0gdW5kIEhlcmt1bmZ0c2RhdGVuIHd1cmRlbiBhdXRvbWF0aXNjaCBlcmfDpG56dC4ifSl9KQogfWNhdGNoKGUpe3ZhciBtPVN0cmluZyhlJiZlLm1lc3NhZ2V8fGV8fCIiKTtpZihtLmluZGV4T2YoIkZhaWxlZCB0byBmZXRjaCIpPj0wfHxtLmluZGV4T2YoIk5ldHdvcmtFcnJvciIpPj0wfHxtLmluZGV4T2YoIkxvYWQgZmFpbGVkIik+PTApbT0iUGZsYW56ZW5lcmtlbm51bmcga29ubnRlIG5pY2h0IGVycmVpY2h0IHdlcmRlbi4gQml0dGUgSW50ZXJuZXR2ZXJiaW5kdW5nIHByw7xmZW4gdW5kIGVybmV1dCB2ZXJzdWNoZW4uIjtlbCgiYWlTdGF0dXMiKS50ZXh0Q29udGVudD0iRXJrZW5udW5nIGZlaGxnZXNjaGxhZ2VuOiAiK219CiBmaW5hbGx5e2VsKCJpZGVudGlmeUJ0biIpLmRpc2FibGVkPWZhbHNlfQp9'
+          new_function=base64.b64decode(payload).decode('utf-8')
+          path.write_text(s[:start]+new_function+s[end:],encoding='utf-8')
           print('PlantNet identification patched')
           PY
 
