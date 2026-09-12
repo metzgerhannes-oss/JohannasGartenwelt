@@ -1,0 +1,126 @@
+name: Garden area master data upgrade
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/areas-masterdata.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply garden area master-data upgrade
+        run: python tools/areas_masterdata.py
+      - name: Static data-model and syntax audit
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          required=[
+            'id="settingsAreas"',
+            'id="areaMasterList"',
+            'id="areaAddBtn"',
+            'id="plantArea"></select>',
+            'id="habitatArea"></select>',
+            'id="animalArea"></select>',
+            'function migrateAreaMasterData',
+            'function renderAreaManager',
+            'areas:state.areas||[]',
+            'version:10'
+          ]
+          for x in required: assert x in s, x
+          assert '<input id="plantArea"' not in s
+          assert '<input id="habitatArea"' not in s
+          assert '<input id="animalArea"' not in s
+          # Existing structured fields are already enumerations or real collections:
+          # plant type/water/size/origin, habitat type/status, animal group, and map zones.
+          for field in ['plantType','plantWater','plantSize','plantNative','plantFlowerAccess','habitatType','habitatStatus','animalGroup']:
+              assert f'<select id="{field}"' in s
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          print('static master-data audit OK')
+          PY
+          node --check /tmp/index.js
+          git diff --check
+      - name: Install Selenium
+        run: python -m pip install --disable-pip-version-check selenium
+      - name: Mobile migration and usability smoke test
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,subprocess,time
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+
+          server=subprocess.Popen(['python','-m','http.server','8000','--bind','127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+          time.sleep(1)
+          opt=Options();opt.add_argument('--headless=new');opt.add_argument('--no-sandbox');opt.add_argument('--disable-dev-shm-usage');opt.add_argument('--window-size=390,844')
+          d=webdriver.Chrome(options=opt);d.set_window_size(390,844);wait=WebDriverWait(d,15)
+          legacy={
+            'plants':[{'id':'p1','name':'Rose','area':'Vorgarten'}],
+            'habitats':[{'id':'h1','type':'deadwood','status':'present','area':'vorgarten'}],
+            'animals':[{'id':'a1','name':'Amsel','group':'bird','area':'Terrasse'}],
+            'zones':[], 'ecology':{}, 'settings':{}, 'days':30
+          }
+          try:
+              d.get('http://127.0.0.1:8000/index.html')
+              d.execute_script("localStorage.setItem('giess_check_garten_v3', arguments[0]);",json.dumps(legacy))
+              d.refresh()
+              wait.until(lambda x:x.find_element(By.ID,'todayDate').text.strip()!='')
+              # Open plant editor via dashboard shortcut.
+              d.execute_script("document.getElementById('addPlantToday').click()")
+              wait.until(EC.visibility_of_element_located((By.ID,'plantEditor')))
+              ps=d.find_element(By.ID,'plantArea')
+              assert ps.tag_name=='select'
+              texts=[o.text for o in ps.find_elements(By.TAG_NAME,'option')]
+              assert 'Vorgarten' in texts and 'Terrasse' in texts, texts
+              assert texts.count('Vorgarten')==1, texts
+              # Existing plant keeps its migrated area through edit.
+              d.execute_script("document.getElementById('closePlantEditor').click()")
+              d.find_element(By.CSS_SELECTOR,'.plantOpen[data-id="p1"]').click()
+              wait.until(EC.visibility_of_element_located((By.ID,'plantDetailOverlay')))
+              d.find_element(By.CSS_SELECTOR,'.plantDetailEdit').click()
+              wait.until(EC.visibility_of_element_located((By.ID,'plantEditor')))
+              assert d.find_element(By.ID,'plantArea').get_attribute('value') not in ('','__new__')
+              # Add a new master-data area in settings.
+              d.find_element(By.ID,'closePlantEditor').click()
+              d.find_element(By.ID,'settingsGear').click()
+              wait.until(EC.visibility_of_element_located((By.ID,'settingsOverlay')))
+              inp=d.find_element(By.ID,'areaNewName'); inp.send_keys('Naschgarten')
+              d.find_element(By.ID,'areaAddBtn').click()
+              wait.until(lambda x:'Naschgarten' in x.find_element(By.ID,'areaMasterList').text)
+              # All area fields are selects and touch-friendly.
+              d.find_element(By.ID,'settingsClose').click()
+              for bid in ['addPlantToday','addHabitatToday','addAnimalToday']:
+                  d.find_element(By.CSS_SELECTOR,'.tab[data-view="today"]').click()
+                  wait.until(EC.visibility_of_element_located((By.ID,bid))).click()
+                  target={'addPlantToday':'plantArea','addHabitatToday':'habitatArea','addAnimalToday':'animalArea'}[bid]
+                  sel=wait.until(EC.visibility_of_element_located((By.ID,target)))
+                  assert sel.tag_name=='select' and sel.rect['height']>=44, (target,sel.rect['height'])
+                  assert 'Naschgarten' in [o.text for o in sel.find_elements(By.TAG_NAME,'option')]
+              assert d.execute_script('return document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
+              print('mobile area master-data smoke test OK')
+          finally:
+              d.quit();server.terminate();server.wait(timeout=5)
+          PY
+      - name: Commit upgraded app and clean temporary files
+        shell: bash
+        run: |
+          rm -f tools/areas_masterdata.py .github/workflows/areas-masterdata.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Normalize garden areas across nature records"
+          git push origin main
