@@ -87,7 +87,7 @@
     qa(".tab").forEach(function(b){b.classList.toggle("active",b.dataset.view===view)});
     window.scrollTo({top:0,behavior:"smooth"});
   }
-  function openLegacy(view){if(legacy[view])legacy[view].click();else activateCustom(view)}
+  function openLegacy(view){if(window.JGWCore&&typeof window.JGWCore.switchView==="function")window.JGWCore.switchView(view);else if(typeof window.switchView==="function")window.switchView(view);else if(legacy[view])legacy[view].click();else activateCustom(view)}
 
   main.plants.addEventListener("click",function(){openLegacy("plants")});
   main.calendar.addEventListener("click",function(){openLegacy("calendar")});
@@ -106,7 +106,9 @@
 
   function openGardenCollection(kind){
     kind=["plants","habitats","animals"].includes(kind)?kind:"plants";
-    if(typeof window.setNatureTab==="function"){
+    if(window.JGWCore&&typeof window.JGWCore.setNatureTab==="function"){
+      window.JGWCore.setNatureTab(kind);
+    }else if(typeof window.setNatureTab==="function"){
       window.setNatureTab(kind);
     }else{
       var panes={plants:"naturePlantsPane",habitats:"natureHabitatsPane",animals:"natureAnimalsPane"};

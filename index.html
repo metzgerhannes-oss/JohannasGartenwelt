@@ -1499,6 +1499,8 @@ el("useCloudVersion").addEventListener("click",function(){syncPull(true)});
 el("useLocalVersion").addEventListener("click",function(){syncPush(true)});
 document.addEventListener("visibilitychange",function(){if(!document.hidden)syncCheckRemote()});
 window.addEventListener("error",function(e){console.error(e.error||e.message)});
+window.JGWCore={getState:function(){return state},switchView:switchView,setNatureTab:setNatureTab,renderPlants:renderPlants,renderNatureTabs:renderNatureTabs,renderHabitats:renderHabitats,renderAnimals:renderAnimals,renderCalendar:renderCalendar,openPlantDetail:openPlantDetail,openAnimalDetail:openAnimalDetail};
+window.switchView=switchView;window.setNatureTab=setNatureTab;window.renderPlants=renderPlants;window.renderNatureTabs=renderNatureTabs;window.renderHabitats=renderHabitats;window.renderAnimals=renderAnimals;window.openPlantDetail=openPlantDetail;window.openAnimalDetail=openAnimalDetail;window.state=state;
 renderAll();syncBootstrap();setTimeout(backfillPlantReferencePhotos,1400);if(state.plz)refreshWeather(false);
 })();
 </script>
@@ -1576,6 +1578,6 @@ renderAll();syncBootstrap();setTimeout(backfillPlantReferencePhotos,1400);if(sta
   window.addEventListener("load",scheduleEnhance,{once:true});
 })();
 </script>
-<script src="./jgw-library-nav.js"></script>
+<script src="./jgw-library-nav.js?v=20260912-runtime3"></script>
 </body>
 </html>
