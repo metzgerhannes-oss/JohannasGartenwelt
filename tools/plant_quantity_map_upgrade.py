@@ -69,8 +69,8 @@ between('function plantMapStatus(p,z){','\nfunction typeLabel', 'function plantM
 between('function currentZoneForPlant(p){','\nfunction pointInPolygon', 'function currentZoneForPlant(p){var pos=plantPositions(p);if(!pos.length)return null;var first=pos[0];for(var i=state.zones.length-1;i>=0;i--){if(pointInPolygon(first.lat,first.lon,state.zones[i].points))return state.zones[i]}return null}', 'current zone compatibility')
 
 old_badge = '''<span class="insect-badge '+ecoBadgeClass(e.score)+'">🐝 '+e.score+'</span>'''
-new_badge = old_badge + ''''+(Number(p.quantity||1)>1?'<span class="plant-quantity-badge">×'+Number(p.quantity||1)+'</span>':'')+''' 
-new_badge = new_badge[:-2]
+new_badge = old_badge + ''''+(Number(p.quantity||1)>1?'<span class="plant-quantity-badge">×'+Number(p.quantity||1)+'</span>':'')+' '''
+new_badge = new_badge[:-1]
 once(old_badge,new_badge,'collection quantity badge')
 
 once('el("plantSize").value="medium";el("plantId").value="";',
