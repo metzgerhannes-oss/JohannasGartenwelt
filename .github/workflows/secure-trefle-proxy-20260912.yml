@@ -34,8 +34,9 @@ jobs:
           assert '/functions/v1/trefle-enrich' in s
           assert 'id="trefleKey"' not in s
           assert 'savePlantDataKey' not in s
-          assert 'state.settings.trefleKey' not in s
           assert 'https://trefle.io/api/v1/species/search' not in s
+          assert s.count('state.settings.trefleKey') <= 1
+          assert 'delete state.settings.trefleKey' in s
           assert 'Deno.env.get("TREFLE_TOKEN")' in edge
           assert 'jgw_status_garden' in edge
           assert 'unauthorized_garden' in edge
