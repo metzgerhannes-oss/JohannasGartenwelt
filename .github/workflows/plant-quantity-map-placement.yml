@@ -1,4 +1,5 @@
 name: Plant quantity and map placement upgrade
+# corrected retry: quantity badge syntax
 
 on:
   push:
