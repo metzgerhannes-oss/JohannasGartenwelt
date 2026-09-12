@@ -1,0 +1,90 @@
+name: PlantNet identification fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/plantnet-identification-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Improve PlantNet photo identification
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          s = path.read_text(encoding='utf-8')
+          start_marker = 'async function identifyPlant(){'
+          end_marker = '\nfunction finishNaturePlacement'
+          start = s.find(start_marker)
+          if start < 0:
+              raise SystemExit('identifyPlant start marker not found')
+          end = s.find(end_marker, start)
+          if end < 0:
+              raise SystemExit('identifyPlant end marker not found')
+
+          new_function = r'''async function identifyPlant(){
+ if(!state.photoFile){el("aiStatus").textContent="Bitte zuerst ein Foto auswählen.";return}
+ var key=(state.settings.plantnetKey||"").trim();
+ if(!key){openSettings("settingsPlantnet");notice("Für die KI-Erkennung zuerst die Pflanzenerkennung einrichten.");return}
+ el("identifyBtn").disabled=true;
+ el("aiStatus").textContent="Pflanze wird erkannt …";
+ el("aiResults").innerHTML="";
+ function plantNetFormData(){var fd=new FormData();fd.append("images",state.photoFile);var organ=el("plantOrgan").value;if(organ!=="auto")fd.append("organs",organ);return fd}
+ async function plantNetRequest(noReject){var url="https://my-api.plantnet.org/v2/identify/all?lang=de&include-related-images=false&api-key="+encodeURIComponent(key);if(noReject)url+="&no-reject=true";return fetch(url,{method:"POST",body:plantNetFormData()})}
+ async function plantNetErrorMessage(res){try{var text=await res.text();if(!text)return"";try{var data=JSON.parse(text);return String(data.message||data.error||data.detail||data.statusMessage||"").trim()}catch(_){return text.replace(/\s+/g," ").trim().slice(0,180)}}catch(_){return""}}
+ try{
+   var retried=false,res=await plantNetRequest(false);
+   if(res.status===404){retried=true;el("aiStatus").textContent="Pl@ntNet war beim ersten Versuch nicht sicher. Mögliche Treffer werden trotzdem geprüft …";res=await plantNetRequest(true)}
+   if(!res.ok){var apiMessage=await plantNetErrorMessage(res),msg="";if(res.status===401||res.status===403)msg="Die Pflanzenerkennung wurde von Pl@ntNet abgelehnt. Bitte den API-Schlüssel in den Einstellungen prüfen.";else if(res.status===429)msg="Das tägliche Pl@ntNet-Limit ist erreicht. Bitte später erneut versuchen.";else if(res.status===404)msg="Die Pflanze konnte auf diesem Foto nicht sicher erkannt werden. Bitte ein weiteres Foto aufnehmen – möglichst Blüte, Blatt oder die ganze Pflanze scharf und ohne störenden Hintergrund.";else msg="Pl@ntNet konnte die Anfrage nicht verarbeiten (HTTP "+res.status+").";if(apiMessage&&res.status!==404)msg+=" "+apiMessage;throw new Error(msg)}
+   var data=await res.json(),rs=(data.results||[]).slice(0,5);
+   if(!rs.length)throw new Error("Es wurden keine passenden Pflanzen gefunden. Bitte ein weiteres Foto mit gut sichtbarer Blüte, Blatt oder Gesamtpflanze versuchen.");
+   el("aiStatus").textContent=retried?"Mögliche Treffer – bitte Ergebnis prüfen:":"Vorschlag auswählen:";
+   el("aiResults").innerHTML=rs.map(function(r,i){var sp=r.species||{},sci=sp.scientificNameWithoutAuthor||sp.scientificName||"",common=(sp.commonNames&&sp.commonNames[0])||sci,pc=Math.round((r.score||0)*100);return '<button class="airesult" type="button" data-i="'+i+'"><b>'+esc(common)+'</b><small>'+esc(sci)+' · '+pc+' %</small></button>'}).join("");
+   document.querySelectorAll(".airesult").forEach(function(b){b.addEventListener("click",async function(){var r=rs[Number(b.dataset.i)],sp=r.species||{},sci=sp.scientificNameWithoutAuthor||sp.scientificName||"",common=(sp.commonNames&&sp.commonNames[0])||sci;el("plantName").value=common;el("plantScientific").value=sci;el("plantFamily").value=sp.family||"";hidePlantNameResults();if(el("plantNameAssist"))el("plantNameAssist").textContent="Aus der Fotoerkennung übernommen.";el("aiStatus").textContent="Übernommen. Pflege, Blüte und Herkunft werden ergänzt …";await enrichPlantForm({common:common,sci:sci,family:sp.family||"",source:"Pl@ntNet"},true);el("aiStatus").textContent="Übernommen. Verfügbare Pflege- und Herkunftsdaten wurden automatisch ergänzt."})})
+ }catch(e){var m=String(e&&e.message||e||"");if(m.indexOf("Failed to fetch")>=0||m.indexOf("NetworkError")>=0||m.indexOf("Load failed")>=0)m="Pflanzenerkennung konnte nicht erreicht werden. Bitte Internetverbindung prüfen und erneut versuchen.";el("aiStatus").textContent="Erkennung fehlgeschlagen: "+m}
+ finally{el("identifyBtn").disabled=false}
+}'''
+
+          patched = s[:start] + new_function + s[end:]
+          path.write_text(patched, encoding='utf-8')
+          print('PlantNet identification patched')
+          PY
+
+      - name: Static syntax check
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          assert 'no-reject=true' in s
+          assert 'Pl@ntNet war beim ersten Versuch nicht sicher' in s
+          assert 'Bei einer lokal geöffneten Datei kann zusätzlich eine CORS-Freigabe' not in s
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          print('PlantNet patch audit OK')
+          PY
+          node --check /tmp/index.js
+          git diff --check
+
+      - name: Commit fix and remove temporary workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/plantnet-identification-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Improve PlantNet photo identification"
+          git push origin main
