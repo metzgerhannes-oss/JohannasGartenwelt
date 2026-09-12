@@ -1,0 +1,63 @@
+name: Apply verified runtime bridge fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/jgw-runtime-fix-apply.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply verified fix
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          marker='renderAll();syncBootstrap();setTimeout(backfillPlantReferencePhotos,1400);if(state.plz)refreshWeather(false);'
+          bridge='''window.JGWCore={getState:function(){return state},switchView:switchView,setNatureTab:setNatureTab,renderPlants:renderPlants,renderNatureTabs:renderNatureTabs,renderHabitats:renderHabitats,renderAnimals:renderAnimals,renderCalendar:renderCalendar,openPlantDetail:openPlantDetail,openAnimalDetail:openAnimalDetail};\nwindow.switchView=switchView;window.setNatureTab=setNatureTab;window.renderPlants=renderPlants;window.renderNatureTabs=renderNatureTabs;window.renderHabitats=renderHabitats;window.renderAnimals=renderAnimals;window.openPlantDetail=openPlantDetail;window.openAnimalDetail=openAnimalDetail;window.state=state;\n'''
+          if 'window.JGWCore={getState:function(){return state}' not in s:
+              if marker not in s: raise SystemExit('core marker missing')
+              s=s.replace(marker,bridge+marker,1)
+          s,n=re.subn(r'<script src="\./jgw-library-nav\.js(?:\?v=[^"]*)?"></script>','<script src="./jgw-library-nav.js?v=20260912-runtime3"></script>',s,count=1)
+          if n!=1: raise SystemExit('library script tag missing')
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('jgw-library-nav.js')
+          s=p.read_text(encoding='utf-8')
+          old='  function openLegacy(view){if(legacy[view])legacy[view].click();else activateCustom(view)}'
+          new='  function openLegacy(view){if(window.JGWCore&&typeof window.JGWCore.switchView==="function")window.JGWCore.switchView(view);else if(typeof window.switchView==="function")window.switchView(view);else if(legacy[view])legacy[view].click();else activateCustom(view)}'
+          if old in s: s=s.replace(old,new,1)
+          elif new not in s: raise SystemExit('openLegacy marker missing')
+          old='    if(typeof window.setNatureTab==="function"){\n      window.setNatureTab(kind);'
+          new='    if(window.JGWCore&&typeof window.JGWCore.setNatureTab==="function"){\n      window.JGWCore.setNatureTab(kind);\n    }else if(typeof window.setNatureTab==="function"){\n      window.setNatureTab(kind);'
+          if old in s: s=s.replace(old,new,1)
+          elif new not in s: raise SystemExit('nature bridge marker missing')
+          p.write_text(s,encoding='utf-8')
+          PY
+          node --check jgw-library-nav.js
+          grep -q 'window.JGWCore={getState:function(){return state}' index.html
+          grep -q 'jgw-library-nav.js?v=20260912-runtime3' index.html
+          grep -q 'id="jgwLibraryScope"' jgw-library-nav.js
+          grep -q 'function openGardenCollection(kind)' jgw-library-nav.js
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/jgw-runtime-fix.yml .github/workflows/jgw-runtime-fix-apply.yml
+          git add index.html jgw-library-nav.js
+          git commit -m 'Fix library runtime integration and garden buttons'
+          git push
