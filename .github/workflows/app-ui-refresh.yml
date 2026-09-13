@@ -10,6 +10,7 @@ on:
       - 'jgw-ux-shell.js'
       - 'jgw-library-v4.js'
       - 'jgw-ux-patch.js'
+      - 'jgw-photo-storage-v2.js'
       - 'garten-tipps.js'
       - 'photo-storage.js'
       - 'tools/final_audit.py'
@@ -50,7 +51,7 @@ jobs:
           PY
           node --check /tmp/index.html.js
           node --check /tmp/setup.html.js
-          for js in jgw-library-nav.js jgw-ux-shell.js jgw-library-v4.js jgw-ux-patch.js garten-tipps.js photo-storage.js; do
+          for js in jgw-library-nav.js jgw-ux-shell.js jgw-library-v4.js jgw-ux-patch.js jgw-photo-storage-v2.js garten-tipps.js photo-storage.js; do
             test ! -f "$js" || node --check "$js"
           done
       - name: Install browser test dependency
