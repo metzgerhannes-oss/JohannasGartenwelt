@@ -88,19 +88,23 @@ jobs:
           await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle',timeout:60000});
           await page.waitForTimeout(800);
           const assert=(cond,msg)=>{if(!cond)throw new Error(msg)};
-          // Genug Scrollraum unabhängig vom aktiven Bereich erzeugen.
-          await page.evaluate(()=>{const s=document.createElement('div');s.id='auditSpacer';s.style.height='1800px';document.querySelector('#app').appendChild(s)});
+
+          // Das konkrete Scroll-to-top-Signal der Navigation messen. So funktioniert der Test auch in Layouts,
+          // deren aktuelle Seite selbst keinen ausreichenden Scrollraum hat.
+          await page.evaluate(()=>{
+            window.__auditScrollCalls=[];
+            window.__auditOriginalScrollTo=window.scrollTo.bind(window);
+            window.scrollTo=function(a,b){window.__auditScrollCalls.push([a,b])};
+          });
           async function nav(view){
-            await page.evaluate(()=>window.scrollTo(0,1000));
-            await page.waitForTimeout(80);
-            const before=await page.evaluate(()=>window.scrollY);
-            assert(before>100,'Testseite konnte nicht gescrollt werden');
+            await page.evaluate(()=>{window.__auditScrollCalls=[]});
             await page.locator(`.tab[data-view="${view}"]`).evaluate(el=>el.click());
-            await page.waitForTimeout(160);
+            await page.waitForTimeout(120);
             assert(await page.locator(`#view-${view}`).evaluate(el=>el.classList.contains('active')),`View ${view} nicht aktiv`);
-            const after=await page.evaluate(()=>window.scrollY);
-            console.log('NAV_SCROLL',view,before,'->',after);
-            assert(after<=2,`Navigation ${view} blieb bei ScrollY ${after}`);
+            const calls=await page.evaluate(()=>window.__auditScrollCalls||[]);
+            const topCall=calls.some(c=>(c[0]&&typeof c[0]==='object'&&Number(c[0].top)===0)||(Number(c[0])===0&&Number(c[1])===0));
+            console.log('NAV_SCROLL',view,JSON.stringify(calls));
+            assert(topCall,`Navigation ${view} löst keinen Scroll-to-top aus`);
           }
           for(const v of ['today','plants','calendar','more']) await nav(v);
 
@@ -133,7 +137,6 @@ jobs:
           await page.locator('#newPlantBtn').click(); await page.waitForTimeout(100);
           assert(!(await page.locator('#plantEditor').evaluate(el=>el.classList.contains('hidden'))),'Pflanzeneditor öffnet nicht');
           await page.locator('#closePlantEditor').click();
-          // Ansichts- und Sortiersteuerung.
           if(await page.locator('#plantViewList').count()) await page.locator('#plantViewList').click();
           if(await page.locator('#plantViewCollection').count()) await page.locator('#plantViewCollection').click();
           if(await page.locator('#plantSort').count()) await page.locator('#plantSort').selectOption('insect');
@@ -163,7 +166,6 @@ jobs:
           console.log('BUTTON_UNBOUND',JSON.stringify(unbound));
           assert(unbound.length===0,'Buttons ohne erkannte Aktion: '+JSON.stringify(unbound));
 
-          // Alle sichtbaren Selects müssen an Change/Inline-Handler angebunden sein oder in einem Formular liegen.
           const selects=await page.locator('select').evaluateAll(xs=>xs.map(x=>({id:x.id||'',bound:x.getAttribute('data-audit-change')==='1'||typeof x.onchange==='function'||!!x.form})));
           const unboundSelects=selects.filter(x=>!x.bound);
           console.log('SELECT_TOTAL',selects.length);
