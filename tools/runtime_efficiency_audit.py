@@ -33,6 +33,8 @@ def server():
 
 def browser():
     opts = webdriver.ChromeOptions()
+    # Return as soon as navigation starts; readiness is tested explicitly below.
+    # This prevents a slow optional resource from turning into a 120s WebDriver wait.
     opts.page_load_strategy = "none"
     opts.add_argument("--headless=new")
     opts.add_argument("--no-sandbox")
@@ -43,10 +45,6 @@ def browser():
     d = webdriver.Chrome(options=opts)
     d.set_window_size(390, 844)
     d.set_page_load_timeout(25)
-    d.execute_cdp_cmd("Network.enable", {})
-    # Map assets must not be able to block the basic app shell. The map itself is
-    # covered separately by source checks and the production smoke test.
-    d.execute_cdp_cmd("Network.setBlockedURLs", {"urls": ["*cdn.jsdelivr.net/npm/leaflet*"]})
     return d
 
 
@@ -75,7 +73,7 @@ def severe_errors(d):
             continue
         msg = row.get("message", "")
         low = msg.lower()
-        if any(x in low for x in ["leaflet", "favicon", "net::err_blocked_by_client"]):
+        if any(x in low for x in ["favicon", "tile", "wms", "net::err_blocked_by_client"]):
             continue
         result.append(msg)
     return result
@@ -111,18 +109,23 @@ def run_runtime():
     httpd, base = server()
     d = browser()
     started = time.perf_counter()
+    stage = "Navigation starten"
     try:
         d.get(base + "?runtime-audit=" + str(int(time.time())))
+        stage = "Body sichtbar"
         visible(d, "body", 10)
-        wait(d, 20).until(lambda x: x.execute_script("return !!window.JGWCore && !!window.JGWUX && !!window.JGWLibraryV4"))
+        stage = "App-Bootstrap"
+        wait(d, 25).until(lambda x: x.execute_script("return !!window.JGWCore && !!window.JGWUX && !!window.JGWLibraryV4"))
         boot_ms = round((time.perf_counter() - started) * 1000)
-        record("App-Bootstrap ohne Karten-CDN", detail=f"{boot_ms} ms")
+        record("App-Bootstrap vor vollständigem Page-Load", detail=f"{boot_ms} ms")
 
+        stage = "Navigation & FAB"
         labels = [x.text.strip() for x in d.find_elements(By.CSS_SELECTOR, ".tabs .tab")]
         assert labels == ["Heute", "Mein Garten", "Aufgaben", "Bibliothek", "Mehr"], labels
         assert visible(d, ".jgw-fab").is_displayed()
         record("Navigation & FAB", detail=" · ".join(labels))
 
+        stage = "Fotoauswahl"
         click(d, ".jgw-fab")
         click(d, '.jgw-add-option[data-kind="plants"]')
         visible(d, "#plantEditor")
@@ -132,7 +135,7 @@ def run_runtime():
         assert d.find_element(By.CSS_SELECTOR, "#plantEditor .jgw-camera").text == "Kamera öffnen"
         record("Fotoauswahl", detail="Dateiauswahl ohne capture; Kamera separat")
 
-        # The old inline onclick must not execute in addition to the V2 handler.
+        stage = "Fotospeicher-Handler"
         d.execute_script("window.__directOptimizeCalls=0; if(window.JGWPhotoStorageDirect){window.JGWPhotoStorageDirect.optimize=function(){window.__directOptimizeCalls++}}")
         click(d, '.tabs .tab[data-view="more"]')
         click(d, "#moreSettingsBtn")
@@ -144,14 +147,18 @@ def run_runtime():
         assert direct_calls == 0, direct_calls
         record("Fotospeicher-Handler", detail="ein Klick → nur V2-Pfad")
 
+        stage = "Einstellungen"
         groups = d.find_elements(By.CSS_SELECTOR, ".jgw-settings-group")
         assert len(groups) == 4, len(groups)
         record("Einstellungen", detail="4 Gruppen")
 
+        stage = "JavaScript-Konsole"
         errors = severe_errors(d)
         assert not errors, " | ".join(errors[:5])
-        record("JavaScript-Laufzeit", detail="keine SEVERE-Fehler außerhalb bewusst blockierter Kartenassets")
+        record("JavaScript-Laufzeit", detail="keine SEVERE-Fehler")
         d.save_screenshot(str(OUT / "runtime_mobile.png"))
+    except Exception as exc:
+        raise RuntimeError(f"{stage}: {exc!r}") from exc
     finally:
         d.quit()
         httpd.shutdown()
@@ -162,7 +169,7 @@ def main():
         static_efficiency_checks()
         run_runtime()
     except Exception as exc:
-        record("Audit-Ausführung", "FAIL", repr(exc))
+        record("Audit-Ausführung", "FAIL", str(exc))
     finally:
         (OUT / "report.json").write_text(json.dumps(REPORT, ensure_ascii=False, indent=2), encoding="utf-8")
     fails = [r for r in REPORT if r["status"] == "FAIL"]
