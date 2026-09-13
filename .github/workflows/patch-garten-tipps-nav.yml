@@ -1,0 +1,39 @@
+name: Patch Garten-Tipps Navigation
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-garten-tipps-nav.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Navigation anpassen
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('garten-tipps.js')
+          s=p.read_text(encoding='utf-8')
+          go_start=s.index("function Go(){")
+          install_start=s.index("\nfunction Install(){",go_start)
+          new_go="function Go(){document.querySelectorAll('.view').forEach(function(v){v.classList.toggle('active',v.id==='view-advisor')});document.querySelectorAll('.tab').forEach(function(b){b.classList.toggle('active',b.dataset.view==='more')});Render();scrollTo({top:0,behavior:'smooth'})}"
+          s=s[:go_start]+new_go+s[install_start:]
+          install_start=s.index("function Install(){")
+          ready=s.index("\ndocument.readyState",install_start)
+          new_install="""function Install(){if(document.getElementById('view-advisor'))return;var app=document.getElementById('app')||document.querySelector('.wrap'),grid=document.querySelector('#view-more .more-grid');if(!app||!grid)return setTimeout(Install,200);Style();if(!document.getElementById('moreAdvisorBtn')){var b=document.createElement('button');b.className='more-card';b.id='moreAdvisorBtn';b.type='button';b.innerHTML='<span class=\"more-icon\" aria-hidden=\"true\">✨</span><span><b>Garten-Tipps</b><small>Was fehlt, was passt hierhin und welche Pflanzen ergänzen den Garten sinnvoll?</small></span>';b.onclick=Go;grid.insertBefore(b,grid.children[2]||null)}var v=document.createElement('section');v.id='view-advisor';v.className='view';v.innerHTML='<div class=\"box\"><div id=\"jga-body\"></div></div>';var o=app.querySelector('.plant-detail-overlay,.celebration,.undo-toast');o?app.insertBefore(v,o):app.appendChild(v);window.addEventListener('storage',function(){if(v.classList.contains('active'))Render()})}"""
+          s=s[:install_start]+new_install+s[ready:]
+          p.write_text(s,encoding='utf-8')
+          PY
+          node --check garten-tipps.js
+      - name: Änderung committen
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add garten-tipps.js
+          git commit -m "Garten-Tipps unter Mehr einordnen"
+          git push
