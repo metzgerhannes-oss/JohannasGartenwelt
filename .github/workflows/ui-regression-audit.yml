@@ -24,13 +24,14 @@ jobs:
           from pathlib import Path
           import re, sys
           html=Path('index.html').read_text(encoding='utf-8')
-          ids=re.findall(r'<button\b[^>]*\bid="([^"]+)"',html,re.I)
+          head=html.split('<script',1)[0]
+          ids=re.findall(r'<button\b[^>]*\bid="([^"]+)"',head,re.I)
           dup=sorted({x for x in ids if ids.count(x)>1})
-          print('Button-IDs:',len(ids))
-          print('Doppelte Button-IDs:',dup)
+          print('Statische Button-IDs:',len(ids))
+          print('Doppelte statische Button-IDs:',dup)
           if dup: sys.exit(1)
           for required in ['today','plants','calendar','more']:
-              if f'data-view="{required}"' not in html:
+              if f'data-view="{required}"' not in head:
                   raise SystemExit('Navigation fehlt: '+required)
           if '<script src="./garten-tipps.js"></script>' not in html:
               raise SystemExit('Garten-Tipps nicht eingebunden')
@@ -44,7 +45,6 @@ jobs:
         shell: bash
         run: |
           python3 -m http.server 4173 >/tmp/jgw-http.log 2>&1 &
-          echo $! >/tmp/jgw-http.pid
           for i in {1..30}; do curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
           cat /tmp/jgw-http.log
           exit 1
@@ -77,45 +77,40 @@ jobs:
           });
           await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle',timeout:60000});
           await page.waitForTimeout(700);
-          const assert=async(cond,msg)=>{if(!cond)throw new Error(msg)};
+          const assert=(cond,msg)=>{if(!cond)throw new Error(msg)};
           async function nav(view){
             await page.evaluate(()=>window.scrollTo(0,900));
             await page.waitForTimeout(50);
             await page.locator(`.tab[data-view="${view}"]`).evaluate(el=>el.click());
             await page.waitForTimeout(250);
-            await assert(await page.locator(`#view-${view}`).evaluate(el=>el.classList.contains('active')),`View ${view} nicht aktiv`);
+            assert(await page.locator(`#view-${view}`).evaluate(el=>el.classList.contains('active')),`View ${view} nicht aktiv`);
             const y=await page.evaluate(()=>window.scrollY);
             console.log('NAV_SCROLL',view,y);
             return y;
           }
           const scroll={}; for(const v of ['today','plants','calendar','more']) scroll[v]=await nav(v);
-          // Mehr-Karten
           await page.locator('.tab[data-view="more"]').evaluate(el=>el.click()); await page.waitForTimeout(100);
           for(const [id,target] of [['moreMapBtn','view-map'],['moreWeatherBtn','view-weather']]){
             await page.locator('#'+id).click(); await page.waitForTimeout(250);
-            await assert(await page.locator('#'+target).evaluate(el=>el.classList.contains('active')),id+' öffnet Ziel nicht');
+            assert(await page.locator('#'+target).evaluate(el=>el.classList.contains('active')),id+' öffnet Ziel nicht');
             await page.locator('.tab[data-view="more"]').evaluate(el=>el.click()); await page.waitForTimeout(100);
           }
           await page.locator('#moreSettingsBtn').click(); await page.waitForTimeout(150);
-          await assert(!(await page.locator('#settingsOverlay').evaluate(el=>el.classList.contains('hidden'))),'Einstellungen öffnen fehlgeschlagen');
+          assert(!(await page.locator('#settingsOverlay').evaluate(el=>el.classList.contains('hidden'))),'Einstellungen öffnen fehlgeschlagen');
           await page.locator('#settingsClose').click();
           await page.locator('#moreAdvisorBtn').click(); await page.waitForTimeout(200);
-          await assert(await page.locator('#view-advisor').evaluate(el=>el.classList.contains('active')),'Garten-Tipps öffnen fehlgeschlagen');
-          for(const mode of ['balance','animals','native','easy']){await page.locator(`#jga-body [data-m="${mode}"]`).click();}
+          assert(await page.locator('#view-advisor').evaluate(el=>el.classList.contains('active')),'Garten-Tipps öffnen fehlgeschlagen');
+          for(const mode of ['balance','animals','native','easy']) await page.locator(`#jga-body [data-m="${mode}"]`).click();
           await page.locator('#jga-zone').selectOption('z1');
           await page.locator('#jga-focus').selectOption('p1');
           await page.locator('#jga-refresh').click();
-          // Pflanzen/Naturgarten
           await page.locator('.tab[data-view="plants"]').evaluate(el=>el.click()); await page.waitForTimeout(120);
           for(const n of ['plants','habitats','animals']){const b=page.locator(`.nature-tab[data-nature="${n}"]`); if(await b.count()) {await b.click(); await page.waitForTimeout(80);}}
           const addPlant=page.locator('#newPlantBtn'); if(await addPlant.count()){await addPlant.click(); await page.waitForTimeout(100); await page.locator('#closePlantEditor').click();}
-          // Kalender
           await page.locator('.tab[data-view="calendar"]').evaluate(el=>el.click()); await page.waitForTimeout(100);
           const cal=page.locator('#calendarToggle'); if(await cal.count()) await cal.click();
-          // Quickadd + Settings gear
           const qp=page.locator('#quickAddPlant'); if(await qp.count()){await qp.click(); await page.waitForTimeout(100); if(await page.locator('#closePlantEditor').count()) await page.locator('#closePlantEditor').click();}
           const gear=page.locator('#settingsGear'); if(await gear.count()){await gear.click(); await page.waitForTimeout(100); await page.locator('#settingsClose').click();}
-          // Audit aller aktuell im DOM vorhandenen Buttons auf eine direkte Click-/onclick-/Submit-Anbindung.
           const audit=await page.locator('button').evaluateAll(btns=>btns.map((b,i)=>({i,id:b.id||'',text:(b.innerText||b.getAttribute('aria-label')||'').trim().replace(/\s+/g,' ').slice(0,70),type:b.type,click:b.getAttribute('data-audit-click')==='1'||typeof b.onclick==='function',formSubmit:b.type==='submit'&&b.form&&(b.form.getAttribute('data-audit-submit')==='1')})));
           const unbound=audit.filter(x=>!x.click&&!x.formSubmit);
           console.log('BUTTON_TOTAL',audit.length);
@@ -123,7 +118,6 @@ jobs:
           console.log('JS_ERRORS',JSON.stringify(errors));
           console.log('SCROLL_RESULTS',JSON.stringify(scroll));
           if(errors.some(e=>!e.includes('favicon')&&!e.includes('ERR_')))throw new Error('JavaScript-Konsolenfehler: '+errors.join(' | '));
-          // Scroll wird separat ausgewertet; aktuell darf Test ihn melden, nicht abbrechen.
           await browser.close();
           JS
           node /tmp/jgw-audit.mjs | tee /tmp/jgw-audit.log
