@@ -13,7 +13,9 @@ on:
       - 'jgw-photo-storage-v2.js'
       - 'garten-tipps.js'
       - 'photo-storage.js'
+      - 'tools/runtime_efficiency_audit.py'
       - 'tools/ux_v4_audit.py'
+      - 'supabase/functions/**'
 
 permissions:
   contents: read
@@ -38,6 +40,7 @@ jobs:
           idx=Path('index.html').read_text(encoding='utf-8')
           setup=Path('setup.html').read_text(encoding='utf-8')
           json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
+          json.loads(Path('setup.webmanifest').read_text(encoding='utf-8'))
           assert 'font-family:-apple-system' in idx
           assert 'min-height:52px' in idx
           assert '<link rel="apple-touch-icon" href="./app-icon-180.png">' in setup
@@ -52,16 +55,23 @@ jobs:
           for js in jgw-library-nav.js jgw-ux-shell.js jgw-library-v4.js jgw-ux-patch.js jgw-photo-storage-v2.js garten-tipps.js photo-storage.js; do
             test ! -f "$js" || node --check "$js"
           done
-          python -m py_compile tools/ux_v4_audit.py
+          python -m py_compile tools/runtime_efficiency_audit.py tools/ux_v4_audit.py
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Edge Function type checks
+        run: |
+          deno check supabase/functions/jgw-photo/index.ts
+          deno check supabase/functions/trefle-enrich/index.ts
       - name: Install browser test dependency
         run: python -m pip install --disable-pip-version-check selenium
-      - name: UX v4 browser audit
-        run: python tools/ux_v4_audit.py
+      - name: Runtime and efficiency audit
+        run: python tools/runtime_efficiency_audit.py
       - name: Upload audit screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: johannas-gartenwelt-ux-v4-audit
-          path: audit_artifacts_v4
+          name: johannas-gartenwelt-runtime-audit
+          path: audit_runtime
           if-no-files-found: warn
           retention-days: 14
