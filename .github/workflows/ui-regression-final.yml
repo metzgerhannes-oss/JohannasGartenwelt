@@ -20,6 +20,7 @@ jobs:
         shell: bash
         run: |
           node --check garten-tipps.js
+          node --check jgw-library-nav.js
           python - <<'PY'
           from pathlib import Path
           import re, sys
@@ -30,11 +31,10 @@ jobs:
           print('STATIC_BUTTONS',len(ids))
           print('DUPLICATE_STATIC_IDS',dup)
           if dup: sys.exit(1)
-          for required in ['today','plants','calendar','more']:
-              if f'data-view="{required}"' not in head:
-                  raise SystemExit('Navigation fehlt: '+required)
           if '<script src="./garten-tipps.js"></script>' not in html:
               raise SystemExit('Garten-Tipps nicht eingebunden')
+          if '<script src="./jgw-library-nav.js' not in html:
+              raise SystemExit('Bibliotheksnavigation nicht eingebunden')
           if 'window.scrollTo({top:0,left:0,behavior:"auto"})' not in html:
               raise SystemExit('Scroll-to-top in switchView fehlt')
           PY
@@ -89,8 +89,6 @@ jobs:
           await page.waitForTimeout(800);
           const assert=(cond,msg)=>{if(!cond)throw new Error(msg)};
 
-          // Das konkrete Scroll-to-top-Signal der Navigation messen. So funktioniert der Test auch in Layouts,
-          // deren aktuelle Seite selbst keinen ausreichenden Scrollraum hat.
           await page.evaluate(()=>{
             window.__auditScrollCalls=[];
             window.__auditOriginalScrollTo=window.scrollTo.bind(window);
@@ -98,7 +96,9 @@ jobs:
           });
           async function nav(view){
             await page.evaluate(()=>{window.__auditScrollCalls=[]});
-            await page.locator(`.tab[data-view="${view}"]`).evaluate(el=>el.click());
+            const button=page.locator(`.tabs > .tab[data-view="${view}"]`);
+            assert(await button.count()===1,`Sichtbarer Navigationsbutton ${view} fehlt oder ist doppelt`);
+            await button.click();
             await page.waitForTimeout(120);
             assert(await page.locator(`#view-${view}`).evaluate(el=>el.classList.contains('active')),`View ${view} nicht aktiv`);
             const calls=await page.evaluate(()=>window.__auditScrollCalls||[]);
@@ -106,14 +106,13 @@ jobs:
             console.log('NAV_SCROLL',view,JSON.stringify(calls));
             assert(topCall,`Navigation ${view} löst keinen Scroll-to-top aus`);
           }
-          for(const v of ['today','plants','calendar','more']) await nav(v);
+          for(const v of ['plants','add','library','calendar','more']) await nav(v);
 
-          // Mehr: Karte, Wetter, Einstellungen, Sync-Bereich und Garten-Tipps.
-          await page.locator('.tab[data-view="more"]').evaluate(el=>el.click());
+          await page.locator('.tabs > .tab[data-view="more"]').click();
           for(const [id,target] of [['moreMapBtn','view-map'],['moreWeatherBtn','view-weather']]){
             await page.locator('#'+id).click(); await page.waitForTimeout(180);
             assert(await page.locator('#'+target).evaluate(el=>el.classList.contains('active')),id+' öffnet Ziel nicht');
-            await page.locator('.tab[data-view="more"]').evaluate(el=>el.click()); await page.waitForTimeout(80);
+            await page.locator('.tabs > .tab[data-view="more"]').click(); await page.waitForTimeout(80);
           }
           await page.locator('#moreSettingsBtn').click(); await page.waitForTimeout(100);
           assert(!(await page.locator('#settingsOverlay').evaluate(el=>el.classList.contains('hidden'))),'Einstellungen öffnen fehlgeschlagen');
@@ -121,7 +120,7 @@ jobs:
           await page.locator('#moreSyncBtn').click(); await page.waitForTimeout(100);
           assert(!(await page.locator('#settingsOverlay').evaluate(el=>el.classList.contains('hidden'))),'Sync-Einstellungen öffnen fehlgeschlagen');
           await page.locator('#settingsClose').click();
-          await page.locator('.tab[data-view="more"]').evaluate(el=>el.click());
+          await page.locator('.tabs > .tab[data-view="more"]').click();
           await page.locator('#moreAdvisorBtn').click(); await page.waitForTimeout(150);
           assert(await page.locator('#view-advisor').evaluate(el=>el.classList.contains('active')),'Garten-Tipps öffnen fehlgeschlagen');
           for(const mode of ['balance','animals','native','easy']) await page.locator(`#jga-body [data-m="${mode}"]`).click();
@@ -129,8 +128,7 @@ jobs:
           await page.locator('#jga-focus').selectOption('p1');
           await page.locator('#jga-refresh').click();
 
-          // Pflanzen: alle Naturgarten-Unterbereiche und Pflanzeneditor.
-          await page.locator('.tab[data-view="plants"]').evaluate(el=>el.click()); await page.waitForTimeout(120);
+          await page.locator('.tabs > .tab[data-view="plants"]').click(); await page.waitForTimeout(120);
           for(const n of ['habitats','animals','plants']){
             const b=page.locator(`.nature-tab[data-nature="${n}"]`); assert(await b.count(),`Natur-Tab ${n} fehlt`); await b.click(); await page.waitForTimeout(80);
           }
@@ -141,11 +139,9 @@ jobs:
           if(await page.locator('#plantViewCollection').count()) await page.locator('#plantViewCollection').click();
           if(await page.locator('#plantSort').count()) await page.locator('#plantSort').selectOption('insect');
 
-          // Aufgaben/Kalender.
-          await page.locator('.tab[data-view="calendar"]').evaluate(el=>el.click()); await page.waitForTimeout(100);
+          await page.locator('.tabs > .tab[data-view="calendar"]').click(); await page.waitForTimeout(100);
           if(await page.locator('#calendarToggle').count()) await page.locator('#calendarToggle').click();
 
-          // Globale Schnellaktionen.
           if(await page.locator('#quickAddPlant').count()){
             await page.locator('#quickAddPlant').click(); await page.waitForTimeout(80);
             if(!(await page.locator('#plantEditor').evaluate(el=>el.classList.contains('hidden')))) await page.locator('#closePlantEditor').click();
@@ -156,7 +152,6 @@ jobs:
             await page.locator('#settingsClose').click();
           }
 
-          // Alle aktuell vorhandenen Buttons müssen entweder Click-Handler besitzen oder über ein Formular-Submit angebunden sein.
           const audit=await page.locator('button').evaluateAll(btns=>btns.map((b,i)=>({
             i,id:b.id||'',text:(b.innerText||b.getAttribute('aria-label')||'').trim().replace(/\s+/g,' ').slice(0,80),type:b.type,
             bound:b.getAttribute('data-audit-click')==='1'||typeof b.onclick==='function'||(b.type==='submit'&&b.form&&b.form.getAttribute('data-audit-submit')==='1')
