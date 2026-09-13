@@ -1,0 +1,111 @@
+name: Harden photo storage UI
+
+on:
+  push:
+    paths:
+      - '.github/workflows/harden-photo-storage-ui.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add direct photo storage fallback
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          old='''<div class="actions" style="margin-top:10px"><button class="btn secondary small" id="optimizePhotoStorageBtn" type="button">Speicher optimieren</button></div>\n        <div class="muted" id="photoStorageStatus" style="margin-top:7px">Fotospeicher wird geprüft …</div>'''
+          new='''<div class="actions" style="margin-top:10px"><button class="btn secondary small" id="optimizePhotoStorageBtn" type="button" onclick="if(window.JGWPhotoStorageDirect){window.JGWPhotoStorageDirect.optimize()}else{document.getElementById('photoStorageStatus').textContent='Fotospeicher-Modul nicht geladen – App bitte einmal vollständig schließen und neu öffnen.'}">Speicher optimieren</button></div>\n        <div class="muted" id="photoStorageStatus" style="margin-top:7px">Fotospeicher bereit · Status wird geladen …</div>'''
+          if old not in s:
+              raise SystemExit('Photo storage settings markup not found')
+          s=s.replace(old,new,1)
+
+          helper = r'''
+<script id="jgw-photo-storage-direct">
+(function(){
+"use strict";
+var STORE="giess_check_garten_v3", SYNC_STORE="johannas_gartenwelt_sync_v1";
+function byId(id){return document.getElementById(id)}
+function read(key){try{return JSON.parse(localStorage.getItem(key)||"{}")}catch(e){return{}}}
+function configured(c){return !!(c&&c.enabled&&/^https:\/\/[^/]+\.supabase\.co$/i.test(String(c.url||"").replace(/\/+$/,""))&&String(c.key||"").length>10&&String(c.gardenId||"").length>=6&&String(c.pin||"").length>=6)}
+function counts(data){var cloud=0,local=0;["plants","habitats","animals"].forEach(function(k){(Array.isArray(data[k])?data[k]:[]).forEach(function(it){if(it&&it.photoRef)cloud++;if(it&&/^data:image\//.test(String(it.photo||"")))local++})});return{cloud:cloud,local:local}}
+function status(msg){var s=byId("photoStorageStatus");if(s)s.textContent=msg}
+function refresh(){var d=read(STORE),c=read(SYNC_STORE),n=counts(d);status((configured(c)?"Kostenloser Supabase-Fotospeicher bereit":"Cloud-Fotospeicher noch nicht verbunden")+" · Cloud: "+n.cloud+" · noch lokal: "+n.local);return n}
+async function sha256(v){var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
+async function secret(c){return sha256(String(c.gardenId||"").trim().toLowerCase()+"|"+String(c.pin||""))}
+async function api(c,action,extra){var u=String(c.url).replace(/\/+$/,""),body=Object.assign({action:action,garden_id:String(c.gardenId).trim().toLowerCase(),secret_hash:await secret(c)},extra||{});var r=await fetch(u+"/functions/v1/jgw-photo",{method:"POST",headers:{"Content-Type":"application/json","apikey":c.key},body:JSON.stringify(body)}),t=await r.text(),d={};try{d=t?JSON.parse(t):{}}catch(e){}if(!r.ok||!d.ok)throw new Error(d.error||("HTTP "+r.status));return d}
+function compress(src,max,q){return new Promise(function(resolve,reject){var img=new Image();img.onload=function(){var w=img.width,h=img.height;if(w>h&&w>max){h=Math.round(h*max/w);w=max}else if(h>=w&&h>max){w=Math.round(w*max/h);h=max}var can=document.createElement("canvas");can.width=w;can.height=h;var ctx=can.getContext("2d");if(!ctx){reject(new Error("Bildverarbeitung nicht verfügbar"));return}ctx.drawImage(img,0,0,w,h);resolve(can.toDataURL("image/jpeg",q))};img.onerror=function(){reject(new Error("Foto konnte nicht gelesen werden"))};img.src=src})}
+function unique(){return Date.now().toString(36)+Math.random().toString(36).slice(2,9)}
+async function optimize(){
+  var btn=byId("optimizePhotoStorageBtn"),data=read(STORE),c=read(SYNC_STORE),n=counts(data);
+  if(!n.local){status("Keine eingebetteten Fotos mehr vorhanden · Cloud: "+n.cloud);return}
+  if(!configured(c)){status("Cloud-Fotospeicher noch nicht verbunden · "+n.local+" lokale Fotos vorhanden. Bitte zuerst Geräte-Sync vollständig einrichten.");return}
+  if(btn){btn.disabled=true;btn.textContent="Fotos werden ausgelagert …"}
+  var done=0,failed=0,total=n.local;
+  var groups=[["plants","plants"],["habitats","habitats"],["animals","animals"]];
+  for(var g=0;g<groups.length;g++){
+    var list=Array.isArray(data[groups[g][0]])?data[groups[g][0]]:[];
+    for(var i=0;i<list.length;i++){
+      var it=list[i];
+      if(!it||!/^data:image\//.test(String(it.photo||"")))continue;
+      try{
+        status("Fotos werden ausgelagert … "+(done+1)+" / "+total);
+        var compact=await compress(it.photo,640,.62),id=it.id||unique();
+        var up=await api(c,"upload",{path:groups[g][1]+"/"+id+".jpg",mime_type:"image/jpeg",data:compact});
+        var signed=await api(c,"sign",{ref:up.ref});
+        it.photoRef=up.ref;it.photo=signed.url;done++;
+        try{localStorage.setItem(STORE,JSON.stringify(data))}catch(writeErr){console.warn("Zwischenspeichern",writeErr)}
+      }catch(e){failed++;console.error("Fotoauslagerung",e);status("Fehler bei Foto "+(done+failed)+" / "+total+": "+e.message)}
+    }
+  }
+  try{
+    localStorage.setItem(STORE,JSON.stringify(data));
+    c.dirty=true;localStorage.setItem(SYNC_STORE,JSON.stringify(c));
+  }catch(e){failed++;status("Fotos wurden verarbeitet, aber lokal konnte nicht gespeichert werden: "+e.message)}
+  if(btn){btn.disabled=false;btn.textContent="Speicher optimieren"}
+  if(failed){status("Fertig: "+done+" Fotos ausgelagert · "+failed+" Fehler. Erneut tippen, um verbliebene Fotos zu versuchen.");refresh();return}
+  status("Fertig: "+done+" Fotos in Supabase ausgelagert. App wird neu geladen …");
+  setTimeout(function(){location.reload()},900)
+}
+window.JGWPhotoStorageDirect={refresh:refresh,optimize:optimize};
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",refresh,{once:true});else refresh();
+setTimeout(refresh,250);setTimeout(refresh,1200);
+var adv=byId("settingsAdvanced");if(adv)adv.addEventListener("toggle",function(){if(adv.open)refresh()});
+})();
+</script>
+'''
+          if 'id="jgw-photo-storage-direct"' not in s:
+              s=s.replace('</body>',helper+'\n</body>',1)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          assert 'jgw-photo-storage-direct' in s
+          assert 'JGWPhotoStorageDirect' in s
+          assert 'Cloud-Fotospeicher noch nicht verbunden' in s
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index-inline.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          PY
+          node --check /tmp/index-inline.js
+          git diff --check
+      - name: Commit changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Harden photo storage status and migration [skip ci]"
+          git push
