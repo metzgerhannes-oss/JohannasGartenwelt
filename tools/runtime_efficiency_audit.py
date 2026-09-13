@@ -69,9 +69,16 @@ def click(d, css, seconds=15):
     return node
 
 
+def browser_log(d):
+    try:
+        return d.get_log("browser")
+    except Exception:
+        return []
+
+
 def severe_errors(d):
     result = []
-    for row in d.get_log("browser"):
+    for row in browser_log(d):
         if row.get("level") != "SEVERE":
             continue
         msg = row.get("message", "")
@@ -80,6 +87,16 @@ def severe_errors(d):
             continue
         result.append(msg)
     return result
+
+
+def diagnostics(d):
+    try:
+        flags = d.execute_script("return {ready:document.readyState,core:!!window.JGWCore,ux:!!window.JGWUX,library:!!window.JGWLibraryV4,photo:!!window.JGWPhotoStorage};")
+    except Exception as exc:
+        flags = {"diagnostic_error": repr(exc)}
+    logs = browser_log(d)
+    severe = [x.get("message", "") for x in logs if x.get("level") == "SEVERE"]
+    return f"flags={flags}; severe={' | '.join(severe[:6]) or 'none'}"
 
 
 def static_efficiency_checks():
@@ -112,6 +129,13 @@ def prepare_core_runtime_copy():
     AUDIT_INDEX.write_text(html, encoding="utf-8")
 
 
+def wait_flag(d, expression, label, seconds=12):
+    try:
+        wait(d, seconds).until(lambda x: x.execute_script(f"return !!({expression})"))
+    except Exception as exc:
+        raise RuntimeError(f"{label} fehlt: {exc!r}; {diagnostics(d)}") from exc
+
+
 def run_runtime():
     prepare_core_runtime_copy()
     httpd, base = server()
@@ -122,8 +146,12 @@ def run_runtime():
         d.get(base + AUDIT_INDEX.name + "?runtime-audit=" + str(int(time.time())))
         stage = "Body sichtbar"
         visible(d, "body", 10)
-        stage = "App-Bootstrap"
-        wait(d, 25).until(lambda x: x.execute_script("return !!window.JGWCore && !!window.JGWUX && !!window.JGWLibraryV4"))
+        stage = "JGWCore"
+        wait_flag(d, "window.JGWCore", "JGWCore")
+        stage = "JGWUX"
+        wait_flag(d, "window.JGWUX", "JGWUX")
+        stage = "JGWLibraryV4"
+        wait_flag(d, "window.JGWLibraryV4", "JGWLibraryV4")
         boot_ms = round((time.perf_counter() - started) * 1000)
         record("Core-App-Bootstrap ohne Kartenbibliothek", detail=f"{boot_ms} ms")
 
@@ -166,7 +194,7 @@ def run_runtime():
         record("JavaScript-Laufzeit", detail="keine SEVERE-Fehler im Core-Pfad")
         d.save_screenshot(str(OUT / "runtime_mobile.png"))
     except Exception as exc:
-        raise RuntimeError(f"{stage}: {exc!r}") from exc
+        raise RuntimeError(f"{stage}: {exc}; {diagnostics(d)}") from exc
     finally:
         d.quit()
         httpd.shutdown()
