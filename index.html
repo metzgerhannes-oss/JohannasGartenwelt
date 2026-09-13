@@ -889,7 +889,6 @@ h1,h2,h3,.brand h1,.plantname,.state-title{
       <h3>Datensicherung</h3>
       <div class="muted">Zusätzliche lokale Sicherung von Pflanzen, Fotos, Gartenbereichen, Zonen und Pflegehistorie.</div>
       <div class="actions" style="margin-top:10px"><button class="btn secondary small" id="exportBtn" type="button">Backup exportieren</button><label class="btn ghost small" for="importFile" style="display:inline-block">Backup importieren</label><input class="hidden" id="importFile" type="file" accept="application/json,.json"></div>
-      <div style="margin-top:10px"><button class="btn secondary small" id="optimizePhotoStorageBtn" type="button">Speicher optimieren</button><div class="muted" id="photoStorageStatus" style="margin-top:7px">Fotospeicher wird geprüft …</div></div>
     </section>
 
     <details class="settings-section" id="settingsInfo">
@@ -900,8 +899,17 @@ h1,h2,h3,.brand h1,.plantname,.state-title{
 
     <details class="settings-section settings-danger">
       <summary>Erweiterte Einstellungen</summary>
-      <div class="muted" style="margin-top:8px">Diese Funktion wird im normalen Betrieb nicht benötigt.</div>
-      <div class="actions" style="margin-top:10px"><button class="btn danger small" id="clearBtn" type="button">Lokale Gartendaten löschen</button></div>
+      <div class="muted" style="margin-top:8px">Diese Funktionen werden im normalen Betrieb selten benötigt.</div>
+      <div style="margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fffdf9">
+        <b style="color:var(--forest-dark)">Fotospeicher</b>
+        <div class="muted" style="margin-top:5px">Lagert vorhandene Fotos in den kostenlosen Supabase-Fotospeicher aus und entlastet den lokalen iPhone-Speicher der Gartenwelt.</div>
+        <div class="actions" style="margin-top:10px"><button class="btn secondary small" id="optimizePhotoStorageBtn" type="button">Speicher optimieren</button></div>
+        <div class="muted" id="photoStorageStatus" style="margin-top:7px">Fotospeicher wird geprüft …</div>
+      </div>
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line)">
+        <div class="muted">Nur verwenden, wenn alle lokalen Daten auf diesem Gerät entfernt werden sollen.</div>
+        <div class="actions" style="margin-top:10px"><button class="btn danger small" id="clearBtn" type="button">Lokale Gartendaten löschen</button></div>
+      </div>
     </details>
   </aside>
 </div>
