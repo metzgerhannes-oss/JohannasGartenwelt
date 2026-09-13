@@ -3,6 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 const ALLOWED_ORIGINS = new Set([
   "https://metzgerhannes-oss.github.io",
 ]);
+const UPSTREAM_TIMEOUT_MS = 8000;
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") || "";
@@ -45,26 +46,37 @@ function normalizeStatusResult(value: unknown): any {
   return value;
 }
 
+async function fetchTimed(input: string | URL, init: RequestInit = {}) {
+  return fetch(input, {
+    ...init,
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+  });
+}
+
 async function gardenAuthorized(gardenId: string, secretHash: string) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
   if (!supabaseUrl || !anonKey) return false;
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/jgw_status_garden`, {
-    method: "POST",
-    headers: {
-      apikey: anonKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      p_garden_id: gardenId,
-      p_secret_hash: secretHash,
-    }),
-  });
+  try {
+    const response = await fetchTimed(`${supabaseUrl}/rest/v1/rpc/jgw_status_garden`, {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        p_garden_id: gardenId,
+        p_secret_hash: secretHash,
+      }),
+    });
 
-  if (!response.ok) return false;
-  const data = normalizeStatusResult(await response.json());
-  return !!(data && data.ok === true);
+    if (!response.ok) return false;
+    const data = normalizeStatusResult(await response.json());
+    return !!(data && data.ok === true);
+  } catch {
+    return false;
+  }
 }
 
 function safeTrefleDetail(data: any) {
@@ -133,7 +145,7 @@ Deno.serve(async (req: Request) => {
     searchUrl.searchParams.set("q", scientificName);
     searchUrl.searchParams.set("limit", "5");
 
-    const searchResponse = await fetch(searchUrl, {
+    const searchResponse = await fetchTimed(searchUrl, {
       headers: { Accept: "application/json" },
     });
     if (!searchResponse.ok) {
@@ -166,7 +178,7 @@ Deno.serve(async (req: Request) => {
     }
     detailUrl.searchParams.set("token", token);
 
-    const detailResponse = await fetch(detailUrl, {
+    const detailResponse = await fetchTimed(detailUrl, {
       headers: { Accept: "application/json" },
     });
     if (!detailResponse.ok) {
@@ -185,6 +197,7 @@ Deno.serve(async (req: Request) => {
     });
   } catch (error) {
     console.error("trefle-enrich failed", error instanceof Error ? error.message : String(error));
-    return json(req, { ok: false, error: "trefle_proxy_failed" }, 502);
+    const timedOut = error instanceof DOMException && error.name === "TimeoutError";
+    return json(req, { ok: false, error: timedOut ? "trefle_timeout" : "trefle_proxy_failed" }, 502);
   }
 });
