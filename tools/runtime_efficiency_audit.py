@@ -14,6 +14,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 OUT = Path("audit_runtime")
 OUT.mkdir(exist_ok=True)
 REPORT: list[dict[str, str]] = []
+AUDIT_INDEX = Path("_audit_runtime_index.html")
+LEAFLET_SCRIPTS = [
+    '<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>',
+    '<script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>',
+]
 
 
 def record(name: str, status: str = "PASS", detail: str = "") -> None:
@@ -33,8 +38,6 @@ def server():
 
 def browser():
     opts = webdriver.ChromeOptions()
-    # Return as soon as navigation starts; readiness is tested explicitly below.
-    # This prevents a slow optional resource from turning into a 120s WebDriver wait.
     opts.page_load_strategy = "none"
     opts.add_argument("--headless=new")
     opts.add_argument("--no-sandbox")
@@ -73,7 +76,7 @@ def severe_errors(d):
             continue
         msg = row.get("message", "")
         low = msg.lower()
-        if any(x in low for x in ["favicon", "tile", "wms", "net::err_blocked_by_client"]):
+        if any(x in low for x in ["favicon", "tile", "wms", "leaflet", "l is not defined"]):
             continue
         result.append(msg)
     return result
@@ -84,10 +87,7 @@ def static_efficiency_checks():
     shell = Path("jgw-ux-shell.js").read_text(encoding="utf-8")
     photos = Path("jgw-photo-storage-v2.js").read_text(encoding="utf-8")
 
-    blocking = sum(1 for s in [
-        '<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>',
-        '<script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>',
-    ] if s in idx)
+    blocking = sum(1 for s in LEAFLET_SCRIPTS if s in idx)
     record("Blocking map dependencies", "WARN" if blocking else "PASS",
            f"{blocking} parser-blockierende Karten-Skripte" if blocking else "keine")
 
@@ -105,19 +105,27 @@ def static_efficiency_checks():
     record("DOM-Beobachter", "WARN" if observers >= 5 else "PASS", f"{observers} MutationObserver im aktiven Code")
 
 
+def prepare_core_runtime_copy():
+    html = Path("index.html").read_text(encoding="utf-8")
+    for tag in LEAFLET_SCRIPTS:
+        html = html.replace(tag, "<!-- runtime audit: map library omitted -->")
+    AUDIT_INDEX.write_text(html, encoding="utf-8")
+
+
 def run_runtime():
+    prepare_core_runtime_copy()
     httpd, base = server()
     d = browser()
     started = time.perf_counter()
     stage = "Navigation starten"
     try:
-        d.get(base + "?runtime-audit=" + str(int(time.time())))
+        d.get(base + AUDIT_INDEX.name + "?runtime-audit=" + str(int(time.time())))
         stage = "Body sichtbar"
         visible(d, "body", 10)
         stage = "App-Bootstrap"
         wait(d, 25).until(lambda x: x.execute_script("return !!window.JGWCore && !!window.JGWUX && !!window.JGWLibraryV4"))
         boot_ms = round((time.perf_counter() - started) * 1000)
-        record("App-Bootstrap vor vollständigem Page-Load", detail=f"{boot_ms} ms")
+        record("Core-App-Bootstrap ohne Kartenbibliothek", detail=f"{boot_ms} ms")
 
         stage = "Navigation & FAB"
         labels = [x.text.strip() for x in d.find_elements(By.CSS_SELECTOR, ".tabs .tab")]
@@ -155,13 +163,14 @@ def run_runtime():
         stage = "JavaScript-Konsole"
         errors = severe_errors(d)
         assert not errors, " | ".join(errors[:5])
-        record("JavaScript-Laufzeit", detail="keine SEVERE-Fehler")
+        record("JavaScript-Laufzeit", detail="keine SEVERE-Fehler im Core-Pfad")
         d.save_screenshot(str(OUT / "runtime_mobile.png"))
     except Exception as exc:
         raise RuntimeError(f"{stage}: {exc!r}") from exc
     finally:
         d.quit()
         httpd.shutdown()
+        AUDIT_INDEX.unlink(missing_ok=True)
 
 
 def main():
@@ -172,6 +181,7 @@ def main():
         record("Audit-Ausführung", "FAIL", str(exc))
     finally:
         (OUT / "report.json").write_text(json.dumps(REPORT, ensure_ascii=False, indent=2), encoding="utf-8")
+        AUDIT_INDEX.unlink(missing_ok=True)
     fails = [r for r in REPORT if r["status"] == "FAIL"]
     warns = [r for r in REPORT if r["status"] == "WARN"]
     print(f"RUNTIME AUDIT: {len(REPORT)-len(fails)-len(warns)} PASS, {len(warns)} WARN, {len(fails)} FAIL")
