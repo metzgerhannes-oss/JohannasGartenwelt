@@ -32,8 +32,9 @@ jobs:
               raise SystemExit('Advanced settings block not found')
           s=s.replace(old,new,1)
 
-          if s.count('id="optimizePhotoStorageBtn"') != 1:
-              raise SystemExit('Optimizer button count is not exactly one')
+          advanced=s[s.index('<summary>Erweiterte Einstellungen</summary>'):s.index('</details>',s.index('<summary>Erweiterte Einstellungen</summary>'))]
+          if 'id="optimizePhotoStorageBtn"' not in advanced:
+              raise SystemExit('Optimizer button was not moved into advanced settings')
           p.write_text(s,encoding='utf-8')
           PY
           git diff --check
