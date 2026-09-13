@@ -520,15 +520,18 @@ h1,h2,h3,.brand h1,.plantname,.state-title{
 
 /* JGW AREA MASTER DATA */
 .area-select-note{font-size:11px;color:var(--muted);line-height:1.35;margin-top:2px}
-.area-manager-add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:11px}
-.area-manager-add input{width:100%;min-height:44px;border:1px solid #ddcfc0;border-radius:12px;padding:10px 12px;background:#fffdf9;color:var(--txt)}
-.area-master-list{display:grid;gap:7px;margin-top:10px}
-.area-master-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 11px;border:1px solid var(--line);border-radius:13px;background:#fffdf9}
-.area-master-row b{display:block;color:var(--forest-dark);font-size:13px}
-.area-master-row small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
-.area-master-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
-.area-master-empty{padding:11px 12px;border-radius:12px;background:#f7f3ec;color:var(--muted);font-size:12px}
-@media(max-width:560px){.area-manager-add{grid-template-columns:1fr}.area-manager-add .btn{width:100%}.area-master-row{grid-template-columns:1fr}.area-master-actions{justify-content:flex-start}.area-master-actions .btn{min-height:40px}}
+.area-settings-count{font-size:.78em;color:var(--muted);font-weight:700;margin-left:4px}
+.area-manager-add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;margin-top:10px}
+.area-manager-add input{width:100%;min-height:40px;border:1px solid #ddcfc0;border-radius:11px;padding:8px 10px;background:#fffdf9;color:var(--txt)}
+.area-master-list{display:grid;gap:5px;margin-top:8px}
+.area-master-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 8px;border:1px solid var(--line);border-radius:11px;background:#fffdf9}
+.area-master-row b{display:block;color:var(--forest-dark);font-size:12.5px;line-height:1.25}
+.area-master-row small{display:block;color:var(--muted);font-size:10.5px;margin-top:1px;line-height:1.2}
+.area-master-actions{display:flex;gap:4px;align-items:center;justify-content:flex-end}
+.area-master-actions .btn{min-height:32px;padding:5px 8px;font-size:11px;border-radius:9px}
+.area-delete-icon{width:32px;min-width:32px;padding:0!important;font-size:16px!important;line-height:1;color:#9d4f4f!important;border-color:#ebd1ce!important;background:#fff8f7!important}
+.area-master-empty{padding:9px 10px;border-radius:11px;background:#f7f3ec;color:var(--muted);font-size:11px}
+@media(max-width:560px){.area-manager-add{grid-template-columns:minmax(0,1fr) auto}.area-manager-add .btn{width:auto}.area-master-row{grid-template-columns:minmax(0,1fr) auto}.area-master-actions{justify-content:flex-end}.area-master-actions .btn{min-height:32px}}
 /* /JGW AREA MASTER DATA */
 
 /* JGW SIMPLIFIED NAVIGATION */
@@ -818,12 +821,12 @@ h1,h2,h3,.brand h1,.plantname,.state-title{
       <div class="muted" id="locationStatus" style="margin-top:8px"></div>
     </section>
 
-    <section class="settings-section" id="settingsAreas">
-      <h3>Gartenbereiche</h3>
-      <div class="muted">Zentrale Liste für Pflanzen, Lebensräume und Tierbeobachtungen. Bestehende Freitexte werden automatisch übernommen und zusammengeführt.</div>
-      <div class="area-manager-add"><input id="areaNewName" autocomplete="off" placeholder="z. B. Vorgarten"><button class="btn secondary small" id="areaAddBtn" type="button">Bereich hinzufügen</button></div>
+    <details class="settings-section" id="settingsAreas">
+      <summary>Gartenbereiche <span class="area-settings-count" id="areaSettingsCount">· 0</span></summary>
+      <div class="muted" style="margin-top:8px">Zentrale Liste für Pflanzen, Lebensräume und Tierbeobachtungen. Bestehende Freitexte werden automatisch übernommen und zusammengeführt.</div>
+      <div class="area-manager-add"><input id="areaNewName" autocomplete="off" placeholder="z. B. Vorgarten"><button class="btn secondary small" id="areaAddBtn" type="button">Hinzufügen</button></div>
       <div class="area-master-list" id="areaMasterList"></div>
-    </section>
+    </details>
 
     <section class="settings-section" id="settingsSync">
       <h3>Geräte & Synchronisation</h3>
@@ -1058,7 +1061,7 @@ function addGardenArea(name,selectId){name=String(name||"").trim();if(!name)retu
 function bindAreaSelect(selectId){var node=el(selectId);if(!node||node.dataset.areaBound)return;node.dataset.areaBound="1";node.addEventListener("change",function(){if(node.value!=="__new__")return;var name=prompt("Neuen Gartenbereich anlegen:");if(name&&name.trim())addGardenArea(name,selectId);else node.value=""})}
 function renameGardenArea(id){var a=areaById(id);if(!a)return;var name=prompt("Gartenbereich umbenennen:",a.name);if(!name||!name.trim()||name.trim()===a.name)return;var existing=areaByName(name);if(existing&&existing.id!==id){globalError("Ein Gartenbereich mit diesem Namen existiert bereits.");return}a.name=name.trim();[state.plants,state.habitats,state.animals].forEach(function(arr){arr.forEach(function(x){if(x.areaId===id)x.area=a.name})});save();renderAll();notice("Gartenbereich umbenannt.")}
 function deleteGardenArea(id){var a=areaById(id);if(!a)return;var used=areaUsageCount(id),msg=used?'„'+a.name+'“ wird bei '+used+' Eintrag'+(used===1?'':'en')+' verwendet. Beim Löschen werden diese Einträge auf „ohne Zuordnung“ gesetzt. Fortfahren?':'Gartenbereich „'+a.name+'“ löschen?';if(!confirm(msg))return;[state.plants,state.habitats,state.animals].forEach(function(arr){arr.forEach(function(x){if(x.areaId===id){x.areaId="";x.area=""}})});state.areas=state.areas.filter(function(x){return x.id!==id});save();renderAll();notice("Gartenbereich gelöscht.")}
-function renderAreaManager(){var box=el("areaMasterList");if(!box)return;var items=sortedAreas();box.innerHTML=items.length?items.map(function(a){var n=areaUsageCount(a.id);return'<div class="area-master-row"><div><b>'+esc(a.name)+'</b><small>'+n+' Zuordnung'+(n===1?'':'en')+'</small></div><div class="area-master-actions"><button class="btn ghost small areaRename" data-id="'+a.id+'" type="button">Umbenennen</button><button class="btn ghost small areaDelete" data-id="'+a.id+'" type="button">Löschen</button></div></div>'}).join(''):'<div class="area-master-empty">Noch keine Gartenbereiche. Beim ersten bestehenden Bereich oder über „Bereich hinzufügen“ wird die Liste angelegt.</div>';box.querySelectorAll('.areaRename').forEach(function(b){b.addEventListener('click',function(){renameGardenArea(b.dataset.id)})});box.querySelectorAll('.areaDelete').forEach(function(b){b.addEventListener('click',function(){deleteGardenArea(b.dataset.id)})})}
+function renderAreaManager(){var box=el("areaMasterList");if(!box)return;var items=sortedAreas(),counter=el("areaSettingsCount");if(counter)counter.textContent="· "+items.length;box.innerHTML=items.length?items.map(function(a){var n=areaUsageCount(a.id);return'<div class="area-master-row"><div><b>'+esc(a.name)+'</b><small>'+n+' Zuordnung'+(n===1?'':'en')+'</small></div><div class="area-master-actions"><button class="btn ghost small areaRename" data-id="'+a.id+'" type="button">Ändern</button><button class="btn ghost small areaDelete area-delete-icon" data-id="'+a.id+'" type="button" aria-label="'+esc(a.name)+' löschen" title="Löschen">×</button></div></div>'}).join(''):'<div class="area-master-empty">Noch keine Gartenbereiche. Beim ersten bestehenden Bereich oder über „Hinzufügen“ wird die Liste angelegt.</div>';box.querySelectorAll('.areaRename').forEach(function(b){b.addEventListener('click',function(){renameGardenArea(b.dataset.id)})});box.querySelectorAll('.areaDelete').forEach(function(b){b.addEventListener('click',function(){deleteGardenArea(b.dataset.id)})})}
 function migrateLegacyHabitats(oldEco){if(state.habitats.length)return;var h=oldEco&&oldEco.habitat||{},map=[["waterSource","water_station"],["deadwood","deadwood"],["bareSoil","bare_soil"],["wildCorner","wild_corner"]];map.forEach(function(x){if(h[x[0]])state.habitats.push(normalizeHabitatEntry({type:x[1],status:"present",area:"",notes:"Aus der früheren Lebensraum-Einstellung übernommen."}))})}
 function nativePlantStatus(plantsOverride){var yes=0,no=0,unknown=0,src=plantsOverride||state.plants;src.forEach(function(p){if(p.ecoNative==="yes"){yes++;return}if(p.ecoNative==="no"){no++;return}var r=ecoProfileFor(p);if(r&&r.nat>=10)yes++;else if(r&&r.nat<=3)no++;else unknown++});var known=yes+no,ratio=known?yes/known:0,active=known>=5&&ratio>=.60;return{yes:yes,no:no,unknown:unknown,known:known,ratio:ratio,active:active}}
 function practiceScore(){var p=state.ecology&&state.ecology.practice||DEFAULT_PRACTICE,n=nativePlantStatus(),v=0;if(p.noPesticides)v+=2;if(p.leaveStemsInWinter)v+=2;if(p.leavesPartlyRemain)v+=1;if(p.peatFree)v+=1;if(p.lessFrequentMowing)v+=1;if(p.reducedNightLight)v+=1;if(n.active)v+=2;return Math.min(10,v)}
@@ -1164,7 +1167,7 @@ async function lookupPLZ(plz){var z=await requestJSON("https://api.zippopotam.us
 async function getWeather(lat,lon){var vars="precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max";return requestJSON("https://api.open-meteo.com/v1/forecast?latitude="+encodeURIComponent(lat)+"&longitude="+encodeURIComponent(lon)+"&daily="+vars+"&timezone=Europe%2FBerlin&past_days=92&forecast_days=8",18000)}
 function weatherRows(){if(!state.weather||!state.weather.daily)return[];var d=state.weather.daily,a=[];for(var i=0;i<d.time.length;i++)a.push({date:d.time[i],rain:Number(d.precipitation_sum[i]||0),et0:Number((d.et0_fao_evapotranspiration||[])[i]||0),min:Number(d.temperature_2m_min[i]),max:Number(d.temperature_2m_max[i])});return a}
 async function refreshWeather(showMsg){if(!state.plz){openSettings("settingsLocation");notice("Bitte zuerst die PLZ einrichten.");return}el("locationStatus").textContent="Wetterdaten werden geladen …";try{var loc=await lookupPLZ(state.plz);var wc=state.gardenCenter||{lat:loc.lat,lon:loc.lon};var w=await getWeather(wc.lat,wc.lon);state.loc=loc;state.weather=w;save();el("locationStatus").textContent="Standort geladen: "+loc.name+".";renderAll();if(state.mapReady&&!state.gardenCenter)state.map.setView([loc.lat,loc.lon],19);if(showMsg)notice("Wetterdaten aktualisiert.")}catch(e){globalError("Wetterabruf nicht möglich: "+e.message+". Bitte Internetverbindung prüfen.");el("locationStatus").textContent="Abruf fehlgeschlagen."}}
-function openSettings(sectionId){var o=el("settingsOverlay");if(!o)return;o.classList.remove("hidden");o.setAttribute("aria-hidden","false");document.body.classList.add("settings-open");setTimeout(function(){if(sectionId&&el(sectionId))el(sectionId).scrollIntoView({behavior:"smooth",block:"start"})},60)}
+function openSettings(sectionId){var o=el("settingsOverlay");if(!o)return;o.classList.remove("hidden");o.setAttribute("aria-hidden","false");document.body.classList.add("settings-open");setTimeout(function(){if(sectionId&&el(sectionId)){var target=el(sectionId);if(target.tagName==="DETAILS")target.open=true;target.scrollIntoView({behavior:"smooth",block:"start"})}},60)}
 function closeSettings(){var o=el("settingsOverlay");if(!o)return;o.classList.add("hidden");o.setAttribute("aria-hidden","true");document.body.classList.remove("settings-open")}
 function automaticSeason(){var m=new Date().getMonth()+1;return m>=3&&m<=5?"spring":m>=6&&m<=8?"summer":m>=9&&m<=11?"autumn":"winter"}
 function currentSeason(){var mode=state.settings&&state.settings.seasonMode||"auto";return mode==="auto"?automaticSeason():mode}
