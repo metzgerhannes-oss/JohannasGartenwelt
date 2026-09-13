@@ -1,0 +1,51 @@
+name: Move photo optimizer to advanced settings
+
+on:
+  push:
+    paths:
+      - '.github/workflows/move-photo-optimizer.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Move photo storage control
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          backup_block='''      <div class="actions" style="margin-top:10px"><button class="btn secondary small" id="exportBtn" type="button">Backup exportieren</button><label class="btn ghost small" for="importFile" style="display:inline-block">Backup importieren</label><input class="hidden" id="importFile" type="file" accept="application/json,.json"></div>\n      <div style="margin-top:10px"><button class="btn secondary small" id="optimizePhotoStorageBtn" type="button">Speicher optimieren</button><div class="muted" id="photoStorageStatus" style="margin-top:7px">Fotospeicher wird geprüft …</div></div>'''
+          backup_plain='''      <div class="actions" style="margin-top:10px"><button class="btn secondary small" id="exportBtn" type="button">Backup exportieren</button><label class="btn ghost small" for="importFile" style="display:inline-block">Backup importieren</label><input class="hidden" id="importFile" type="file" accept="application/json,.json"></div>'''
+          if backup_block in s:
+              s=s.replace(backup_block, backup_plain, 1)
+
+          old='''    <details class="settings-section settings-danger">\n      <summary>Erweiterte Einstellungen</summary>\n      <div class="muted" style="margin-top:8px">Diese Funktion wird im normalen Betrieb nicht benötigt.</div>\n      <div class="actions" style="margin-top:10px"><button class="btn danger small" id="clearBtn" type="button">Lokale Gartendaten löschen</button></div>\n    </details>'''
+          new='''    <details class="settings-section settings-danger">\n      <summary>Erweiterte Einstellungen</summary>\n      <div class="muted" style="margin-top:8px">Diese Funktionen werden im normalen Betrieb selten benötigt.</div>\n      <div style="margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fffdf9">\n        <b style="color:var(--forest-dark)">Fotospeicher</b>\n        <div class="muted" style="margin-top:5px">Lagert vorhandene Fotos in den kostenlosen Supabase-Fotospeicher aus und entlastet den lokalen iPhone-Speicher der Gartenwelt.</div>\n        <div class="actions" style="margin-top:10px"><button class="btn secondary small" id="optimizePhotoStorageBtn" type="button">Speicher optimieren</button></div>\n        <div class="muted" id="photoStorageStatus" style="margin-top:7px">Fotospeicher wird geprüft …</div>\n      </div>\n      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line)">\n        <div class="muted">Nur verwenden, wenn alle lokalen Daten auf diesem Gerät entfernt werden sollen.</div>\n        <div class="actions" style="margin-top:10px"><button class="btn danger small" id="clearBtn" type="button">Lokale Gartendaten löschen</button></div>\n      </div>\n    </details>'''
+          if old not in s:
+              raise SystemExit('Advanced settings block not found')
+          s=s.replace(old,new,1)
+
+          if s.count('id="optimizePhotoStorageBtn"') != 1:
+              raise SystemExit('Optimizer button count is not exactly one')
+          p.write_text(s,encoding='utf-8')
+          PY
+          git diff --check
+      - name: Commit changes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Move photo optimizer to advanced settings [skip ci]"
+          git push
