@@ -18,84 +18,25 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
-
+          import base64
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-
-          old='''<div class="actions" style="margin-top:10px"><button class="btn secondary small" id="optimizePhotoStorageBtn" type="button">Speicher optimieren</button></div>\n        <div class="muted" id="photoStorageStatus" style="margin-top:7px">Fotospeicher wird geprüft …</div>'''
-          new='''<div class="actions" style="margin-top:10px"><button class="btn secondary small" id="optimizePhotoStorageBtn" type="button" onclick="if(window.JGWPhotoStorageDirect){window.JGWPhotoStorageDirect.optimize()}else{document.getElementById('photoStorageStatus').textContent='Fotospeicher-Modul nicht geladen – App bitte einmal vollständig schließen und neu öffnen.'}">Speicher optimieren</button></div>\n        <div class="muted" id="photoStorageStatus" style="margin-top:7px">Fotospeicher bereit · Status wird geladen …</div>'''
+          old='<div class="actions" style="margin-top:10px"><button class="btn secondary small" id="optimizePhotoStorageBtn" type="button">Speicher optimieren</button></div>\n        <div class="muted" id="photoStorageStatus" style="margin-top:7px">Fotospeicher wird geprüft …</div>'
+          new='<div class="actions" style="margin-top:10px"><button class="btn secondary small" id="optimizePhotoStorageBtn" type="button" onclick="if(window.JGWPhotoStorageDirect){window.JGWPhotoStorageDirect.optimize()}else{document.getElementById(\'photoStorageStatus\').textContent=\'Fotospeicher-Modul nicht geladen – App bitte einmal vollständig schließen und neu öffnen.\'}">Speicher optimieren</button></div>\n        <div class="muted" id="photoStorageStatus" style="margin-top:7px">Fotospeicher bereit · Status wird geladen …</div>'
           if old not in s:
               raise SystemExit('Photo storage settings markup not found')
           s=s.replace(old,new,1)
-
-          helper = r'''
-<script id="jgw-photo-storage-direct">
-(function(){
-"use strict";
-var STORE="giess_check_garten_v3", SYNC_STORE="johannas_gartenwelt_sync_v1";
-function byId(id){return document.getElementById(id)}
-function read(key){try{return JSON.parse(localStorage.getItem(key)||"{}")}catch(e){return{}}}
-function configured(c){return !!(c&&c.enabled&&/^https:\/\/[^/]+\.supabase\.co$/i.test(String(c.url||"").replace(/\/+$/,""))&&String(c.key||"").length>10&&String(c.gardenId||"").length>=6&&String(c.pin||"").length>=6)}
-function counts(data){var cloud=0,local=0;["plants","habitats","animals"].forEach(function(k){(Array.isArray(data[k])?data[k]:[]).forEach(function(it){if(it&&it.photoRef)cloud++;if(it&&/^data:image\//.test(String(it.photo||"")))local++})});return{cloud:cloud,local:local}}
-function status(msg){var s=byId("photoStorageStatus");if(s)s.textContent=msg}
-function refresh(){var d=read(STORE),c=read(SYNC_STORE),n=counts(d);status((configured(c)?"Kostenloser Supabase-Fotospeicher bereit":"Cloud-Fotospeicher noch nicht verbunden")+" · Cloud: "+n.cloud+" · noch lokal: "+n.local);return n}
-async function sha256(v){var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
-async function secret(c){return sha256(String(c.gardenId||"").trim().toLowerCase()+"|"+String(c.pin||""))}
-async function api(c,action,extra){var u=String(c.url).replace(/\/+$/,""),body=Object.assign({action:action,garden_id:String(c.gardenId).trim().toLowerCase(),secret_hash:await secret(c)},extra||{});var r=await fetch(u+"/functions/v1/jgw-photo",{method:"POST",headers:{"Content-Type":"application/json","apikey":c.key},body:JSON.stringify(body)}),t=await r.text(),d={};try{d=t?JSON.parse(t):{}}catch(e){}if(!r.ok||!d.ok)throw new Error(d.error||("HTTP "+r.status));return d}
-function compress(src,max,q){return new Promise(function(resolve,reject){var img=new Image();img.onload=function(){var w=img.width,h=img.height;if(w>h&&w>max){h=Math.round(h*max/w);w=max}else if(h>=w&&h>max){w=Math.round(w*max/h);h=max}var can=document.createElement("canvas");can.width=w;can.height=h;var ctx=can.getContext("2d");if(!ctx){reject(new Error("Bildverarbeitung nicht verfügbar"));return}ctx.drawImage(img,0,0,w,h);resolve(can.toDataURL("image/jpeg",q))};img.onerror=function(){reject(new Error("Foto konnte nicht gelesen werden"))};img.src=src})}
-function unique(){return Date.now().toString(36)+Math.random().toString(36).slice(2,9)}
-async function optimize(){
-  var btn=byId("optimizePhotoStorageBtn"),data=read(STORE),c=read(SYNC_STORE),n=counts(data);
-  if(!n.local){status("Keine eingebetteten Fotos mehr vorhanden · Cloud: "+n.cloud);return}
-  if(!configured(c)){status("Cloud-Fotospeicher noch nicht verbunden · "+n.local+" lokale Fotos vorhanden. Bitte zuerst Geräte-Sync vollständig einrichten.");return}
-  if(btn){btn.disabled=true;btn.textContent="Fotos werden ausgelagert …"}
-  var done=0,failed=0,total=n.local;
-  var groups=[["plants","plants"],["habitats","habitats"],["animals","animals"]];
-  for(var g=0;g<groups.length;g++){
-    var list=Array.isArray(data[groups[g][0]])?data[groups[g][0]]:[];
-    for(var i=0;i<list.length;i++){
-      var it=list[i];
-      if(!it||!/^data:image\//.test(String(it.photo||"")))continue;
-      try{
-        status("Fotos werden ausgelagert … "+(done+1)+" / "+total);
-        var compact=await compress(it.photo,640,.62),id=it.id||unique();
-        var up=await api(c,"upload",{path:groups[g][1]+"/"+id+".jpg",mime_type:"image/jpeg",data:compact});
-        var signed=await api(c,"sign",{ref:up.ref});
-        it.photoRef=up.ref;it.photo=signed.url;done++;
-        try{localStorage.setItem(STORE,JSON.stringify(data))}catch(writeErr){console.warn("Zwischenspeichern",writeErr)}
-      }catch(e){failed++;console.error("Fotoauslagerung",e);status("Fehler bei Foto "+(done+failed)+" / "+total+": "+e.message)}
-    }
-  }
-  try{
-    localStorage.setItem(STORE,JSON.stringify(data));
-    c.dirty=true;localStorage.setItem(SYNC_STORE,JSON.stringify(c));
-  }catch(e){failed++;status("Fotos wurden verarbeitet, aber lokal konnte nicht gespeichert werden: "+e.message)}
-  if(btn){btn.disabled=false;btn.textContent="Speicher optimieren"}
-  if(failed){status("Fertig: "+done+" Fotos ausgelagert · "+failed+" Fehler. Erneut tippen, um verbliebene Fotos zu versuchen.");refresh();return}
-  status("Fertig: "+done+" Fotos in Supabase ausgelagert. App wird neu geladen …");
-  setTimeout(function(){location.reload()},900)
-}
-window.JGWPhotoStorageDirect={refresh:refresh,optimize:optimize};
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",refresh,{once:true});else refresh();
-setTimeout(refresh,250);setTimeout(refresh,1200);
-var adv=byId("settingsAdvanced");if(adv)adv.addEventListener("toggle",function(){if(adv.open)refresh()});
-})();
-</script>
-'''
+          helper=base64.b64decode('PHNjcmlwdCBpZD0iamd3LXBob3RvLXN0b3JhZ2UtZGlyZWN0Ij4KKGZ1bmN0aW9uKCl7CiJ1c2Ugc3RyaWN0IjsKdmFyIFNUT1JFPSJnaWVzc19jaGVja19nYXJ0ZW5fdjMiLFNZTkNfU1RPUkU9ImpvaGFubmFzX2dhcnRlbndlbHRfc3luY192MSI7CmZ1bmN0aW9uIGJ5SWQoaWQpe3JldHVybiBkb2N1bWVudC5nZXRFbGVtZW50QnlJZChpZCl9CmZ1bmN0aW9uIHJlYWQoa2V5KXt0cnl7cmV0dXJuIEpTT04ucGFyc2UobG9jYWxTdG9yYWdlLmdldEl0ZW0oa2V5KXx8Int9Iil9Y2F0Y2goZSl7cmV0dXJue319fQpmdW5jdGlvbiBjb25maWd1cmVkKGMpe3JldHVybiAhIShjJiZjLmVuYWJsZWQmJi9eaHR0cHM6XC9cL1teL10rXC5zdXBhYmFzZVwuY28kL2kudGVzdChTdHJpbmcoYy51cmx8fCIiKS5yZXBsYWNlKC9cLyskLywiIikpJiZTdHJpbmcoYy5rZXl8fCIiKS5sZW5ndGg+MTAmJlN0cmluZyhjLmdhcmRlbklkfHwiIikubGVuZ3RoPj02JiZTdHJpbmcoYy5waW58fCIiKS5sZW5ndGg+PTYpfQpmdW5jdGlvbiBjb3VudHMoZGF0YSl7dmFyIGNsb3VkPTAsbG9jYWw9MDtbInBsYW50cyIsImhhYml0YXRzIiwiYW5pbWFscyJdLmZvckVhY2goZnVuY3Rpb24oayl7KEFycmF5LmlzQXJyYXkoZGF0YVtrXSk/ZGF0YVtrXTpbXSkuZm9yRWFjaChmdW5jdGlvbihpdCl7aWYoaXQmJml0LnBob3RvUmVmKWNsb3VkKys7aWYoaXQmJi9eZGF0YTppbWFnZVwvLy50ZXN0KFN0cmluZyhpdC5waG90b3x8IiIpKSlsb2NhbCsrfSl9KTtyZXR1cm57Y2xvdWQ6Y2xvdWQsbG9jYWw6bG9jYWx9fQpmdW5jdGlvbiBzdGF0dXMobXNnKXt2YXIgcz1ieUlkKCJwaG90b1N0b3JhZ2VTdGF0dXMiKTtpZihzKXMudGV4dENvbnRlbnQ9bXNnfQpmdW5jdGlvbiByZWZyZXNoKCl7dmFyIGQ9cmVhZChTVE9SRSksYz1yZWFkKFNZTkNfU1RPUkUpLG49Y291bnRzKGQpO3N0YXR1cygoY29uZmlndXJlZChjKT8iS29zdGVubG9zZXIgU3VwYWJhc2UtRm90b3NwZWljaGVyIGJlcmVpdCI6IkNsb3VkLUZvdG9zcGVpY2hlciBub2NoIG5pY2h0IHZlcmJ1bmRlbiIpKyIgwrcgQ2xvdWQ6ICIrbi5jbG91ZCsiIMK3IG5vY2ggbG9rYWw6ICIrbi5sb2NhbCk7cmV0dXJuIG59CmFzeW5jIGZ1bmN0aW9uIHNoYTI1Nih2KXt2YXIgYj1hd2FpdCBjcnlwdG8uc3VidGxlLmRpZ2VzdCgiU0hBLTI1NiIsbmV3IFRleHRFbmNvZGVyKCkuZW5jb2RlKHYpKTtyZXR1cm4gQXJyYXkuZnJvbShuZXcgVWludDhBcnJheShiKSkubWFwKGZ1bmN0aW9uKHgpe3JldHVybiB4LnRvU3RyaW5nKDE2KS5wYWRTdGFydCgyLCIwIil9KS5qb2luKCIiKX0KYXN5bmMgZnVuY3Rpb24gc2VjcmV0KGMpe3JldHVybiBzaGEyNTYoU3RyaW5nKGMuZ2FyZGVuSWR8fCIiKS50cmltKCkudG9Mb3dlckNhc2UoKSsifCIrU3RyaW5nKGMucGlufHwiIikpfQphc3luYyBmdW5jdGlvbiBhcGkoYyxhY3Rpb24sZXh0cmEpe3ZhciB1PVN0cmluZyhjLnVybCkucmVwbGFjZSgvXC8rJC8sIiIpLGJvZHk9T2JqZWN0LmFzc2lnbih7YWN0aW9uOmFjdGlvbixnYXJkZW5faWQ6U3RyaW5nKGMuZ2FyZGVuSWQpLnRyaW0oKS50b0xvd2VyQ2FzZSgpLHNlY3JldF9oYXNoOmF3YWl0IHNlY3JldChjKX0sZXh0cmF8fHt9KTt2YXIgcj1hd2FpdCBmZXRjaCh1KyIvZnVuY3Rpb25zL3YxL2pndy1waG90byIse21ldGhvZDoiUE9TVCIsaGVhZGVyczp7IkNvbnRlbnQtVHlwZSI6ImFwcGxpY2F0aW9uL2pzb24iLCJhcGlrZXkiOmMua2V5fSxib2R5OkpTT04uc3RyaW5naWZ5KGJvZHkpfSksdD1hd2FpdCByLnRleHQoKSxkPXt9O3RyeXtkPXQ/SlNPTi5wYXJzZSh0KTp7fX1jYXRjaChlKXt9aWYoIXIub2t8fCFkLm9rKXRocm93IG5ldyBFcnJvcihkLmVycm9yfHwoIkhUVFAgIityLnN0YXR1cykpO3JldHVybiBkfQpmdW5jdGlvbiBjb21wcmVzcyhzcmMsbWF4LHEpe3JldHVybiBuZXcgUHJvbWlzZShmdW5jdGlvbihyZXNvbHZlLHJlamVjdCl7dmFyIGltZz1uZXcgSW1hZ2UoKTtpbWcub25sb2FkPWZ1bmN0aW9uKCl7dmFyIHc9aW1nLndpZHRoLGg9aW1nLmhlaWdodDtpZih3PmgmJnc+bWF4KXtoPU1hdGgucm91bmQoaCptYXgvdyk7dz1tYXh9ZWxzZSBpZihoPj13JiZoPm1heCl7dz1NYXRoLnJvdW5kKHcqbWF4L2gpO2g9bWF4fXZhciBjYW49ZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgiY2FudmFzIik7Y2FuLndpZHRoPXc7Y2FuLmhlaWdodD1oO3ZhciBjdHg9Y2FuLmdldENvbnRleHQoIjJkIik7aWYoIWN0eCl7cmVqZWN0KG5ldyBFcnJvcigiQmlsZHZlcmFyYmVpdHVuZyBuaWNodCB2ZXJmw7xnYmFyIikpO3JldHVybn1jdHguZHJhd0ltYWdlKGltZywwLDAsdyxoKTtyZXNvbHZlKGNhbi50b0RhdGFVUkwoImltYWdlL2pwZWciLHEpKX07aW1nLm9uZXJyb3I9ZnVuY3Rpb24oKXtyZWplY3QobmV3IEVycm9yKCJGb3RvIGtvbm50ZSBuaWNodCBnZWxlc2VuIHdlcmRlbiIpKX07aW1nLnNyYz1zcmN9KX0KZnVuY3Rpb24gdW5pcXVlKCl7cmV0dXJuIERhdGUubm93KCkudG9TdHJpbmcoMzYpK01hdGgucmFuZG9tKCkudG9TdHJpbmcoMzYpLnNsaWNlKDIsOSl9CmFzeW5jIGZ1bmN0aW9uIG9wdGltaXplKCl7dmFyIGJ0bj1ieUlkKCJvcHRpbWl6ZVBob3RvU3RvcmFnZUJ0biIpLGRhdGE9cmVhZChTVE9SRSksYz1yZWFkKFNZTkNfU1RPUkUpLG49Y291bnRzKGRhdGEpO2lmKCFuLmxvY2FsKXtzdGF0dXMoIktlaW5lIGVpbmdlYmV0dGV0ZW4gRm90b3MgbWVociB2b3JoYW5kZW4gwrcgQ2xvdWQ6ICIrbi5jbG91ZCk7cmV0dXJufWlmKCFjb25maWd1cmVkKGMpKXtzdGF0dXMoIkNsb3VkLUZvdG9zcGVpY2hlciBub2NoIG5pY2h0IHZlcmJ1bmRlbiDCtyAiK24ubG9jYWwrIiBsb2thbGUgRm90b3Mgdm9yaGFuZGVuLiBCaXR0ZSB6dWVyc3QgR2Vyw6R0ZS1TeW5jIHZvbGxzdMOkbmRpZyBlaW5yaWNodGVuLiIpO3JldHVybn1pZihidG4pe2J0bi5kaXNhYmxlZD10cnVlO2J0bi50ZXh0Q29udGVudD0iRm90b3Mgd2VyZGVuIGF1c2dlbGFnZXJ0IOKApiJ9dmFyIGRvbmU9MCxmYWlsZWQ9MCx0b3RhbD1uLmxvY2FsLGdyb3Vwcz1bWyJwbGFudHMiLCJwbGFudHMiXSxbImhhYml0YXRzIiwiaGFiaXRhdHMiXSxbImFuaW1hbHMiLCJhbmltYWxzIl1dO2Zvcih2YXIgZz0wO2c8Z3JvdXBzLmxlbmd0aDtnKyspe3ZhciBsaXN0PUFycmF5LmlzQXJyYXkoZGF0YVtncm91cHNbZ11bMF1dKT9kYXRhW2dyb3Vwc1tnXVswXV06W107Zm9yKHZhciBpPTA7aTxsaXN0Lmxlbmd0aDtpKyspe3ZhciBpdD1saXN0W2ldO2lmKCFpdHx8IS9eZGF0YTppbWFnZVwvLy50ZXN0KFN0cmluZyhpdC5waG90b3x8IiIpKSljb250aW51ZTt0cnl7c3RhdHVzKCJGb3RvcyB3ZXJkZW4gYXVzZ2VsYWdlcnQg4oCmICIrKGRvbmUrZmFpbGVkKzEpKyIgLyAiK3RvdGFsKTt2YXIgY29tcGFjdD1hd2FpdCBjb21wcmVzcyhpdC5waG90byw2NDAsLjYyKSxpZD1pdC5pZHx8dW5pcXVlKCk7dmFyIHVwPWF3YWl0IGFwaShjLCJ1cGxvYWQiLHtwYXRoOmdyb3Vwc1tnXVsxXSsiLyIraWQrIi5qcGciLG1pbWVfdHlwZToiaW1hZ2UvanBlZyIsZGF0YTpjb21wYWN0fSk7dmFyIHNpZ25lZD1hd2FpdCBhcGkoYywic2lnbiIse3JlZjp1cC5yZWZ9KTtpdC5waG90b1JlZj11cC5yZWY7aXQucGhvdG89c2lnbmVkLnVybDtkb25lKys7dHJ5e2xvY2FsU3RvcmFnZS5zZXRJdGVtKFNUT1JFLEpTT04uc3RyaW5naWZ5KGRhdGEpKX1jYXRjaCh3cml0ZUVycil7Y29uc29sZS53YXJuKCJad2lzY2hlbnNwZWljaGVybiIsd3JpdGVFcnIpfX1jYXRjaChlKXtmYWlsZWQrKztjb25zb2xlLmVycm9yKCJGb3RvYXVzbGFnZXJ1bmciLGUpO3N0YXR1cygiRmVobGVyIGJlaSBGb3RvICIrKGRvbmUrZmFpbGVkKSsiIC8gIit0b3RhbCsiOiAiK2UubWVzc2FnZSl9fX10cnl7bG9jYWxTdG9yYWdlLnNldEl0ZW0oU1RPUkUsSlNPTi5zdHJpbmdpZnkoZGF0YSkpO2MuZGlydHk9dHJ1ZTtsb2NhbFN0b3JhZ2Uuc2V0SXRlbShTWU5DX1NUT1JFLEpTT04uc3RyaW5naWZ5KGMpKX1jYXRjaChlKXtmYWlsZWQrKztzdGF0dXMoIkZvdG9zIHd1cmRlbiB2ZXJhcmJlaXRldCwgYWJlciBsb2thbCBrb25udGUgbmljaHQgZ2VzcGVpY2hlcnQgd2VyZGVuOiAiK2UubWVzc2FnZSl9aWYoYnRuKXtidG4uZGlzYWJsZWQ9ZmFsc2U7YnRuLnRleHRDb250ZW50PSJTcGVpY2hlciBvcHRpbWllcmVuIn1pZihmYWlsZWQpe3N0YXR1cygiRmVydGlnOiAiK2RvbmUrIiBGb3RvcyBhdXNnZWxhZ2VydCDCtyAiK2ZhaWxlZCsiIEZlaGxlci4gRXJuZXV0IHRpcHBlbiwgdW0gdmVyYmxpZWJlbmUgRm90b3MgenUgdmVyc3VjaGVuLiIpO3JldHVybn1zdGF0dXMoIkZlcnRpZzogIitkb25lKyIgRm90b3MgaW4gU3VwYWJhc2UgYXVzZ2VsYWdlcnQuIEFwcCB3aXJkIG5ldSBnZWxhZGVuIOKApiIpO3NldFRpbWVvdXQoZnVuY3Rpb24oKXtsb2NhdGlvbi5yZWxvYWQoKX0sOTAwKX0Kd2luZG93LkpHV1Bob3RvU3RvcmFnZURpcmVjdD17cmVmcmVzaDpyZWZyZXNoLG9wdGltaXplOm9wdGltaXplfTsKaWYoZG9jdW1lbnQucmVhZHlTdGF0ZT09PSJsb2FkaW5nIilkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCJET01Db250ZW50TG9hZGVkIixyZWZyZXNoLHtvbmNlOnRydWV9KTtlbHNlIHJlZnJlc2goKTsKc2V0VGltZW91dChyZWZyZXNoLDI1MCk7c2V0VGltZW91dChyZWZyZXNoLDEyMDApOwp2YXIgYWR2PWJ5SWQoInNldHRpbmdzQWR2YW5jZWQiKTtpZihhZHYpYWR2LmFkZEV2ZW50TGlzdGVuZXIoInRvZ2dsZSIsZnVuY3Rpb24oKXtpZihhZHYub3BlbilyZWZyZXNoKCl9KTsKfSkoKTsKPC9zY3JpcHQ+').decode('utf-8')
           if 'id="jgw-photo-storage-direct"' not in s:
               s=s.replace('</body>',helper+'\n</body>',1)
-
           p.write_text(s,encoding='utf-8')
           PY
-
           python - <<'PY'
           from pathlib import Path
           import re
           s=Path('index.html').read_text(encoding='utf-8')
           assert 'jgw-photo-storage-direct' in s
           assert 'JGWPhotoStorageDirect' in s
-          assert 'Cloud-Fotospeicher noch nicht verbunden' in s
           blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
           Path('/tmp/index-inline.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
           PY
