@@ -13,6 +13,7 @@ on:
       - 'jgw-photo-storage-v2.js'
       - 'garten-tipps.js'
       - 'photo-storage.js'
+      - 'tools/core_runtime_smoke.py'
       - 'tools/runtime_efficiency_audit.py'
       - 'tools/ux_v4_audit.py'
       - 'supabase/functions/**'
@@ -55,7 +56,7 @@ jobs:
           for js in jgw-library-nav.js jgw-ux-shell.js jgw-library-v4.js jgw-ux-patch.js jgw-photo-storage-v2.js garten-tipps.js photo-storage.js; do
             test ! -f "$js" || node --check "$js"
           done
-          python -m py_compile tools/runtime_efficiency_audit.py tools/ux_v4_audit.py
+          python -m py_compile tools/core_runtime_smoke.py tools/runtime_efficiency_audit.py tools/ux_v4_audit.py
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
@@ -65,8 +66,8 @@ jobs:
           deno check supabase/functions/trefle-enrich/index.ts
       - name: Install browser test dependency
         run: python -m pip install --disable-pip-version-check selenium
-      - name: Runtime and efficiency audit
-        run: python tools/runtime_efficiency_audit.py
+      - name: Core browser smoke test
+        run: python tools/core_runtime_smoke.py
       - name: Upload audit screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
