@@ -1,0 +1,40 @@
+name: Make Naturnahe Praxis collapsible
+
+on:
+  push:
+    paths:
+      - '.github/workflows/make-naturnahe-praxis-collapsible.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch settings section
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          pattern=r'''    <section class="settings-section" id="settingsEcology">\n      <h3>Naturnahe Praxis</h3>(.*?)\n    </section>\n\n    <section class="settings-section">\n      <h3>Datensicherung</h3>'''
+          replacement=r'''    <details class="settings-section" id="settingsEcology">\n      <summary>Naturnahe Praxis</summary>\1\n    </details>\n\n    <section class="settings-section">\n      <h3>Datensicherung</h3>'''
+          ns,n=re.subn(pattern,replacement,s,count=1,flags=re.S)
+          if n!=1:
+              raise SystemExit(f'Naturnahe Praxis section not patched: {n}')
+          p.write_text(ns,encoding='utf-8')
+          PY
+          git diff --check
+      - name: Commit changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Make Naturnahe Praxis collapsible [skip ci]"
+          git push
