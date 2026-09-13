@@ -1,0 +1,82 @@
+name: Compact garden areas settings
+
+on:
+  push:
+    paths:
+      - '.github/workflows/compact-garden-areas.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch garden areas UI
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          # 1) Make the Garden Areas settings block collapsible and compact.
+          old_html='''    <section class="settings-section" id="settingsAreas">\n      <h3>Gartenbereiche</h3>\n      <div class="muted">Zentrale Liste für Pflanzen, Lebensräume und Tierbeobachtungen. Bestehende Freitexte werden automatisch übernommen und zusammengeführt.</div>\n      <div class="area-manager-add"><input id="areaNewName" autocomplete="off" placeholder="z. B. Vorgarten"><button class="btn secondary small" id="areaAddBtn" type="button">Bereich hinzufügen</button></div>\n      <div class="area-master-list" id="areaMasterList"></div>\n    </section>'''
+          new_html='''    <details class="settings-section" id="settingsAreas">\n      <summary>Gartenbereiche <span class="area-settings-count" id="areaSettingsCount">· 0</span></summary>\n      <div class="muted" style="margin-top:8px">Zentrale Liste für Pflanzen, Lebensräume und Tierbeobachtungen. Bestehende Freitexte werden automatisch übernommen und zusammengeführt.</div>\n      <div class="area-manager-add"><input id="areaNewName" autocomplete="off" placeholder="z. B. Vorgarten"><button class="btn secondary small" id="areaAddBtn" type="button">Hinzufügen</button></div>\n      <div class="area-master-list" id="areaMasterList"></div>\n    </details>'''
+          if old_html not in s:
+              raise SystemExit('Garden areas settings block not found')
+          s=s.replace(old_html,new_html,1)
+
+          # 2) Compact styling, especially on iPhone.
+          css_pattern=r'''\.area-select-note\{font-size:11px;color:var\(--muted\);line-height:1\.35;margin-top:2px\}\n\.area-manager-add\{.*?\}\n/\* /JGW AREA MASTER DATA \*/'''
+          css_replacement='''.area-select-note{font-size:11px;color:var(--muted);line-height:1.35;margin-top:2px}\n.area-settings-count{font-size:.78em;color:var(--muted);font-weight:700;margin-left:4px}\n.area-manager-add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;margin-top:10px}\n.area-manager-add input{width:100%;min-height:40px;border:1px solid #ddcfc0;border-radius:11px;padding:8px 10px;background:#fffdf9;color:var(--txt)}\n.area-master-list{display:grid;gap:5px;margin-top:8px}\n.area-master-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 8px;border:1px solid var(--line);border-radius:11px;background:#fffdf9}\n.area-master-row b{display:block;color:var(--forest-dark);font-size:12.5px;line-height:1.25}\n.area-master-row small{display:block;color:var(--muted);font-size:10.5px;margin-top:1px;line-height:1.2}\n.area-master-actions{display:flex;gap:4px;align-items:center;justify-content:flex-end}\n.area-master-actions .btn{min-height:32px;padding:5px 8px;font-size:11px;border-radius:9px}\n.area-delete-icon{width:32px;min-width:32px;padding:0!important;font-size:16px!important;line-height:1;color:#9d4f4f!important;border-color:#ebd1ce!important;background:#fff8f7!important}\n.area-master-empty{padding:9px 10px;border-radius:11px;background:#f7f3ec;color:var(--muted);font-size:11px}\n@media(max-width:560px){.area-manager-add{grid-template-columns:minmax(0,1fr) auto}.area-manager-add .btn{width:auto}.area-master-row{grid-template-columns:minmax(0,1fr) auto}.area-master-actions{justify-content:flex-end}.area-master-actions .btn{min-height:32px}}\n/* /JGW AREA MASTER DATA */'''
+          ns,n=re.subn(css_pattern,css_replacement,s,count=1,flags=re.S)
+          if n!=1:
+              raise SystemExit(f'Garden area CSS not patched: {n}')
+          s=ns
+
+          # 3) Update count and compact action buttons in the renderer.
+          render_pattern=r'''function renderAreaManager\(\)\{var box=el\("areaMasterList"\);if\(!box\)return;var items=sortedAreas\(\);box\.innerHTML=.*?\}\nfunction migrateLegacyHabitats'''
+          render_new='''function renderAreaManager(){var box=el("areaMasterList");if(!box)return;var items=sortedAreas(),counter=el("areaSettingsCount");if(counter)counter.textContent="· "+items.length;box.innerHTML=items.length?items.map(function(a){var n=areaUsageCount(a.id);return'<div class="area-master-row"><div><b>'+esc(a.name)+'</b><small>'+n+' Zuordnung'+(n===1?'':'en')+'</small></div><div class="area-master-actions"><button class="btn ghost small areaRename" data-id="'+a.id+'" type="button">Ändern</button><button class="btn ghost small areaDelete area-delete-icon" data-id="'+a.id+'" type="button" aria-label="'+esc(a.name)+' löschen" title="Löschen">×</button></div></div>'}).join(''):'<div class="area-master-empty">Noch keine Gartenbereiche. Beim ersten bestehenden Bereich oder über „Hinzufügen“ wird die Liste angelegt.</div>';box.querySelectorAll('.areaRename').forEach(function(b){b.addEventListener('click',function(){renameGardenArea(b.dataset.id)})});box.querySelectorAll('.areaDelete').forEach(function(b){b.addEventListener('click',function(){deleteGardenArea(b.dataset.id)})})}\nfunction migrateLegacyHabitats'''
+          ns,n=re.subn(render_pattern,render_new,s,count=1,flags=re.S)
+          if n!=1:
+              raise SystemExit(f'renderAreaManager not patched: {n}')
+          s=ns
+
+          # 4) When another UI action opens a collapsible settings section directly,
+          # open it before scrolling. This also fixes the Naturnahe Praxis deep link.
+          old_open='''function openSettings(sectionId){var o=el("settingsOverlay");if(!o)return;o.classList.remove("hidden");o.setAttribute("aria-hidden","false");document.body.classList.add("settings-open");setTimeout(function(){if(sectionId&&el(sectionId))el(sectionId).scrollIntoView({behavior:"smooth",block:"start"})},60)}'''
+          new_open='''function openSettings(sectionId){var o=el("settingsOverlay");if(!o)return;o.classList.remove("hidden");o.setAttribute("aria-hidden","false");document.body.classList.add("settings-open");setTimeout(function(){if(sectionId&&el(sectionId)){var target=el(sectionId);if(target.tagName==="DETAILS")target.open=true;target.scrollIntoView({behavior:"smooth",block:"start"})}},60)}'''
+          if old_open not in s:
+              raise SystemExit('openSettings function not found')
+          s=s.replace(old_open,new_open,1)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          assert '<details class="settings-section" id="settingsAreas">' in s
+          assert 'id="areaSettingsCount"' in s
+          assert '>Ändern</button>' in s
+          assert 'area-delete-icon' in s
+          assert 'if(target.tagName==="DETAILS")target.open=true' in s
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index-inline.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          PY
+          node --check /tmp/index-inline.js
+          git diff --check
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Compact garden area settings [skip ci]"
+          git push
