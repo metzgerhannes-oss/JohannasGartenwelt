@@ -2,6 +2,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const BUCKET = "jgw-photos";
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const MAX_BASE64_CHARS = Math.ceil(MAX_UPLOAD_BYTES / 3) * 4 + 128;
 const cors = {
   "Access-Control-Allow-Origin": "https://metzgerhannes-oss.github.io",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -27,8 +29,12 @@ function cleanRelativePath(v: unknown) {
   return p;
 }
 
+function base64Payload(data: string) {
+  return data.includes(",") ? data.slice(data.indexOf(",") + 1) : data;
+}
+
 function decodeBase64(data: string): Uint8Array {
-  const raw = data.includes(",") ? data.slice(data.indexOf(",") + 1) : data;
+  const raw = base64Payload(data);
   const binary = atob(raw);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -72,8 +78,10 @@ Deno.serve(async (req: Request) => {
       if (!rel || !allowed.has(mime)) return reply(400, { ok: false, error: "invalid_upload" });
       const encoded = String(body?.data ?? "");
       if (!encoded) return reply(400, { ok: false, error: "missing_data" });
-      const bytes = decodeBase64(encoded);
-      if (bytes.byteLength > 5 * 1024 * 1024) return reply(413, { ok: false, error: "file_too_large" });
+      const raw = base64Payload(encoded);
+      if (raw.length > MAX_BASE64_CHARS) return reply(413, { ok: false, error: "file_too_large" });
+      const bytes = decodeBase64(raw);
+      if (bytes.byteLength > MAX_UPLOAD_BYTES) return reply(413, { ok: false, error: "file_too_large" });
 
       const objectPath = `${gardenId}/${rel}`;
       const { error } = await admin.storage.from(BUCKET).upload(objectPath, bytes, {
