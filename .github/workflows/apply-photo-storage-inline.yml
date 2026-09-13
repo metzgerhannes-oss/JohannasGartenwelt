@@ -1,0 +1,66 @@
+name: Apply inline photo storage fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-photo-storage-inline.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch app
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          # Add the optimize control statically in the data backup section.
+          anchor='<div class="actions" style="margin-top:10px"><button class="btn secondary small" id="exportBtn" type="button">Backup exportieren</button><label class="btn ghost small" for="importFile" style="display:inline-block">Backup importieren</label><input class="hidden" id="importFile" type="file" accept="application/json,.json"></div>'
+          block=anchor+'\n      <div style="margin-top:10px"><button class="btn secondary small" id="optimizePhotoStorageBtn" type="button">Speicher optimieren</button><div class="muted" id="photoStorageStatus" style="margin-top:7px">Fotospeicher wird geprüft …</div></div>'
+          if 'id="optimizePhotoStorageBtn"' not in s:
+              if anchor not in s:
+                  raise SystemExit('Datensicherung block not found')
+              s=s.replace(anchor,block,1)
+
+          # Inline the storage runtime so iOS/GitHub Pages cache cannot skip a new external file.
+          import re
+          js=Path('photo-storage.js').read_text(encoding='utf-8')
+          pattern=r'<script src="\./photo-storage\.js\?v=[^"]+"></script>'
+          replacement='<script>\n'+js+'\n</script>'
+          if re.search(pattern,s):
+              s=re.sub(pattern,replacement,s,count=1)
+          elif 'window.JGWPhotoStorage' not in s:
+              raise SystemExit('photo storage script tag not found')
+
+          p.write_text(s,encoding='utf-8')
+          PY
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index-inline.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          assert 'id="optimizePhotoStorageBtn"' in s
+          assert 'window.JGWPhotoStorage' in s
+          PY
+          node --check /tmp/index-inline.js
+          git diff --check
+      - name: Commit changes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Show photo storage optimizer reliably [skip ci]"
+          git push
