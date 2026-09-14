@@ -10,6 +10,7 @@ document.write(
   tag("jgw-library-v4.js","20260914-7")+
   tag("jgw-ux-patch.js","20260914-7")+
   tag("jgw-photo-storage-v2.js","20260914-7")+
-  tag("jgw-plant-cards-v3.js","20260914-1")
+  tag("jgw-plant-cards-v3.js","20260914-1")+
+  tag("jgw-gallery-build-20260914.js","1")
 );
 })();
