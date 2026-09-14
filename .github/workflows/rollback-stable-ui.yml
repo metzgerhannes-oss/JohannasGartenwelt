@@ -1,0 +1,27 @@
+name: Rollback stable UI
+
+on:
+  push:
+    paths:
+      - '.github/workflows/rollback-stable-ui.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stabilen Stand vor PWA-Reload-Experiment wiederherstellen
+        shell: bash
+        run: |
+          git checkout 7a25587b83d038c3f7884dc49360e4638fd48b5f -- index.html jgw-library-nav.js manifest.webmanifest
+          rm -f app-20260914-6.html
+          node --check jgw-library-nav.js
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html jgw-library-nav.js manifest.webmanifest
+          git add -u app-20260914-6.html || true
+          git commit -m "Stabilen App-Stand vor PWA-Reload-Experiment wiederherstellen"
+          git push
