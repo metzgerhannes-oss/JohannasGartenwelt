@@ -74,7 +74,7 @@ function installTodayPolish(){
   #view-today .task{
     display:grid!important;
     grid-template-columns:40px minmax(0,1fr)!important;
-    grid-template-rows:auto auto!important;
+    grid-auto-rows:auto!important;
     gap:8px 10px!important;
     align-items:start!important;
     padding:12px!important;
@@ -130,9 +130,15 @@ function installTodayPolish(){
     line-height:1.42!important;
     color:var(--muted)!important;
   }
+  #view-today .task>.jgw-moisture-feedback{
+    grid-column:2!important;
+    width:auto!important;
+    margin:0!important;
+    font-size:11px!important;
+    line-height:1.35!important;
+  }
   #view-today .task>.actions{
     grid-column:2!important;
-    grid-row:2!important;
     width:100%!important;
     display:grid!important;
     grid-template-columns:1fr 1fr!important;
@@ -144,13 +150,6 @@ function installTodayPolish(){
     min-height:40px!important;
     padding:8px 10px!important;
     font-size:11.5px!important;
-  }
-  #view-today .task>.jgw-moisture-feedback{
-    grid-column:2!important;
-    margin:0!important;
-    width:auto!important;
-    font-size:11px!important;
-    line-height:1.35!important;
   }
   #view-today .empty{padding:16px 8px!important}
 }
