@@ -8,7 +8,7 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,19 +26,25 @@ jobs:
           import { chromium } from 'playwright';
           const b=await chromium.launch({headless:true});
           const p=await b.newPage({viewport:{width:390,height:844}});
+          p.setDefaultTimeout(8000);
+          await p.route('**/*', async route=>{
+            const u=route.request().url();
+            if(u.startsWith('http://127.0.0.1:8080/')) return route.continue();
+            return route.abort();
+          });
           await p.addInitScript(()=>{
             const plants=[
               {id:'p1',name:'Großer Test Pflanzenname',scientific:'Testus longname',area:'Vorgarten',type:'bed',quantity:1,bloomMonths:[5,6],ecoNative:'yes',ecoFlowerAccess:'open',created:'2026-09-01',photo:''},
               {id:'p2',name:'Steinkraut sehr langer Name',scientific:'Alyssum test',area:'Beet',type:'bed',quantity:1,bloomMonths:[4,5],ecoNative:'yes',ecoFlowerAccess:'open',created:'2026-09-01',photo:''}
             ];
-            localStorage.setItem('johannasGartenV2',JSON.stringify({plz:'72116',plants,habitats:[],animals:[],areas:[],zones:[],ecology:{practice:{}},settings:{plantView:'collection',plantSort:'name'},days:{}}));
+            localStorage.setItem('johannasGartenV2',JSON.stringify({plz:'',plants,habitats:[],animals:[],areas:[],zones:[],ecology:{practice:{}},settings:{plantView:'collection',plantSort:'name'},days:{}}));
           });
           const errs=[];p.on('pageerror',e=>errs.push(String(e)));
-          await p.goto('http://127.0.0.1:8080/index.html',{waitUntil:'networkidle'});
-          await p.waitForTimeout(1000);
+          await p.goto('http://127.0.0.1:8080/index.html',{waitUntil:'domcontentloaded',timeout:10000});
+          await p.waitForTimeout(1200);
           const plantNav=p.locator('.tabs > .tab[data-view="plants"]');
           if(await plantNav.count()) await plantNav.click();
-          await p.waitForTimeout(500);
+          await p.waitForTimeout(400);
           const out=await p.evaluate(()=>{
             const list=document.getElementById('plantList');
             const c=list&&list.querySelector('.collection-card');
@@ -47,15 +53,7 @@ jobs:
             const name=c&&c.querySelector('.collection-name');
             const cs=x=>x?getComputedStyle(x):null;
             const pick=s=>s?({display:s.display,gridTemplateColumns:s.gridTemplateColumns,gridTemplateRows:s.gridTemplateRows,flexDirection:s.flexDirection,flexWrap:s.flexWrap,width:s.width,height:s.height,position:s.position,aspectRatio:s.aspectRatio,whiteSpace:s.whiteSpace,overflow:s.overflow}):null;
-            return {
-              innerWidth:innerWidth,
-              listExists:!!list,
-              listClass:list&&list.className,
-              cardHTML:c&&c.outerHTML,
-              card:pick(cs(c)),photo:pick(cs(ph)),body:pick(cs(body)),name:pick(cs(name)),
-              cleanupLoaded:!!document.getElementById('jgwUiCleanup20260914'),
-              matching:Array.from(document.styleSheets).flatMap(ss=>{try{return Array.from(ss.cssRules||[]).filter(r=>String(r.cssText||'').includes('collection-card')).map(r=>String(r.cssText).slice(0,500))}catch(e){return[]}}).slice(-30)
-            };
+            return {innerWidth,listExists:!!list,listClass:list&&list.className,cardHTML:c&&c.outerHTML,card:pick(cs(c)),photo:pick(cs(ph)),body:pick(cs(body)),name:pick(cs(name)),cleanupLoaded:!!document.getElementById('jgwUiCleanup20260914')};
           });
           console.log('DIAG',JSON.stringify(out,null,2));
           console.log('ERRORS',JSON.stringify(errs));
