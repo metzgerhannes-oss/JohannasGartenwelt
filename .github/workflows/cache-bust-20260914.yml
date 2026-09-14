@@ -1,0 +1,38 @@
+name: One-time module cache bust
+
+on:
+  push:
+    paths:
+      - 'tools/cache_bust_20260914.py'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Run one-time module cache bust'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tools/cache_bust_20260914.py
+      - name: Validate inline JavaScript
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
+          PY
+          node --check /tmp/index.js
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name 'Johannas Gartenwelt CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Refresh app module cache key [skip ci]'
+          git push
