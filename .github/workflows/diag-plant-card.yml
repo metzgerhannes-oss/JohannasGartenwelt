@@ -26,12 +26,7 @@ jobs:
           import { chromium } from 'playwright';
           const b=await chromium.launch({headless:true});
           const p=await b.newPage({viewport:{width:390,height:844}});
-          p.setDefaultTimeout(8000);
-          await p.route('**/*', async route=>{
-            const u=route.request().url();
-            if(u.startsWith('http://127.0.0.1:8080/')) return route.continue();
-            return route.abort();
-          });
+          p.setDefaultTimeout(12000);
           await p.addInitScript(()=>{
             const plants=[
               {id:'p1',name:'Großer Test Pflanzenname',scientific:'Testus longname',area:'Vorgarten',type:'bed',quantity:1,bloomMonths:[5,6],ecoNative:'yes',ecoFlowerAccess:'open',created:'2026-09-01',photo:''},
@@ -40,11 +35,11 @@ jobs:
             localStorage.setItem('johannasGartenV2',JSON.stringify({plz:'',plants,habitats:[],animals:[],areas:[],zones:[],ecology:{practice:{}},settings:{plantView:'collection',plantSort:'name'},days:{}}));
           });
           const errs=[];p.on('pageerror',e=>errs.push(String(e)));
-          await p.goto('http://127.0.0.1:8080/index.html',{waitUntil:'domcontentloaded',timeout:10000});
-          await p.waitForTimeout(1200);
+          await p.goto('http://127.0.0.1:8080/index.html',{waitUntil:'commit',timeout:5000});
+          await p.waitForTimeout(1800);
           const plantNav=p.locator('.tabs > .tab[data-view="plants"]');
-          if(await plantNav.count()) await plantNav.click();
-          await p.waitForTimeout(400);
+          if(await plantNav.count()) await plantNav.click({timeout:5000}).catch(()=>{});
+          await p.waitForTimeout(600);
           const out=await p.evaluate(()=>{
             const list=document.getElementById('plantList');
             const c=list&&list.querySelector('.collection-card');
