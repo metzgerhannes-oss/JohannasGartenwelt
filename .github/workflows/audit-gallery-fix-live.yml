@@ -35,7 +35,7 @@ jobs:
               ];
               localStorage.setItem('giess_check_garten_v3',JSON.stringify({plz:'',plants,habitats:[],animals:[],areas:[],zones:[],ecology:{practice:{}},settings:{plantView:'list',plantSort:'name',natureTab:'plants'},days:30}));
             });
-            await page.goto('https://metzgerhannes-oss.github.io/JohannasGartenwelt/?audit=20260914-17b',{waitUntil:'commit',timeout:12000});
+            await page.goto('https://metzgerhannes-oss.github.io/JohannasGartenwelt/?audit=20260914-17c',{waitUntil:'commit',timeout:12000});
             await page.waitForTimeout(7500);
             const plantNav=page.locator('.tabs > .tab[data-view="plants"]');
             if(await plantNav.count()) await plantNav.click({timeout:5000}).catch(()=>{});
@@ -64,11 +64,11 @@ jobs:
                 fabDisplay:cs(fab)?.display,
                 inlineAddDisplay:cs(add)?.display,
                 plantsActive:document.body.classList.contains('jgw-plants-active'),
-                weatherLabel:weatherLabel?.textContent?.trim(),
-                errors
+                weatherLabel:weatherLabel?.textContent?.trim()
               };
             });
             console.log('AUDIT',JSON.stringify(out,null,2));
+            console.log('PAGE_ERRORS',JSON.stringify(errors));
             if(out.plantView!=='collection') throw new Error('plantView was not migrated to collection');
             if(!out.migrated) throw new Error('gallery migration flag missing');
             if(!out.firstCardClass?.includes('collection-card')) throw new Error('collection card not rendered');
