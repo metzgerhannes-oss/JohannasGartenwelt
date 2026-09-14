@@ -30,11 +30,13 @@ css.textContent=`
 }
 .jgw-fab svg{width:23px!important;height:23px!important}
 
-/* Pflanzenübersicht: Name hat Vorrang */
+/* Alle Pflanzen: mobile Karten wirklich auf dem echten #plantList */
 @media(max-width:700px){
-  #plantCollectionWrap.collection-grid,
-  #plantCollectionWrap .collection-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
-  #plantCollectionWrap .collection-card{
+  #plantList.collection-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:9px!important;
+  }
+  #plantList .collection-card{
     display:block!important;
     grid-template-columns:none!important;
     grid-template-rows:none!important;
@@ -45,7 +47,7 @@ css.textContent=`
     min-height:0!important;
     overflow:hidden!important;
   }
-  #plantCollectionWrap .collection-photo{
+  #plantList .collection-photo{
     display:grid!important;
     width:100%!important;
     height:auto!important;
@@ -56,30 +58,30 @@ css.textContent=`
     position:relative!important;
     overflow:hidden!important;
   }
-  #plantCollectionWrap .collection-photo>.collection-card-main{
+  #plantList .collection-photo>.collection-card-main{
     display:block!important;
     width:100%!important;
     height:100%!important;
   }
-  #plantCollectionWrap .collection-photo img{
+  #plantList .collection-photo img{
     width:100%!important;
     height:100%!important;
     object-fit:cover!important;
   }
-  #plantCollectionWrap .collection-card>button.collection-card-main{
+  #plantList .collection-card>button.collection-card-main{
     display:block!important;
     width:100%!important;
     min-width:0!important;
     grid-column:auto!important;
     grid-row:auto!important;
   }
-  #plantCollectionWrap .collection-body{
+  #plantList .collection-body{
     display:block!important;
     width:100%!important;
     min-width:0!important;
     padding:8px 9px 10px!important;
   }
-  #plantCollectionWrap .collection-name{
+  #plantList .collection-name{
     display:-webkit-box!important;
     -webkit-box-orient:vertical!important;
     -webkit-line-clamp:2!important;
@@ -95,7 +97,7 @@ css.textContent=`
     padding:0!important;
     margin:0!important;
   }
-  #plantCollectionWrap .collection-latin{
+  #plantList .collection-latin{
     display:block!important;
     margin-top:3px!important;
     font-size:9.5px!important;
@@ -104,7 +106,7 @@ css.textContent=`
     overflow:hidden!important;
     text-overflow:ellipsis!important;
   }
-  #plantCollectionWrap .collection-area{
+  #plantList .collection-area{
     display:block!important;
     margin-top:3px!important;
     font-size:10px!important;
@@ -113,7 +115,7 @@ css.textContent=`
     overflow:hidden!important;
     text-overflow:ellipsis!important;
   }
-  #plantCollectionWrap .collection-status{
+  #plantList .collection-status{
     display:block!important;
     margin-top:4px!important;
     font-size:10px!important;
@@ -122,11 +124,11 @@ css.textContent=`
     overflow:hidden!important;
     text-overflow:ellipsis!important;
   }
-  #plantCollectionWrap .collection-chips{display:none!important}
-  #plantCollectionWrap .collection-card-name-mobile{display:none!important}
+  #plantList .collection-chips{display:none!important}
+  #plantList .collection-card-name-mobile{display:none!important}
 
-  /* Aktionen liegen kompakt auf dem Foto statt neben dem Namen */
-  #plantCollectionWrap .insect-badge{
+  /* Aktionen kompakt auf dem Foto */
+  #plantList .insect-badge{
     display:flex!important;
     align-items:center!important;
     position:absolute!important;
@@ -146,7 +148,7 @@ css.textContent=`
     box-shadow:0 2px 7px rgba(54,49,44,.12)!important;
     backdrop-filter:blur(4px)!important;
   }
-  #plantCollectionWrap .favorite-plant{
+  #plantList .favorite-plant{
     display:grid!important;
     place-items:center!important;
     position:absolute!important;
@@ -161,7 +163,7 @@ css.textContent=`
     font-size:18px!important;
     z-index:7!important;
   }
-  #plantCollectionWrap .plant-add-one{
+  #plantList .plant-add-one{
     display:grid!important;
     place-items:center!important;
     position:absolute!important;
@@ -178,7 +180,7 @@ css.textContent=`
     font-size:11px!important;
     z-index:7!important;
   }
-  #plantCollectionWrap .plant-quantity-badge{
+  #plantList .plant-quantity-badge{
     left:6px!important;
     bottom:6px!important;
     right:auto!important;
