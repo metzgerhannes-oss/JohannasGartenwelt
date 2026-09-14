@@ -1,0 +1,128 @@
+name: Apply plant card v2
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-plant-card-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Loader-Version im stabilen Einstieg anheben
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='jgw-library-nav.js?v=20260914-4'
+          new='jgw-library-nav.js?v=20260914-5'
+          if old not in s and new not in s:
+              raise SystemExit('Erwarteter Loader-Verweis nicht gefunden')
+          s=s.replace(old,new)
+          p.write_text(s,encoding='utf-8')
+          assert new in s
+          PY
+          node --check jgw-library-nav.js
+          node --check jgw-ux-shell.js
+          node --check jgw-library-v4.js
+          node --check jgw-ux-patch.js
+          node --check jgw-photo-storage-v2.js
+          node --check jgw-plant-cards-v2.js
+      - name: Selenium installieren
+        run: python -m pip install --disable-pip-version-check selenium
+      - name: Mobile Pflanzenkarte im Browser prüfen
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, subprocess, time
+          from selenium import webdriver
+          from selenium.webdriver.support.ui import WebDriverWait
+
+          srv=subprocess.Popen(['python','-m','http.server','8765','--bind','127.0.0.1'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+          try:
+              opt=webdriver.ChromeOptions()
+              for a in ['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--lang=de-DE']:
+                  opt.add_argument(a)
+              d=webdriver.Chrome(options=opt)
+              d.set_window_size(390,844)
+              try:
+                  d.get('http://127.0.0.1:8765/index.html?plantcardaudit='+str(int(time.time())))
+                  WebDriverWait(d,20).until(lambda x:x.execute_script('return !!(window.JGWCore&&document.getElementById("plantList")&&document.getElementById("jgwPlantCardsV2Style"))'))
+                  d.execute_script('''
+                    var s=window.JGWCore.getState();
+                    s.plants=[{
+                      id:'audit-plant',name:'Gewöhnlicher Natternkopf mit langem Pflanzennamen',scientific:'Echium vulgare',
+                      area:'Sonnenbeet',type:'bed',size:'medium',water:'low',quantity:2,favorite:false,
+                      bloomMonths:[6,7,8,9],fertMonths:[],cutMonths:[],positions:[],ecoNative:'native',ecoFlowerAccess:'open'
+                    }];
+                    window.JGWCore.switchView('plants');
+                    window.JGWCore.renderPlants();
+                  ''')
+                  WebDriverWait(d,10).until(lambda x:x.execute_script('return !!document.querySelector("#plantList .collection-card")'))
+                  r=d.execute_script('''
+                    var c=document.querySelector('#plantList .collection-card');
+                    var p=c.querySelector(':scope > .collection-photo');
+                    var n=c.querySelector('.collection-name');
+                    var body=c.querySelector(':scope > .collection-card-main');
+                    var dup=c.querySelector('.collection-card-name-mobile');
+                    var insect=c.querySelector('.insect-badge');
+                    var add=c.querySelector('.plant-add-one');
+                    function rect(x){var r=x.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,top:r.top,bottom:r.bottom,left:r.left,right:r.right}}
+                    return {
+                      card:rect(c),photo:rect(p),name:rect(n),body:rect(body),
+                      cardDisplay:getComputedStyle(c).display,
+                      flexDirection:getComputedStyle(c).flexDirection,
+                      nameWhiteSpace:getComputedStyle(n).whiteSpace,
+                      duplicateDisplay:dup?getComputedStyle(dup).display:'missing',
+                      insectDisplay:getComputedStyle(insect).display,
+                      addDisplay:getComputedStyle(add).display,
+                      text:n.textContent,
+                      scripts:Array.from(document.scripts).map(function(s){return s.src}).filter(Boolean)
+                    };
+                  ''')
+                  print(json.dumps(r,ensure_ascii=False,indent=2))
+                  assert r['cardDisplay']=='flex', r
+                  assert r['flexDirection']=='column', r
+                  assert r['photo']['width'] >= r['card']['width']-2, r
+                  assert r['name']['top'] >= r['photo']['bottom']-1, r
+                  assert r['name']['width'] >= r['card']['width']*.72, r
+                  assert r['name']['height'] >= 30, r
+                  assert r['duplicateDisplay']=='none', r
+                  assert r['insectDisplay']!='none', r
+                  assert r['addDisplay']!='none', r
+                  assert 'Gewöhnlicher Natternkopf' in r['text'], r
+                  assert any('jgw-ux-shell.js?v=20260914-7' in s for s in r['scripts']), r
+                  assert any('jgw-plant-cards-v2.js?v=20260914-1' in s for s in r['scripts']), r
+                  d.save_screenshot('/tmp/plant-card-v2.png')
+              finally:
+                  d.quit()
+          finally:
+              srv.terminate()
+              try:srv.wait(timeout=3)
+              except: srv.kill()
+          PY
+      - name: Änderung committen
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Frische UI-Version für lesbare Pflanzenkarten aktivieren"
+          git push
+      - name: Screenshot hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plant-card-v2-mobile
+          path: /tmp/plant-card-v2.png
+          if-no-files-found: warn
+          retention-days: 3
