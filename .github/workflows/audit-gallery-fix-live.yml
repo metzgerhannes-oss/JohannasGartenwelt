@@ -24,59 +24,62 @@ jobs:
           cat > audit.mjs <<'EOF'
           import { chromium } from 'playwright';
           const browser=await chromium.launch({headless:true});
-          const page=await browser.newPage({viewport:{width:390,height:844}});
-          const errors=[];
-          page.on('pageerror',e=>errors.push(String(e)));
-          await page.addInitScript(()=>{
-            const plants=[
-              {id:'p1',name:'Großer Pflanzenname zum Test',scientific:'Testus longus',area:'Vorgarten',type:'bed',quantity:1,bloomMonths:[5,6],ecoNative:'yes',ecoFlowerAccess:'open',created:'2026-09-01'},
-              {id:'p2',name:'Steinkraut mit langem Namen',scientific:'Alyssum test',area:'Steingarten',type:'bed',quantity:1,bloomMonths:[4,5],ecoNative:'yes',ecoFlowerAccess:'open',created:'2026-09-01'}
-            ];
-            localStorage.setItem('johannasGartenV2',JSON.stringify({plz:'',plants,habitats:[],animals:[],areas:[],zones:[],ecology:{practice:{}},settings:{plantView:'list',plantSort:'name',natureTab:'plants'},days:30}));
-          });
-          await page.goto('https://metzgerhannes-oss.github.io/JohannasGartenwelt/?audit=20260914-17',{waitUntil:'commit',timeout:12000});
-          await page.waitForTimeout(7500);
-          const plantNav=page.locator('.tabs > .tab[data-view="plants"]');
-          if(await plantNav.count()) await plantNav.click({timeout:5000}).catch(()=>{});
-          await page.waitForTimeout(1000);
-          const out=await page.evaluate(()=>{
-            const s=window.JGWCore&&JGWCore.getState?JGWCore.getState():window.state;
-            const list=document.getElementById('plantList');
-            const card=list&&list.querySelector('.collection-card');
-            const photo=card&&card.querySelector('.collection-photo');
-            const name=card&&card.querySelector('.collection-name');
-            const fab=document.querySelector('.jgw-fab');
-            const add=document.getElementById('newPlantBtn');
-            const weatherLabel=document.querySelector('#gardenDryDays')?.parentElement?.querySelector('.state-label');
-            const cs=e=>e?getComputedStyle(e):null;
-            const cr=e=>e?e.getBoundingClientRect():null;
-            return {
-              plantView:s?.settings?.plantView,
-              migrated:s?.settings?.galleryViewV2,
-              listClass:list?.className,
-              firstCardClass:list?.firstElementChild?.className,
-              cardDisplay:cs(card)?.display,
-              cardWidth:cr(card)?.width,
-              photoWidth:cr(photo)?.width,
-              nameText:name?.textContent,
-              nameDisplay:cs(name)?.display,
-              fabDisplay:cs(fab)?.display,
-              inlineAddDisplay:cs(add)?.display,
-              plantsActive:document.body.classList.contains('jgw-plants-active'),
-              weatherLabel:weatherLabel?.textContent?.trim(),
-              errors
-            };
-          });
-          console.log('AUDIT',JSON.stringify(out,null,2));
-          if(out.plantView!=='collection') throw new Error('plantView was not migrated to collection');
-          if(!out.migrated) throw new Error('gallery migration flag missing');
-          if(!out.firstCardClass?.includes('collection-card')) throw new Error('collection card not rendered');
-          if(!out.cardWidth||!out.photoWidth||Math.abs(out.cardWidth-out.photoWidth)>4) throw new Error('photo is not full card width');
-          if(!out.nameText?.includes('Großer Pflanzenname')) throw new Error('full plant name not rendered');
-          if(out.fabDisplay!=='none') throw new Error('floating add button still overlays plant view');
-          if(out.inlineAddDisplay==='none') throw new Error('inline add button missing');
-          if(out.weatherLabel!=='Trockenphase') throw new Error('weather label not corrected');
-          if(errors.length) throw new Error('JS errors: '+errors.join(' | '));
-          await browser.close();
+          try{
+            const page=await browser.newPage({viewport:{width:390,height:844}});
+            const errors=[];
+            page.on('pageerror',e=>errors.push(String(e)));
+            await page.addInitScript(()=>{
+              const plants=[
+                {id:'p1',name:'Großer Pflanzenname zum Test',scientific:'Testus longus',area:'Vorgarten',type:'bed',quantity:1,bloomMonths:[5,6],ecoNative:'yes',ecoFlowerAccess:'open',created:'2026-09-01'},
+                {id:'p2',name:'Steinkraut mit langem Namen',scientific:'Alyssum test',area:'Steingarten',type:'bed',quantity:1,bloomMonths:[4,5],ecoNative:'yes',ecoFlowerAccess:'open',created:'2026-09-01'}
+              ];
+              localStorage.setItem('giess_check_garten_v3',JSON.stringify({plz:'',plants,habitats:[],animals:[],areas:[],zones:[],ecology:{practice:{}},settings:{plantView:'list',plantSort:'name',natureTab:'plants'},days:30}));
+            });
+            await page.goto('https://metzgerhannes-oss.github.io/JohannasGartenwelt/?audit=20260914-17b',{waitUntil:'commit',timeout:12000});
+            await page.waitForTimeout(7500);
+            const plantNav=page.locator('.tabs > .tab[data-view="plants"]');
+            if(await plantNav.count()) await plantNav.click({timeout:5000}).catch(()=>{});
+            await page.waitForTimeout(1000);
+            const out=await page.evaluate(()=>{
+              const s=window.JGWCore&&JGWCore.getState?JGWCore.getState():window.state;
+              const list=document.getElementById('plantList');
+              const card=list&&list.querySelector('.collection-card');
+              const photo=card&&card.querySelector('.collection-photo');
+              const name=card&&card.querySelector('.collection-name');
+              const fab=document.querySelector('.jgw-fab');
+              const add=document.getElementById('newPlantBtn');
+              const weatherLabel=document.querySelector('#gardenDryDays')?.parentElement?.querySelector('.state-label');
+              const cs=e=>e?getComputedStyle(e):null;
+              const cr=e=>e?e.getBoundingClientRect():null;
+              return {
+                plantView:s?.settings?.plantView,
+                migrated:s?.settings?.galleryViewV2,
+                listClass:list?.className,
+                firstCardClass:list?.firstElementChild?.className,
+                cardDisplay:cs(card)?.display,
+                cardWidth:cr(card)?.width,
+                photoWidth:cr(photo)?.width,
+                nameText:name?.textContent,
+                nameDisplay:cs(name)?.display,
+                fabDisplay:cs(fab)?.display,
+                inlineAddDisplay:cs(add)?.display,
+                plantsActive:document.body.classList.contains('jgw-plants-active'),
+                weatherLabel:weatherLabel?.textContent?.trim(),
+                errors
+              };
+            });
+            console.log('AUDIT',JSON.stringify(out,null,2));
+            if(out.plantView!=='collection') throw new Error('plantView was not migrated to collection');
+            if(!out.migrated) throw new Error('gallery migration flag missing');
+            if(!out.firstCardClass?.includes('collection-card')) throw new Error('collection card not rendered');
+            if(!out.cardWidth||!out.photoWidth||Math.abs(out.cardWidth-out.photoWidth)>4) throw new Error('photo is not full card width');
+            if(!out.nameText?.includes('Großer Pflanzenname')) throw new Error('full plant name not rendered');
+            if(out.fabDisplay!=='none') throw new Error('floating add button still overlays plant view');
+            if(out.inlineAddDisplay==='none') throw new Error('inline add button missing');
+            if(out.weatherLabel!=='Trockenphase') throw new Error('weather label not corrected');
+            if(errors.length) throw new Error('JS errors: '+errors.join(' | '));
+          } finally {
+            await browser.close();
+          }
           EOF
           node audit.mjs
