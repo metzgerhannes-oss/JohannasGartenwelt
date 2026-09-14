@@ -11,6 +11,6 @@ document.write(
   tag("jgw-ux-patch.js","20260914-7")+
   tag("jgw-photo-storage-v2.js","20260914-7")+
   tag("jgw-plant-cards-v3.js","20260914-1")+
-  tag("jgw-gallery-build-20260914.js","1")
+  tag("jgw-gallery-build-safe-20260914.js","2")
 );
 })();
