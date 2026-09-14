@@ -1,0 +1,70 @@
+from pathlib import Path
+
+p = Path("index.html")
+s = p.read_text(encoding="utf-8")
+
+css = r'''
+/* JGW HABITAT ILLUSTRATIONS */
+#natureHabitatsPane .nature-card-photo{aspect-ratio:16/10;background:#f5f0e7}
+#natureHabitatsPane .nature-card-photo .habitat-illustration{width:100%;height:100%;display:block}
+#natureHabitatsPane .nature-card-photo:after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 -1px 0 rgba(70,78,63,.08)}
+.detail-hero .habitat-illustration{width:100%;height:100%;min-height:220px;display:block}
+/* /JGW HABITAT ILLUSTRATIONS */
+'''
+if "/* JGW HABITAT ILLUSTRATIONS */" not in s:
+    if "</style>" not in s:
+        raise SystemExit("style-Ende nicht gefunden")
+    s = s.replace("</style>", css + "</style>", 1)
+
+helper = r'''function habitatIllustration(type){
+ var d=habitatLibraryItem(type),cat=d.category||"other";
+ var palette={
+  water:{bg:"#edf5f3",ground:"#dfe8d4",sun:"#ead69e"},
+  structure:{bg:"#f5f0e6",ground:"#e5d8c5",sun:"#e7cc92"},
+  refuge:{bg:"#eef2e8",ground:"#d8dfcb",sun:"#e8d19a"},
+  food:{bg:"#f6f1e8",ground:"#dce5d2",sun:"#efd69c"},
+  other:{bg:"#f4f0e8",ground:"#dce3d5",sun:"#ead39b"}
+ }[cat]||{bg:"#f4f0e8",ground:"#dce3d5",sun:"#ead39b"};
+ var scenes={
+  water_station:'<ellipse cx="158" cy="142" rx="72" ry="25" fill="#c9a982"/><path d="M91 136c8 38 30 49 67 49s60-12 68-49" fill="#b98e68"/><ellipse cx="158" cy="137" rx="62" ry="17" fill="#8db9c2"/><ellipse cx="158" cy="133" rx="54" ry="11" fill="#a9ced2"/><circle cx="111" cy="133" r="8" fill="#d9d0bd"/><circle cx="197" cy="135" r="10" fill="#c8baa5"/><g transform="translate(224 93)"><ellipse cx="0" cy="0" rx="7" ry="4" fill="#5b5143"/><ellipse cx="-5" cy="-5" rx="5" ry="3" fill="#f5f0de" opacity=".9"/><ellipse cx="5" cy="-5" rx="5" ry="3" fill="#f5f0de" opacity=".9"/></g>',
+  mini_pond:'<ellipse cx="159" cy="151" rx="102" ry="36" fill="#8eb8bd"/><ellipse cx="151" cy="146" rx="88" ry="27" fill="#abd0cf"/><path d="M173 140c18-12 39-9 50 2-15 10-32 12-50-2Z" fill="#789b66"/><circle cx="198" cy="139" r="5" fill="#d8a3ad"/><path d="M78 147c0-38 3-62 8-82M90 150c0-31 4-52 10-72M103 151c0-26 2-46 7-64" stroke="#66845f" stroke-width="5" stroke-linecap="round"/><g transform="translate(231 88)" stroke="#58685d" stroke-width="3" stroke-linecap="round"><path d="M0 0h24"/><path d="M12-13v26"/><ellipse cx="5" cy="-7" rx="8" ry="4" fill="#d7e5e2" stroke="none"/><ellipse cx="19" cy="-7" rx="8" ry="4" fill="#d7e5e2" stroke="none"/></g>',
+  deadwood:'<g transform="translate(48 105)"><rect x="15" y="18" width="196" height="54" rx="25" fill="#9b7555"/><ellipse cx="211" cy="45" rx="27" ry="27" fill="#b98d68"/><ellipse cx="211" cy="45" rx="17" ry="17" fill="none" stroke="#8b684e" stroke-width="4"/><ellipse cx="211" cy="45" rx="8" ry="8" fill="none" stroke="#8b684e" stroke-width="3"/><path d="M32 26c22-14 41-17 58-7-10 10-26 13-58 7ZM74 69c19-13 38-13 51-3-15 10-31 12-51 3Z" fill="#788b63"/></g><g transform="translate(105 91)"><ellipse cx="0" cy="0" rx="7" ry="10" fill="#4e4439"/><circle cx="0" cy="-9" r="4" fill="#4e4439"/><path d="M-6-1l-8-5M6-1l8-5M-6 5l-8 6M6 5l8 6" stroke="#4e4439" stroke-width="2"/></g>',
+  stems:'<g stroke="#9e815d" stroke-width="8" stroke-linecap="round"><path d="M86 165V73"/><path d="M127 166V53"/><path d="M169 165V79"/><path d="M210 165V62"/></g><g fill="#d8b58a" stroke="#806548" stroke-width="2"><circle cx="86" cy="73" r="7"/><circle cx="127" cy="53" r="7"/><circle cx="169" cy="79" r="7"/><circle cx="210" cy="62" r="7"/></g><g transform="translate(237 90)"><ellipse cx="0" cy="0" rx="7" ry="4" fill="#5c5143"/><ellipse cx="-5" cy="-5" rx="5" ry="3" fill="#f6f0dc"/><ellipse cx="5" cy="-5" rx="5" ry="3" fill="#f6f0dc"/></g><path d="M70 170c19-15 31-18 47-5M182 171c17-15 34-17 52-4" stroke="#718362" stroke-width="6" stroke-linecap="round"/>',
+  bare_soil:'<path d="M65 159c25-39 64-53 108-47 49 6 76 22 90 49-29 18-69 24-113 21-39-2-67-9-85-23Z" fill="#b88963"/><path d="M79 151c21-21 55-31 88-26" stroke="#cda985" stroke-width="5" fill="none" stroke-linecap="round"/><ellipse cx="198" cy="149" rx="12" ry="7" fill="#775c49"/><ellipse cx="122" cy="159" rx="7" ry="4" fill="#876a54"/><path d="M58 169c3-17 9-27 18-36M267 168c-3-18-9-30-18-41" stroke="#71825d" stroke-width="5" stroke-linecap="round"/>',
+  sandarium:'<path d="M58 165c24-49 61-68 111-61 44 6 76 28 91 62-27 16-62 21-105 20-44-1-76-8-97-21Z" fill="#d9bd86"/><path d="M82 157c28-22 63-31 104-25" stroke="#e8d29f" stroke-width="5" fill="none" stroke-linecap="round"/><circle cx="229" cy="153" r="15" fill="#9a9588"/><circle cx="90" cy="164" r="10" fill="#b1a799"/><g stroke="#708361" stroke-width="4"><path d="M117 143v-30"/><path d="M150 137v-37"/></g><g fill="#d8a4ad"><circle cx="117" cy="108" r="7"/><circle cx="150" cy="95" r="7"/></g>',
+  dry_wall:'<g fill="#9d978c"><rect x="57" y="133" width="70" height="34" rx="14"/><rect x="132" y="134" width="74" height="33" rx="14" fill="#aaa397"/><rect x="211" y="135" width="55" height="32" rx="14" fill="#8f8b82"/><rect x="82" y="101" width="71" height="34" rx="14" fill="#b1aa9f"/><rect x="159" y="101" width="70" height="34" rx="14" fill="#99958d"/><rect x="112" y="69" width="74" height="34" rx="14" fill="#a49e93"/></g><path d="M233 135c1-28 9-43 24-58M248 125l17-13M241 111l-15-12" stroke="#738662" stroke-width="5" stroke-linecap="round"/><circle cx="259" cy="75" r="6" fill="#d9a2ad"/>',
+  nesting_aid:'<rect x="91" y="58" width="138" height="116" rx="13" fill="#b98d66"/><path d="M80 69 160 29l80 40" fill="#8a684f"/><rect x="107" y="80" width="106" height="75" rx="8" fill="#d4ad7c"/><g fill="#755b46"><circle cx="126" cy="99" r="6"/><circle cx="150" cy="99" r="5"/><circle cx="176" cy="99" r="7"/><circle cx="201" cy="99" r="5"/><circle cx="126" cy="124" r="5"/><circle cx="152" cy="124" r="7"/><circle cx="179" cy="124" r="5"/><circle cx="202" cy="124" r="6"/></g><g transform="translate(245 101)"><ellipse cx="0" cy="0" rx="7" ry="4" fill="#4f463b"/><ellipse cx="-5" cy="-5" rx="5" ry="3" fill="#f6efdd"/><ellipse cx="5" cy="-5" rx="5" ry="3" fill="#f6efdd"/></g>',
+  wild_corner:'<g stroke="#71845f" stroke-width="5" stroke-linecap="round"><path d="M70 174c9-42 13-75 12-107"/><path d="M105 176c0-48 4-86 14-119"/><path d="M143 176c-3-48 0-80 9-102"/><path d="M184 176c4-56 13-89 29-111"/><path d="M229 176c-2-43 0-69 9-91"/></g><g fill="#7d946a"><ellipse cx="87" cy="110" rx="20" ry="8" transform="rotate(-27 87 110)"/><ellipse cx="126" cy="119" rx="20" ry="8" transform="rotate(24 126 119)"/><ellipse cx="201" cy="113" rx="21" ry="8" transform="rotate(-22 201 113)"/></g><g fill="#d7a3ad"><circle cx="119" cy="54" r="8"/><circle cx="214" cy="62" r="8"/></g><g transform="translate(258 85)"><path d="M0 0c-16-18-28-4-16 9C-8 18 0 10 0 0Z" fill="#c8a46d"/><path d="M0 0c16-18 28-4 16 9C8 18 0 10 0 0Z" fill="#d7a3ad"/><circle cx="0" cy="4" r="3" fill="#584d43"/></g>',
+  leaf_pile:'<g fill="#a77750"><ellipse cx="111" cy="151" rx="35" ry="16" transform="rotate(-22 111 151)"/><ellipse cx="145" cy="139" rx="40" ry="17" transform="rotate(14 145 139)" fill="#b98b55"/><ellipse cx="182" cy="151" rx="39" ry="17" transform="rotate(-9 182 151)" fill="#9f6f48"/><ellipse cx="213" cy="143" rx="32" ry="15" transform="rotate(20 213 143)" fill="#c09a66"/><ellipse cx="158" cy="165" rx="45" ry="17" fill="#8f6546"/></g><g transform="translate(89 132)"><path d="M0 30c7-30 43-37 61-15-8 28-46 35-61 15Z" fill="#665246"/><path d="M49 14c13-5 23 0 27 9-8 8-17 10-27 5Z" fill="#8d765d"/><circle cx="68" cy="21" r="2.5" fill="#2f2925"/></g>',
+  brush_pile:'<g stroke="#8e6e52" stroke-width="8" stroke-linecap="round"><path d="M66 166 238 83"/><path d="M81 107 245 166"/><path d="M101 172 215 72"/><path d="M96 88 233 174"/></g><g stroke="#718361" stroke-width="4" stroke-linecap="round"><path d="M118 104l-18-17M177 111l21-18M203 139l22-12M136 143l-22 9"/></g><g fill="#7f936b"><ellipse cx="98" cy="86" rx="10" ry="5" transform="rotate(25 98 86)"/><ellipse cx="201" cy="91" rx="10" ry="5" transform="rotate(-29 201 91)"/><ellipse cx="226" cy="125" rx="10" ry="5" transform="rotate(-18 226 125)"/></g>',
+  flower_meadow:'<g stroke="#70845e" stroke-width="4" stroke-linecap="round"><path d="M60 176V105"/><path d="M95 176V82"/><path d="M132 176V111"/><path d="M168 176V73"/><path d="M205 176V102"/><path d="M246 176V88"/></g><g fill="#d6a3ad"><circle cx="60" cy="99" r="7"/><circle cx="54" cy="105" r="7"/><circle cx="66" cy="105" r="7"/></g><circle cx="60" cy="104" r="4" fill="#d4ac61"/><g fill="#8aa6c0"><circle cx="95" cy="77" r="8"/><circle cx="89" cy="84" r="8"/><circle cx="101" cy="84" r="8"/></g><circle cx="95" cy="82" r="4" fill="#d7b35f"/><circle cx="132" cy="105" r="9" fill="#e2c064"/><circle cx="168" cy="68" r="9" fill="#c694b2"/><circle cx="205" cy="96" r="9" fill="#d69b8a"/><circle cx="246" cy="83" r="9" fill="#d7a3ad"/>',
+  herb_bed:'<g fill="#718b63"><ellipse cx="92" cy="143" rx="43" ry="30"/><ellipse cx="144" cy="136" rx="47" ry="35" fill="#7e966e"/><ellipse cx="197" cy="145" rx="49" ry="31" fill="#68845e"/><ellipse cx="239" cy="138" rx="30" ry="24" fill="#849a70"/></g><g fill="#b69ac3"><circle cx="111" cy="113" r="6"/><circle cx="130" cy="103" r="6"/><circle cx="156" cy="108" r="6"/><circle cx="188" cy="114" r="6"/><circle cx="213" cy="109" r="6"/></g><g fill="#d7a3ad"><circle cx="78" cy="127" r="5"/><circle cx="228" cy="119" r="5"/></g>',
+  flowering_border:'<g stroke="#6f835e" stroke-width="5" stroke-linecap="round"><path d="M67 177V121"/><path d="M101 177V87"/><path d="M140 177V112"/><path d="M177 177V75"/><path d="M218 177V101"/><path d="M252 177V126"/></g><circle cx="67" cy="115" r="12" fill="#d79aa8"/><circle cx="140" cy="106" r="11" fill="#d79aa8"/><circle cx="101" cy="81" r="12" fill="#b79bc5"/><circle cx="177" cy="69" r="13" fill="#b79bc5"/><circle cx="218" cy="95" r="11" fill="#e0bd62"/><circle cx="252" cy="120" r="10" fill="#cf8c7e"/><path d="M47 177c22-18 45-18 65 0M123 177c24-18 52-17 74 0M199 177c19-17 43-17 69 0" stroke="#7c9369" stroke-width="8" fill="none" stroke-linecap="round"/>',
+  orchard_understory:'<path d="M143 177c8-54 11-94 7-127h30c-5 44-3 84 8 127Z" fill="#8f694e"/><path d="M160 70c-17-25-39-31-62-18-11-28 19-50 48-39 15-27 55-27 70-3 28-8 51 14 43 39-26-8-46 0-57 21Z" fill="#799366"/><g fill="#bf6d61"><circle cx="118" cy="50" r="8"/><circle cx="185" cy="42" r="8"/><circle cx="223" cy="56" r="8"/></g><g stroke="#70845e" stroke-width="3"><path d="M77 176v-28"/><path d="M104 176v-34"/><path d="M215 176v-31"/><path d="M244 176v-25"/></g><g fill="#d8a3ad"><circle cx="77" cy="143" r="6"/><circle cx="104" cy="137" r="6"/><circle cx="215" cy="140" r="6"/><circle cx="244" cy="146" r="6"/></g>'
+ };
+ var scene=scenes[type]||'<circle cx="160" cy="125" r="42" fill="#82946f"/><path d="M160 158V91M160 113c-22-18-42-12-52 3 22 13 39 11 52-3ZM160 132c22-18 42-12 52 3-22 13-39 11-52-3Z" stroke="#5f7655" stroke-width="6" fill="#9cad84" stroke-linecap="round"/>';
+ return '<svg class="habitat-illustration" viewBox="0 0 320 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><rect width="320" height="200" fill="'+palette.bg+'"/><circle cx="276" cy="38" r="23" fill="'+palette.sun+'" opacity=".7"/><path d="M0 153c52-18 91-14 135-2 49 14 91 11 185-9v58H0Z" fill="'+palette.ground+'"/>'+scene+'</svg>'
+}
+'''
+if "function habitatIllustration(type){" not in s:
+    anchor = "function habitatCardHtml(h){"
+    if anchor not in s:
+        raise SystemExit("habitatCardHtml-Anker nicht gefunden")
+    s = s.replace(anchor, helper + anchor, 1)
+
+old_card = '''function habitatCardHtml(h){var d=habitatLibraryItem(h.type),impact=habitatEntryImpact(h),photo=h.photo?'<img src="'+h.photo+'" alt="'+esc(d.title)+'">':d.icon,status=habitatStatusLabel(h.status),chipClass=h.status==="present"||h.status==="optimized"?"good":h.status==="planned"?"plan":"";return'<article class="nature-card"><button class="nature-card-main habitatOpen" data-id="'+h.id+'" type="button"><div class="nature-card-photo">'+photo+'<span class="nature-impact">🐝 '+impact+'</span></div><div class="nature-card-body"><div class="nature-card-name">'+esc(d.title)+'</div><div class="nature-card-sub">'+esc(h.area||habitatCategoryLabel(d.category))+'</div><div class="nature-card-meta"><span class="nature-chip '+chipClass+'">'+esc(status)+'</span><span class="nature-chip">'+esc(habitatCategoryLabel(d.category))+'</span></div></div></button></article>'}'''
+new_card = '''function habitatCardHtml(h){var d=habitatLibraryItem(h.type),impact=habitatEntryImpact(h),visual=habitatIllustration(h.type),status=habitatStatusLabel(h.status),chipClass=h.status==="present"||h.status==="optimized"?"good":h.status==="planned"?"plan":"";return'<article class="nature-card"><button class="nature-card-main habitatOpen" data-id="'+h.id+'" type="button"><div class="nature-card-photo">'+visual+'<span class="nature-impact">🐝 '+impact+'</span></div><div class="nature-card-body"><div class="nature-card-name">'+esc(d.title)+'</div><div class="nature-card-sub">'+esc(h.area||habitatCategoryLabel(d.category))+'</div><div class="nature-card-meta"><span class="nature-chip '+chipClass+'">'+esc(status)+'</span><span class="nature-chip">'+esc(habitatCategoryLabel(d.category))+'</span></div></div></button></article>'}'''
+if old_card in s:
+    s = s.replace(old_card, new_card, 1)
+elif "visual=habitatIllustration(h.type)" not in s:
+    raise SystemExit("habitatCardHtml konnte nicht ersetzt werden")
+
+old_detail = '''var d=habitatLibraryItem(h.type),photo=h.photo?'<img src="'+h.photo+'" alt="'+esc(d.title)+'">':d.icon,supports='''
+new_detail = '''var d=habitatLibraryItem(h.type),photo=h.photo?'<img src="'+h.photo+'" alt="'+esc(d.title)+'">':habitatIllustration(h.type),supports='''
+if old_detail in s:
+    s = s.replace(old_detail, new_detail, 1)
+elif "habitatIllustration(h.type),supports=" not in s:
+    raise SystemExit("Detail-Fallback konnte nicht ersetzt werden")
+
+p.write_text(s, encoding="utf-8")
+print("Lebensraum-Illustrationen eingebaut")
