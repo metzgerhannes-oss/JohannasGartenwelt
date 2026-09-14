@@ -1,0 +1,65 @@
+name: Diagnose plant card
+on:
+  push:
+    paths:
+      - '.github/workflows/diag-plant-card.yml'
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+      - name: Diagnose
+        run: |
+          python3 -m http.server 8080 >/tmp/http.log 2>&1 &
+          cat > /tmp/diag.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          const b=await chromium.launch({headless:true});
+          const p=await b.newPage({viewport:{width:390,height:844}});
+          await p.addInitScript(()=>{
+            const plants=[
+              {id:'p1',name:'Großer Test Pflanzenname',scientific:'Testus longname',area:'Vorgarten',type:'bed',quantity:1,bloomMonths:[5,6],ecoNative:'yes',ecoFlowerAccess:'open',created:'2026-09-01',photo:''},
+              {id:'p2',name:'Steinkraut sehr langer Name',scientific:'Alyssum test',area:'Beet',type:'bed',quantity:1,bloomMonths:[4,5],ecoNative:'yes',ecoFlowerAccess:'open',created:'2026-09-01',photo:''}
+            ];
+            localStorage.setItem('johannasGartenV2',JSON.stringify({plz:'72116',plants,habitats:[],animals:[],areas:[],zones:[],ecology:{practice:{}},settings:{plantView:'collection',plantSort:'name'},days:{}}));
+          });
+          const errs=[];p.on('pageerror',e=>errs.push(String(e)));
+          await p.goto('http://127.0.0.1:8080/index.html',{waitUntil:'networkidle'});
+          await p.waitForTimeout(1000);
+          const plantNav=p.locator('.tabs > .tab[data-view="plants"]');
+          if(await plantNav.count()) await plantNav.click();
+          await p.waitForTimeout(500);
+          const out=await p.evaluate(()=>{
+            const list=document.getElementById('plantList');
+            const c=list&&list.querySelector('.collection-card');
+            const ph=c&&c.querySelector('.collection-photo');
+            const body=c&&c.querySelector('.collection-body');
+            const name=c&&c.querySelector('.collection-name');
+            const cs=x=>x?getComputedStyle(x):null;
+            const pick=s=>s?({display:s.display,gridTemplateColumns:s.gridTemplateColumns,gridTemplateRows:s.gridTemplateRows,flexDirection:s.flexDirection,flexWrap:s.flexWrap,width:s.width,height:s.height,position:s.position,aspectRatio:s.aspectRatio,whiteSpace:s.whiteSpace,overflow:s.overflow}):null;
+            return {
+              innerWidth:innerWidth,
+              listExists:!!list,
+              listClass:list&&list.className,
+              cardHTML:c&&c.outerHTML,
+              card:pick(cs(c)),photo:pick(cs(ph)),body:pick(cs(body)),name:pick(cs(name)),
+              cleanupLoaded:!!document.getElementById('jgwUiCleanup20260914'),
+              cleanupText:(document.getElementById('jgwUiCleanup20260914')||{}).textContent?.slice(0,250)||'',
+              matching:Array.from(document.styleSheets).flatMap(ss=>{try{return Array.from(ss.cssRules||[]).filter(r=>String(r.cssText||'').includes('collection-card')).map(r=>String(r.cssText).slice(0,500))}catch(e){return[]}}).slice(-20)
+            };
+          });
+          console.log('DIAG',JSON.stringify(out,null,2));
+          console.log('ERRORS',JSON.stringify(errs));
+          await b.close();
+          EOF
+          node /tmp/diag.mjs
