@@ -51,4 +51,27 @@ function weather(){var box=q("#view-weather>.box"),bal=el("wBalance"),p=el("peri
 if(el("exportBtn"))el("exportBtn").textContent="Sicherung herunterladen";var il=q('label[for="importFile"]');if(il)il.textContent="Sicherung wiederherstellen";if(el("useCloudVersion"))el("useCloudVersion").textContent="Cloud-Version verwenden";if(el("useLocalVersion"))el("useLocalVersion").textContent="Dieses Gerät hochladen";var sc=el("syncConflict");if(sc){var note=document.createElement("div");note.className="muted";note.style.marginTop="7px";note.textContent="Cloud-Version verwenden verwirft die neueren lokalen Änderungen. Dieses Gerät hochladen ersetzt den Cloud-Stand.";sc.appendChild(note)}
 var fab=document.createElement("button");fab.className="jgw-fab";fab.type="button";fab.setAttribute("aria-label","Hinzufügen");fab.innerHTML=icon("plus");document.body.appendChild(fab);var overlay=document.createElement("div");overlay.className="jgw-add-overlay hidden";overlay.innerHTML='<div class="jgw-add-sheet"><div class="jgw-add-head"><h3>Hinzufügen</h3><button class="jgw-add-close" type="button">×</button></div><div class="jgw-add-options"><button class="jgw-add-option" data-kind="plants"><span>'+icon("plant")+'</span><span><b>Pflanze</b><small>Foto, Name und Gartenbereich reichen.</small></span></button><button class="jgw-add-option" data-kind="habitats"><span>'+icon("habitat")+'</span><span><b>Lebensraum</b><small>Wasserstelle, Totholz oder andere Struktur erfassen.</small></span></button><button class="jgw-add-option" data-kind="animals"><span>'+icon("animal")+'</span><span><b>Tierbeobachtung</b><small>Eine Beobachtung schnell festhalten.</small></span></button></div></div>';document.body.appendChild(overlay);function close(){overlay.classList.add("hidden");document.body.classList.remove("settings-open")}fab.onclick=function(){overlay.classList.remove("hidden");document.body.classList.add("settings-open")};q(".jgw-add-close",overlay).onclick=close;overlay.onclick=function(e){if(e.target===overlay)close()};qa(".jgw-add-option",overlay).forEach(function(b){b.onclick=function(){close();openLegacy("plants");setNature(b.dataset.kind);setTimeout(function(){var id=b.dataset.kind==="plants"?"newPlantBtn":b.dataset.kind==="habitats"?"newHabitatBtn":"newAnimalBtn";if(el(id))el(id).click()},50)}});
 openLegacy("today");
+
+
+/* JGW MOBILE PLANT CARD NAME PRIORITY */
+var plantCardNameCss=document.createElement("style");
+plantCardNameCss.id="jgwPlantCardNamePriority";
+plantCardNameCss.textContent=`
+@media(max-width:700px){
+  #plantList.collection-grid:not(.list-mode),#plantHighlights.collection-strip,#plantFavorites.collection-strip{align-items:stretch}
+  .collection-card{display:block!important;min-width:0!important;overflow:hidden!important}
+  .collection-card>.collection-photo{display:grid!important;width:100%!important;aspect-ratio:4/3!important;position:relative!important;overflow:hidden!important}
+  .collection-card>.collection-card-main{display:block!important;width:100%!important;min-width:0!important}
+  .collection-card .collection-body{display:block!important;width:100%!important;min-width:0!important;padding:9px 10px 11px!important}
+  .collection-card .collection-name{display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2;white-space:normal!important;overflow:hidden!important;text-overflow:clip!important;overflow-wrap:anywhere!important;word-break:normal!important;min-height:2.36em!important;max-height:2.36em!important;font-size:15px!important;line-height:1.18!important;padding:0!important;margin:0!important}
+  .collection-card .collection-latin{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;margin-top:3px!important}
+  .collection-card .insect-badge{display:inline-flex!important;align-items:center!important;position:absolute!important;right:7px!important;top:7px!important;left:auto!important;bottom:auto!important;font-size:10px!important;padding:4px 7px!important}
+  .collection-card .favorite-plant{display:grid!important;position:absolute!important;left:7px!important;top:7px!important;right:auto!important;bottom:auto!important;width:32px!important;height:32px!important}
+  .collection-card .plant-add-one{display:grid!important;position:absolute!important;right:7px!important;bottom:7px!important;top:auto!important;left:auto!important;min-width:38px!important;height:30px!important;padding:0 9px!important}
+  .collection-card .plant-quantity-badge{position:absolute!important;left:7px!important;right:auto!important;bottom:7px!important;top:auto!important}
+  .collection-card .collection-chips{display:none!important}
+}
+`;
+document.head.appendChild(plantCardNameCss);
+/* /JGW MOBILE PLANT CARD NAME PRIORITY */
 })();
