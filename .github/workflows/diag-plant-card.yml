@@ -22,7 +22,7 @@ jobs:
       - name: Diagnose
         run: |
           python3 -m http.server 8080 >/tmp/http.log 2>&1 &
-          cat > /tmp/diag.mjs <<'EOF'
+          cat > diag.mjs <<'EOF'
           import { chromium } from 'playwright';
           const b=await chromium.launch({headless:true});
           const p=await b.newPage({viewport:{width:390,height:844}});
@@ -54,12 +54,11 @@ jobs:
               cardHTML:c&&c.outerHTML,
               card:pick(cs(c)),photo:pick(cs(ph)),body:pick(cs(body)),name:pick(cs(name)),
               cleanupLoaded:!!document.getElementById('jgwUiCleanup20260914'),
-              cleanupText:(document.getElementById('jgwUiCleanup20260914')||{}).textContent?.slice(0,250)||'',
-              matching:Array.from(document.styleSheets).flatMap(ss=>{try{return Array.from(ss.cssRules||[]).filter(r=>String(r.cssText||'').includes('collection-card')).map(r=>String(r.cssText).slice(0,500))}catch(e){return[]}}).slice(-20)
+              matching:Array.from(document.styleSheets).flatMap(ss=>{try{return Array.from(ss.cssRules||[]).filter(r=>String(r.cssText||'').includes('collection-card')).map(r=>String(r.cssText).slice(0,500))}catch(e){return[]}}).slice(-30)
             };
           });
           console.log('DIAG',JSON.stringify(out,null,2));
           console.log('ERRORS',JSON.stringify(errs));
           await b.close();
           EOF
-          node /tmp/diag.mjs
+          node diag.mjs
