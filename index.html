@@ -551,6 +551,36 @@ h1,h2,h3,.brand h1,.plantname,.state-title{
 #natureHabitatsPane .nature-card-photo:after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 -1px 0 rgba(70,78,63,.08)}
 .detail-hero .habitat-illustration{width:100%;height:100%;min-height:220px;display:block}
 /* /JGW HABITAT ILLUSTRATIONS */
+
+/* JGW PLANT CARD FULL NAME FOOTER */
+.collection-card-name-mobile{display:none}
+@media(max-width:700px){
+  .collection-card{flex-wrap:wrap!important}
+  .collection-card-name-mobile{
+    display:-webkit-box!important;
+    -webkit-box-orient:vertical!important;
+    -webkit-line-clamp:2;
+    grid-column:1/-1!important;
+    flex:0 0 100%!important;
+    width:100%!important;
+    min-width:0!important;
+    min-height:50px!important;
+    max-height:58px!important;
+    margin:0!important;
+    padding:8px 10px 10px!important;
+    border:0!important;
+    border-top:1px solid #eee3d5!important;
+    background:#fffdf9!important;
+    color:var(--forest-dark)!important;
+    font:700 15px/1.22 Georgia,"Times New Roman",serif!important;
+    text-align:left!important;
+    white-space:normal!important;
+    overflow:hidden!important;
+    overflow-wrap:anywhere!important;
+  }
+  .collection-card .collection-body .collection-name{display:none!important}
+}
+/* /JGW PLANT CARD FULL NAME FOOTER */
 </style>
 </head>
 <body>
@@ -1229,7 +1259,7 @@ function renderPlantEcoPreview(){var box=el("plantEcoPreview");if(!box)return;va
 function renderToday(){renderEcoDashboard();renderCompactEcoDashboard();el("todayDate").textContent=new Date().toLocaleDateString("de-DE",{weekday:"long",day:"2-digit",month:"long",year:"numeric"});var tw=el("todayWeather"),gs=el("gardenState"),gb=el("gardenStateBadge"),gt=el("gardenStateText"),gd=el("gardenDryDays"),gn=el("gardenNextRain"),gf=el("gardenFrost"),gfb=el("gardenFrostBox");var summary=gardenWeatherSummary();if(!summary){tw.className="state-card";gs.textContent="Noch keine Wetterdaten";gb.textContent="Standort fehlt";gt.innerHTML='Öffne oben rechts das <b>Zahnrad</b> und hinterlege einmal deine Postleitzahl.';gd.textContent="–";gn.textContent="–";gf.textContent="–";gfb.classList.remove("frost")}else{tw.className="state-card "+summary.cls;gs.textContent=summary.name;gb.textContent=summary.name.toUpperCase();gt.textContent=summary.explanation;gd.textContent=summary.dryDays===0?"Heute Regen":summary.dryDays+" "+(summary.dryDays===1?"Tag":"Tage");gn.textContent=summary.nextRain?(relativeDayLabel(summary.nextRain.date)+" · "+de1(summary.nextRain.rain)+" mm"):"Nicht in 7 Tagen";if(summary.frost){gf.textContent=relativeDayLabel(summary.frost.date)+" · "+de1(summary.frost.min)+" °C";gfb.classList.add("frost")}else{gf.textContent="Kein Frost in Sicht";gfb.classList.remove("frost")}}var tasks=getTodayTasks();el("taskCount").textContent=tasks.length?tasks.length+" offen":"nichts offen";if(!state.plants.length){el("tasks").innerHTML='<div class="empty">Noch keine Pflanzen angelegt. Unter <b>„Pflanzen“</b> kannst du die erste Pflanze hinzufügen.</div>';return}if(!tasks.length){el("tasks").innerHTML='<div class="empty">Heute ist nichts zu tun. 🌿</div>';return}el("tasks").innerHTML=tasks.map(function(t){var action=t.kind==="water"?"Gegossen":t.kind==="fert"?"Gedüngt":"Geschnitten";return '<div class="task '+t.level+'" data-task-id="'+t.plant.id+'" data-task-kind="'+t.kind+'"><div class="taskicon">'+t.icon+'</div><div><b>'+esc(t.plant.name)+' · '+esc(t.title)+'</b><div class="why">'+esc(t.why)+'</div></div><div class="actions"><button class="btn ghost small taskLater" data-id="'+t.plant.id+'" data-kind="'+t.kind+'" type="button">Später</button><button class="btn small taskDone" data-id="'+t.plant.id+'" data-kind="'+t.kind+'" type="button">'+action+'</button></div></div>'}).join("");document.querySelectorAll(".taskDone").forEach(function(b){b.addEventListener("click",function(){var p=state.plants.find(function(x){return x.id===b.dataset.id});if(!p)return;var kind=b.dataset.kind,key=kind==="water"?"lastWatered":kind==="fert"?"lastFertilized":"lastCut",label=kind==="water"?"Gegossen":kind==="fert"?"Gedüngt":"Geschnitten",row=b.closest(".task");p[key]=isoToday();clearSnooze(p,kind);save();if(row)row.classList.add("task-complete");celebrateDone(label);setTimeout(renderCareViews,540)})});document.querySelectorAll(".taskLater").forEach(function(b){b.addEventListener("click",function(){var p=state.plants.find(function(x){return x.id===b.dataset.id});if(!p)return;var row=b.closest(".task");snoozeTask(p,b.dataset.kind);if(row)row.classList.add("task-complete");setTimeout(renderCareViews,420)})})}
 function importantPlantIds(){var set=new Set();getTodayTasks().forEach(function(t){set.add(t.plant.id)});return set}
 function sortPlantsForCollection(plants,important){var mode=state.settings.plantSort||"name";return plants.slice().sort(function(a,b){if(mode==="important"){var ai=important.has(a.id)?1:0,bi=important.has(b.id)?1:0;if(ai!==bi)return bi-ai}if(mode==="insect"){var d=plantInsectValue(b).score-plantInsectValue(a).score;if(d)return d}if(mode==="recent"){var da=String(a.created||""),db=String(b.created||"");if(da!==db)return db.localeCompare(da)}return String(a.name||"").localeCompare(String(b.name||""),"de")})}
-function plantCardHtml(p,feature){var wa=waterAssessment(p),z=currentZoneForPlant(p),e=plantInsectValue(p),photo=plantPhotoMarkup(p,p.name,true)||'<div class="collection-no-photo">🌿<small>Foto ergänzen</small></div>',area=p.area?esc(p.area):(z?esc(lightLabel(z.light)):"Standort noch nicht benannt"),chips=[];if(p.type&&p.type!=="bed")chips.push(typeLabel(p.type));if(establishmentInfo(p).days<=90)chips.push("Anwachsphase");if(e.bloomMonths.includes(new Date().getMonth()+1))chips.push("blüht jetzt");return'<article class="collection-card'+(feature?' feature':'')+'"><div class="collection-photo"><button class="collection-card-main plantOpen" data-id="'+p.id+'" type="button" aria-label="'+esc(p.name)+' öffnen">'+photo+'</button><button class="favorite-plant '+(p.favorite?'on':'')+'" data-id="'+p.id+'" type="button" aria-label="'+(p.favorite?'Favorit entfernen':'Als Favorit markieren')+'">'+(p.favorite?'★':'☆')+'</button><span class="insect-badge '+ecoBadgeClass(e.score)+'">🐝 '+e.score+'</span>'+(Number(p.quantity||1)>1?'<span class="plant-quantity-badge">×'+Number(p.quantity||1)+'</span>':'')+'<button class="plant-add-one" data-id="'+p.id+'" type="button" aria-label="Eine weitere Pflanze dieser Art hinzufügen">+1</button></div><button class="collection-card-main plantOpen" data-id="'+p.id+'" type="button"><div class="collection-body"><div class="collection-name">'+esc(p.name)+'</div><div class="collection-latin">'+esc(p.scientific||'')+'</div><div class="collection-area">'+area+'</div><div class="collection-status"><span class="statusdot '+wa.level+'"></span>'+esc(wa.title)+'</div>'+(chips.length?'<div class="collection-chips">'+chips.map(function(c){return'<span class="collection-chip">'+esc(c)+'</span>'}).join('')+'</div>':'')+'</div></button></article>'}
+function plantCardHtml(p,feature){var wa=waterAssessment(p),z=currentZoneForPlant(p),e=plantInsectValue(p),photo=plantPhotoMarkup(p,p.name,true)||'<div class="collection-no-photo">🌿<small>Foto ergänzen</small></div>',area=p.area?esc(p.area):(z?esc(lightLabel(z.light)):"Standort noch nicht benannt"),chips=[];if(p.type&&p.type!=="bed")chips.push(typeLabel(p.type));if(establishmentInfo(p).days<=90)chips.push("Anwachsphase");if(e.bloomMonths.includes(new Date().getMonth()+1))chips.push("blüht jetzt");return'<article class="collection-card'+(feature?' feature':'')+'"><div class="collection-photo"><button class="collection-card-main plantOpen" data-id="'+p.id+'" type="button" aria-label="'+esc(p.name)+' öffnen">'+photo+'</button><button class="favorite-plant '+(p.favorite?'on':'')+'" data-id="'+p.id+'" type="button" aria-label="'+(p.favorite?'Favorit entfernen':'Als Favorit markieren')+'">'+(p.favorite?'★':'☆')+'</button><span class="insect-badge '+ecoBadgeClass(e.score)+'">🐝 '+e.score+'</span>'+(Number(p.quantity||1)>1?'<span class="plant-quantity-badge">×'+Number(p.quantity||1)+'</span>':'')+'<button class="plant-add-one" data-id="'+p.id+'" type="button" aria-label="Eine weitere Pflanze dieser Art hinzufügen">+1</button></div><button class="collection-card-main plantOpen" data-id="'+p.id+'" type="button"><div class="collection-body"><div class="collection-name">'+esc(p.name)+'</div><div class="collection-latin">'+esc(p.scientific||'')+'</div><div class="collection-area">'+area+'</div><div class="collection-status"><span class="statusdot '+wa.level+'"></span>'+esc(wa.title)+'</div>'+(chips.length?'<div class="collection-chips">'+chips.map(function(c){return'<span class="collection-chip">'+esc(c)+'</span>'}).join('')+'</div>':'')+'</div></button><button class="collection-card-name-mobile plantOpen" data-id="'+p.id+'" type="button" aria-label="'+esc(p.name)+' öffnen">'+esc(p.name)+'</button></article>'}
 function plantListRowHtml(p){var wa=waterAssessment(p),e=plantInsectValue(p),photo=plantPhotoMarkup(p,"",false)||'🌿';return'<article class="plant-list-row"><div class="plant-list-thumb">'+photo+'</div><button class="plant-list-main plantOpen" data-id="'+p.id+'" type="button"><b><span class="statusdot '+wa.level+'"></span>'+esc(p.name)+'</b><small>'+esc(p.area||'Ohne Bereich')+' · '+esc(wa.title)+'</small></button><div class="plant-list-actions"><div class="list-eco">🐝 '+e.score+'</div><button class="plant-add-one-list" data-id="'+p.id+'" type="button" aria-label="Eine weitere Pflanze dieser Art hinzufügen">+1</button><button class="favorite-plant '+(p.favorite?'on':'')+'" style="position:static;margin-top:4px;width:30px;height:30px" data-id="'+p.id+'" type="button">'+(p.favorite?'★':'☆')+'</button></div></article>'}
 function bindPlantCollectionEvents(){document.querySelectorAll(".plantOpen").forEach(function(b){b.addEventListener("click",function(){openPlantDetail(b.dataset.id)})});document.querySelectorAll(".favorite-plant").forEach(function(b){b.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();toggleFavorite(b.dataset.id)})});document.querySelectorAll(".plant-add-one,.plant-add-one-list").forEach(function(b){b.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();beginAddPlantInstance(b.dataset.id)})})}
 function toggleFavorite(id){var p=state.plants.find(function(x){return x.id===id});if(!p)return;p.favorite=!p.favorite;save();renderPlants();if(!el("plantDetailOverlay").classList.contains("hidden"))renderPlantDetail(p)}
@@ -1628,7 +1658,7 @@ renderAll();syncBootstrap();setTimeout(backfillPlantReferencePhotos,1400);if(sta
   window.addEventListener("load",scheduleEnhance,{once:true});
 })();
 </script>
-<script src="./jgw-library-nav.js?v=20260914-3"></script>
+<script src="./jgw-library-nav.js?v=20260914-4"></script>
 <script src="./garten-tipps.js?v=20260914-2"></script>
 </body>
 </html>
