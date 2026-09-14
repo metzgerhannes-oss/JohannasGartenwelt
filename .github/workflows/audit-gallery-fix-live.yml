@@ -34,11 +34,11 @@ jobs:
             ];
             localStorage.setItem('johannasGartenV2',JSON.stringify({plz:'',plants,habitats:[],animals:[],areas:[],zones:[],ecology:{practice:{}},settings:{plantView:'list',plantSort:'name',natureTab:'plants'},days:30}));
           });
-          await page.goto('https://metzgerhannes-oss.github.io/JohannasGartenwelt/',{waitUntil:'domcontentloaded',timeout:30000});
-          await page.waitForTimeout(6500);
+          await page.goto('https://metzgerhannes-oss.github.io/JohannasGartenwelt/?audit=20260914-17',{waitUntil:'commit',timeout:12000});
+          await page.waitForTimeout(7500);
           const plantNav=page.locator('.tabs > .tab[data-view="plants"]');
-          if(await plantNav.count()) await plantNav.click();
-          await page.waitForTimeout(800);
+          if(await plantNav.count()) await plantNav.click({timeout:5000}).catch(()=>{});
+          await page.waitForTimeout(1000);
           const out=await page.evaluate(()=>{
             const s=window.JGWCore&&JGWCore.getState?JGWCore.getState():window.state;
             const list=document.getElementById('plantList');
