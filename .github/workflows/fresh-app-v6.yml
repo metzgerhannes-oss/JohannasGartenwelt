@@ -1,0 +1,59 @@
+name: Fresh app v6
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fresh-app-v6.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Frische App-Version erzeugen
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          # Alle UI-Unterdateien unter einer wirklich neuen Cache-Version laden.
+          p=Path('jgw-library-nav.js')
+          s=p.read_text(encoding='utf-8')
+          s=re.sub(r'tag\("jgw-ux-shell\.js","[^"]+"\)', 'tag("jgw-ux-shell.js","20260914-6")', s)
+          s=re.sub(r'tag\("jgw-library-v4\.js","[^"]+"\)', 'tag("jgw-library-v4.js","20260914-6")', s)
+          s=re.sub(r'tag\("jgw-ux-patch\.js","[^"]+"\)', 'tag("jgw-ux-patch.js","20260914-6")', s)
+          s=re.sub(r'tag\("jgw-photo-storage-v2\.js","[^"]+"\)', 'tag("jgw-photo-storage-v2.js","20260914-6")', s)
+          p.write_text(s,encoding='utf-8')
+
+          # Hauptseite auf neuen Loader-Key setzen.
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          s=re.sub(r'jgw-library-nav\.js\?v=[^"\']+', 'jgw-library-nav.js?v=20260914-6', s)
+          p.write_text(s,encoding='utf-8')
+
+          # Eindeutige, noch nie gecachte Startdatei als Diagnose-/Notfall-Einstieg.
+          Path('app-20260914-6.html').write_text(s,encoding='utf-8')
+
+          assert 'jgw-library-nav.js?v=20260914-6' in s
+          assert 'collection-card-name-mobile plantOpen' in s
+          assert '20260914-6' in Path('jgw-library-nav.js').read_text(encoding='utf-8')
+          PY
+      - name: JavaScript prüfen
+        shell: bash
+        run: |
+          node --check jgw-library-nav.js
+          node --check jgw-ux-shell.js
+          node --check jgw-library-v4.js
+          node --check jgw-ux-patch.js
+      - name: Änderungen committen
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html jgw-library-nav.js app-20260914-6.html
+          git commit -m "Frische App-Version 20260914-6 bereitstellen"
+          git push
