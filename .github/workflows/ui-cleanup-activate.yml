@@ -1,0 +1,49 @@
+name: UI cleanup activate
+on:
+  push:
+    paths:
+      - '.github/workflows/ui-cleanup-activate.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Activate cleanup loader
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          s2,n=re.subn(r'jgw-library-nav\.js\?v=[^"\']+', 'jgw-library-nav.js?v=20260914-13', s, count=1)
+          if n!=1:
+              raise SystemExit('loader reference not found')
+          p.write_text(s2,encoding='utf-8')
+          PY
+      - name: Verify JavaScript
+        shell: bash
+        run: |
+          node --check jgw-library-nav.js
+          node --check jgw-ui-cleanup-20260914.js
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          assert 'jgw-library-nav.js?v=20260914-13' in s
+          assert Path('jgw-ui-cleanup-20260914.js').exists()
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
+          Path('/tmp/index-inline.js').write_text('\n'.join(x for x in blocks if x.strip()),encoding='utf-8')
+          PY
+          node --check /tmp/index-inline.js
+      - name: Commit activation
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'UI-Aufräumpatch aktivieren'
+          git push
