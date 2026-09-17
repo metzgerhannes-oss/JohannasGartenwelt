@@ -3,8 +3,8 @@
 /*
   Legacy advisor retired.
   Current recommendations live in jgw-library-v4.js (Bibliothek / Was passt noch?).
-  This small compatibility module now only contains mobile UI polish that can
-  safely be removed once the remaining inline styles are consolidated.
+  This small compatibility module now contains mobile UI polish plus lightweight
+  today-task fixes that do not require touching the main index.html bundle.
 */
 window.JGWLegacyAdvisorRetired=true;
 
@@ -152,6 +152,18 @@ function installTodayPolish(){
     font-size:11.5px!important;
   }
   #view-today .empty{padding:16px 8px!important}
+  #view-today .jgw-task-bulk-actions{
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    gap:7px!important;
+    margin:0 0 10px!important;
+  }
+  #view-today .jgw-task-bulk-actions .btn{
+    width:100%!important;
+    min-height:40px!important;
+    padding:8px 10px!important;
+    font-size:11.5px!important;
+  }
 }
 @media(max-width:370px){
   .state-grid{gap:5px!important}
@@ -162,6 +174,14 @@ function installTodayPolish(){
   #view-today .task{grid-template-columns:36px minmax(0,1fr)!important;padding:10px!important;gap:7px 9px!important}
   #view-today .taskicon{width:36px!important;height:36px!important;border-radius:11px!important;font-size:17px!important}
 }
+.jgw-task-bulk-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin:0 0 10px;
+}
+.jgw-task-bulk-actions .btn{box-shadow:none}
 `;
   document.head.appendChild(css);
 
@@ -174,8 +194,102 @@ function installTodayPolish(){
   }
 }
 
-function schedule(){setTimeout(installTodayPolish,0)}
+var taskPatchInstalled=false;
+function installTodayTaskPatch(){
+  if(taskPatchInstalled)return true;
+  if(typeof getTodayTasks!=="function"||typeof renderToday!=="function"||typeof isoToday!=="function")return false;
+  taskPatchInstalled=true;
+
+  var originalGetTodayTasks=getTodayTasks;
+  getTodayTasks=function(){
+    var today=isoToday();
+    return originalGetTodayTasks().filter(function(t){
+      return !(t&&t.kind==="water"&&t.plant&&t.plant.lastWatered===today);
+    });
+  };
+
+  var originalRenderToday=renderToday;
+  renderToday=function(){
+    originalRenderToday();
+    renderTaskBulkActions();
+  };
+  return true;
+}
+
+function renderTaskBulkActions(){
+  var host=document.querySelector("#view-today .dashboard-task-box")||document.querySelector(".dashboard-task-box");
+  var list=document.getElementById("tasks");
+  var old=document.getElementById("jgwTaskBulkActions");
+  if(old)old.remove();
+  if(!host||!list||typeof getTodayTasks!=="function")return;
+
+  var tasks=getTodayTasks();
+  if(!tasks.length)return;
+  var waterTasks=tasks.filter(function(t){return t&&t.kind==="water"});
+  var bar=document.createElement("div");
+  bar.id="jgwTaskBulkActions";
+  bar.className="jgw-task-bulk-actions";
+
+  var watered=document.createElement("button");
+  watered.type="button";
+  watered.className="btn small";
+  watered.textContent="💧 Alle gegossen";
+  watered.disabled=!waterTasks.length;
+  watered.title=waterTasks.length?waterTasks.length+" Gießaufgabe"+(waterTasks.length===1?"":"n")+" erledigen":"Keine Gießaufgabe offen";
+
+  var later=document.createElement("button");
+  later.type="button";
+  later.className="btn ghost small";
+  later.textContent="Alle später";
+  later.title=tasks.length+" offene Aufgabe"+(tasks.length===1?"":"n")+" für heute ausblenden";
+
+  watered.addEventListener("click",function(){
+    var current=getTodayTasks().filter(function(t){return t&&t.kind==="water"});
+    if(!current.length)return;
+    var today=isoToday();
+    current.forEach(function(t){
+      t.plant.lastWatered=today;
+      if(typeof clearSnooze==="function")clearSnooze(t.plant,"water");
+    });
+    if(typeof save==="function")save();
+    if(typeof celebrateDone==="function")celebrateDone("Alle gegossen");
+    if(typeof renderCareViews==="function")renderCareViews();
+    else renderToday();
+  });
+
+  later.addEventListener("click",function(){
+    var current=getTodayTasks();
+    if(!current.length)return;
+    var today=isoToday();
+    current.forEach(function(t){
+      if(!t||!t.plant)return;
+      t.plant.snoozed=t.plant.snoozed||{};
+      t.plant.snoozed[t.kind]=today;
+    });
+    if(typeof save==="function")save();
+    if(typeof renderCareViews==="function")renderCareViews();
+    else renderToday();
+    if(typeof notice==="function")notice("Alle offenen Aufgaben auf später gesetzt.");
+  });
+
+  bar.appendChild(watered);
+  bar.appendChild(later);
+  list.parentNode.insertBefore(bar,list);
+}
+
+function schedule(){
+  setTimeout(function(){
+    installTodayPolish();
+    if(installTodayTaskPatch()){
+      try{renderToday()}catch(e){console.warn("Today task patch render failed",e)}
+    }
+  },0);
+}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",schedule,{once:true});
 else schedule();
-window.addEventListener("load",installTodayPolish,{once:true});
+window.addEventListener("load",function(){
+  installTodayPolish();
+  installTodayTaskPatch();
+  renderTaskBulkActions();
+},{once:true});
 })();
