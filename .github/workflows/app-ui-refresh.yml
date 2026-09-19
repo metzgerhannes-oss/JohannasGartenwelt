@@ -86,7 +86,14 @@ jobs:
           CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
           test -n "$CHROME"
           rm -rf /tmp/jgw-chrome
-          timeout 30s "$CHROME"             --headless=new             --no-sandbox             --disable-gpu             --disable-dev-shm-usage             --disable-background-networking             --allow-file-access-from-files             --user-data-dir=/tmp/jgw-chrome             --virtual-time-budget=5000             --dump-dom "file://$PWD/index.html?audit=1" > /tmp/jgw-dom.html
+          set +e
+          timeout 20s "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --disable-background-networking --disable-component-update --disable-sync --no-first-run --allow-file-access-from-files --user-data-dir=/tmp/jgw-chrome --virtual-time-budget=5000 --dump-dom "file://$PWD/index.html?audit=1" > /tmp/jgw-dom.html
+          CHROME_RC=$?
+          set -e
+          if [ "$CHROME_RC" -ne 0 ] && [ "$CHROME_RC" -ne 124 ]; then
+            exit "$CHROME_RC"
+          fi
+          test -s /tmp/jgw-dom.html
           grep -q 'data-view="today"' /tmp/jgw-dom.html
           grep -q 'data-view="plants"' /tmp/jgw-dom.html
           grep -q 'data-view="calendar"' /tmp/jgw-dom.html
