@@ -35,12 +35,18 @@ def serve():
 
 def chrome():
     o = webdriver.ChromeOptions()
-    o.page_load_strategy = "none"
-    for arg in ("--headless=new", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--lang=de-DE"):
+    o.page_load_strategy = "eager"
+    for arg in (
+        "--headless=new", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--lang=de-DE",
+        "--disable-background-networking", "--disable-component-update", "--disable-default-apps",
+        "--no-first-run", "--no-proxy-server"
+    ):
         o.add_argument(arg)
     o.set_capability("goog:loggingPrefs", {"browser": "ALL"})
     d = webdriver.Chrome(options=o)
     d.set_window_size(390, 844)
+    d.set_page_load_timeout(20)
+    d.set_script_timeout(10)
     return d
 
 
@@ -75,17 +81,21 @@ def main():
     d = chrome()
     start = time.perf_counter()
     try:
-        d.get(base + TMP.name + "?smoke=" + str(int(time.time())))
-        w = WebDriverWait(d, 20)
+        print("CORE SMOKE: loading local app", flush=True)
+        try:
+            d.get(base + TMP.name + "?smoke=" + str(int(time.time())))
+        except TimeoutException:
+            d.execute_script("window.stop()")
+            print("CORE SMOKE: page-load timeout; continuing with loaded DOM", flush=True)
+        w = WebDriverWait(d, 15)
         w.until(EC.presence_of_element_located((By.CSS_SELECTOR, "body")))
-        for expr, name in [
-            ("window.JGWCore", "JGWCore"),
-            ("window.JGWUX", "JGWUX"),
-            ("window.JGWLibraryV4", "JGWLibraryV4"),
-            ("window.JGWPhotoStorage", "JGWPhotoStorage"),
-        ]:
-            w.until(lambda x, e=expr: x.execute_script(f"return !!({e})"))
-            report["checks"].append(name)
+        print("CORE SMOKE: DOM ready", flush=True)
+        flags = w.until(lambda x: x.execute_script(
+            "return {core:!!window.JGWCore,ux:!!window.JGWUX,lib:!!window.JGWLibraryV4,photo:!!window.JGWPhotoStorage};"
+        ))
+        assert all(flags.values()), flags
+        report["checks"].extend(["JGWCore", "JGWUX", "JGWLibraryV4", "JGWPhotoStorage"])
+        print("CORE SMOKE: modules ready " + json.dumps(flags), flush=True)
 
         labels = [x.text.strip() for x in d.find_elements(By.CSS_SELECTOR, ".tabs .tab")]
         assert labels == ["Heute", "Mein Garten", "Aufgaben", "Bibliothek", "Mehr"], labels
@@ -120,11 +130,11 @@ def main():
         report["bootstrap_ms"] = round((time.perf_counter() - start) * 1000)
         report["ok"] = True
         d.save_screenshot(str(OUT / "core_smoke.png"))
-        print("CORE SMOKE PASS", report["bootstrap_ms"], "ms", ", ".join(report["checks"]))
+        print("CORE SMOKE PASS", report["bootstrap_ms"], "ms", ", ".join(report["checks"]), flush=True)
     except Exception as e:
         report["error"] = repr(e)
         report["diagnostics"] = diag(d)
-        print("CORE SMOKE FAIL", json.dumps(report, ensure_ascii=False))
+        print("CORE SMOKE FAIL", json.dumps(report, ensure_ascii=False), flush=True)
         raise
     finally:
         (OUT / "core_smoke.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
