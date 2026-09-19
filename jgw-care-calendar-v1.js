@@ -22,6 +22,50 @@ function isRose(p){var s=norm(p.scientific),n=norm(p.name);return /^rosa\b/.test
 function isGrass(p){var s=norm(p.scientific),n=norm(p.name);return /^(miscanthus|pennisetum|panicum|calamagrostis|cortaderia|imperata|leymus|molinia|stipa)\b/.test(s)||/\b(pampasgras|chinaschilf|federborstengras|rutenhirse|reitgras|blutgras|strandroggen)\b/.test(n)}
 function isClimber(p){var s=norm(p.scientific),n=norm(p.name);return /^(clematis|wisteria|parthenocissus|akebia|campsis|vitis)\b/.test(s)||/\b(waldrebe|wisteria|blauregen|jungfernrebe|akebie|klettertrompete|wein)\b/.test(n)}
 function isTender(p){var s=norm(p.scientific),n=norm(p.name),a=["ficus carica","eucalyptus gunnii","photinia fraseri","cortaderia selloana","salvia rosmarinus","poliomintha bustamanta","albizia"];return a.some(function(x){return s===x||s.indexOf(x+" ")===0})||/\b(feige|eukalyptus|glanzmispel|pampasgras|rosmarin|seidenbaum)\b/.test(n)}
+
+function speciesCutOverride(p){
+  var s=norm(p.scientific),n=norm(p.name);
+  return /^abeliophyllum distichum\b/.test(s)||/^forsythia\b/.test(s)||/^syringa\b/.test(s)||/^philadelphus\b/.test(s)||/^viburnum bodnantense\b/.test(s)||/^chaenomeles speciosa\b/.test(s)||/^wisteria\b/.test(s)||/^clematis montana\b/.test(s)||/^buddleja davidii\b/.test(s)||/^caryopteris clandonensis\b/.test(s)||/^campsis\b/.test(s)||/^hydrangea macrophylla\b/.test(s)||/^hydrangea paniculata\b/.test(s)||/^hydrangea quercifolia\b/.test(s)||/^ficus carica\b/.test(s)||/^hibiscus syriacus\b/.test(s)||/\b(forsythie|flieder|pfeifenstrauch|bodnant schneeball|zierquitte)\b/.test(n);
+}
+function speciesCare(p){
+  var s=norm(p.scientific),n=norm(p.name),out=[];
+  function push(key,title,icon,start,end,note,source){out.push({kind:"species",title:title,group:title.split(/[:–-]/)[0].trim(),icon:icon,start:start,end:end,plants:[p],note:note,source:source,key:"species|"+key+"|"+start+"|"+end})}
+  if(/^abeliophyllum distichum\b/.test(s))push("abeliophyllum","Schneeforsythie nach der Blüte schneiden","✂️",3,4,"Nach der Blüte auslichten bzw. abgeblühte Triebe auf kräftige jüngere Triebe zurücknehmen. Nicht vor der Blüte schneiden.","RHS · Pruning Group 5");
+  if(/^forsythia\b/.test(s)||/\bforsythie\b/.test(n))push("forsythia","Forsythie nach der Blüte schneiden","✂️",4,4,"Direkt nach der Blüte schneiden; späterer Schnitt reduziert die Blüte des Folgejahres.","RHS · Forsythia Growing Guide");
+  if(/^syringa\b/.test(s)||/\bflieder\b/.test(n))push("syringa","Flieder nach der Blüte auslichten","✂️",6,6,"Nur leicht schneiden und bei Bedarf ältere oder störende Triebe auslichten. Starker Winterschnitt kostet Blüten.","RHS · Lilac Growing Guide");
+  if(/^philadelphus\b/.test(s)||/\bpfeifenstrauch\b/.test(n))push("philadelphus","Pfeifenstrauch nach der Blüte schneiden","✂️",6,7,"Nach der Blüte einige ältere Triebe auf junge Seitentriebe ableiten bzw. einzelne alte Triebe an der Basis entfernen.","RHS · Philadelphus Growing Guide");
+  if(/^viburnum bodnantense\b/.test(s)||/\bbodnant schneeball\b/.test(n))push("viburnum-bodnantense","Bodnant-Schneeball nach der Blüte auslichten","✂️",3,4,"Nach Ende der Winterblüte bei Bedarf auslichten; ältere Triebe können an der Basis entfernt werden.","RHS · Viburnum Growing Guide");
+  if(/^chaenomeles speciosa\b/.test(s)||/\bzierquitte\b/.test(n))push("chaenomeles","Zierquitte nach der Blüte schneiden","✂️",4,5,"Nach der Blüte auf kräftige Knospen oder jüngeres Grundholz zurücknehmen. Bei Fruchtnutzung nur maßvoll schneiden.","RHS · Chaenomeles");
+  if(/^wisteria\b/.test(s)){
+    push("wisteria-winter","Wisteria – Winterschnitt","✂️",1,2,"Die im Sommer gekürzten Seitentriebe auf zwei bis drei Knospen zurücknehmen.","RHS · Wisteria Pruning Guide");
+    push("wisteria-summer","Wisteria – Sommerschnitt","✂️",7,8,"Lange diesjährige Seitentriebe auf etwa fünf bis sechs Blätter einkürzen.","RHS · Wisteria Pruning Guide");
+  }
+  if(/^clematis montana\b/.test(s)||/\bberg waldrebe\b/.test(n))push("clematis-montana","Berg-Waldrebe nach der Blüte auslichten","✂️",5,6,"Clematis montana gehört zur Schnittgruppe 1: nur bei Bedarf direkt nach der Blüte auslichten oder einkürzen.","RHS · Clematis Group One");
+  if(/^buddleja davidii\b/.test(s)||/\bsommerflieder\b/.test(n))push("buddleja-davidii","Sommerflieder kräftig zurückschneiden","✂️",3,4,"Nach den stärksten Frösten auf ein niedriges dauerhaftes Gerüst zurückschneiden; die Blüten entstehen am neuen Austrieb.","RHS · Buddleja Growing Guide");
+  if(/^caryopteris clandonensis\b/.test(s)||/\bbartblume\b/.test(n))push("caryopteris","Bartblume zurückschneiden","✂️",3,4,"Erst wenn starke Fröste weitgehend vorbei sind, die Triebe auf wenige Knospen am Grundgerüst zurücknehmen.","RHS · Caryopteris Growing Guide");
+  if(/^campsis\b/.test(s)||/\bklettertrompete\b/.test(n))push("campsis","Klettertrompete schneiden","✂️",2,3,"Seitentriebe im Spätwinter auf zwei bis drei Knospen am dauerhaften Gerüst einkürzen.","RHS · Campsis Growing Guide");
+  if(/^hydrangea macrophylla\b/.test(s)||/\bgartenhortensie\b/.test(n))push("hydrangea-macrophylla","Gartenhortensie leicht schneiden","✂️",4,4,"Alte Blütenstände erst im Frühjahr bis zum ersten oder zweiten kräftigen Knospenpaar entfernen; nicht stark zurückschneiden.","RHS · Shrubby Hydrangeas");
+  if(/^hydrangea paniculata\b/.test(s)||/\brispen hortensie\b/.test(n))push("hydrangea-paniculata","Rispen-Hortensie zurückschneiden","✂️",3,3,"Vor dem Austrieb die Vorjahrestriebe auf ein kräftiges Knospenpaar zurücknehmen; stärkerer Schnitt fördert große Blütenstände.","RHS · Hydrangea Pruning Guide");
+  if(/^hydrangea quercifolia\b/.test(s))push("hydrangea-quercifolia","Eichenblättrige Hortensie auslichten","✂️",4,4,"Nur minimal schneiden: totes, beschädigtes oder zu langes Holz entfernen.","RHS · Hydrangea Pruning Guide");
+  if(/^ficus carica\b/.test(s)||/\bechte feige\b/.test(n)){
+    push("fig-spring","Feige – Frühjahrsschnitt","✂️",4,4,"Nach der Gefahr längerer harter Fröste frostgeschädigte, schwache oder ungünstige Triebe entfernen; Triebe mit überwinterten Fruchtansätzen möglichst erhalten.","RHS · Fig Pruning Guide");
+    push("fig-summer","Feige – neue Triebe entspitzen","✂️",6,7,"Kräftige neue Triebe im Frühsommer nach etwa fünf Blättern entspitzen, wenn die Pflanze stärker verzweigen soll.","RHS · Fig Pruning Guide");
+  }
+  if(/^hibiscus syriacus\b/.test(s)||/\bstraucheibisch\b/.test(n))push("hibiscus-syriacus","Straucheibisch schneiden","✂️",3,3,"Vor dem kräftigen Austrieb totes Holz entfernen und bei Bedarf letztjährige Triebe einkürzen; die Blüte entsteht am neuen Holz.","RHS · Pruning summer-flowering shrubs");
+  return out;
+}
+function isHerbaceousSpringCut(p){
+  var s=norm(p.scientific);
+  return /^(actaea simplex|achillea filipendulina|brunnera macrophylla|chrysanthemum morifolium|hemerocallis|hosta|hylotelephium spectabile|knautia macedonica|lomelosia caucasica|mentha piperita|salvia nemorosa|sanguisorba officinalis)\b/.test(s);
+}
+function isTenderPerennialCut(p){
+  var s=norm(p.scientific);
+  return /^(oenothera lindheimeri|penstemon barbatus)\b/.test(s);
+}
+function isTallPerennial(p){
+  var s=norm(p.scientific);
+  return /^(actaea simplex|achillea filipendulina|knautia macedonica|sanguisorba officinalis)\b/.test(s);
+}
 function groupFor(p,kind){if(isFruitTree(p))return{key:"obstbaeume",label:kind==="fert"?"Obstgehölze":"Obstbäume"};if(isBerry(p))return{key:"beeren",label:"Beerenobst"};if(isRose(p))return{key:"rosen",label:"Rosen"};if(isHydrangea(p))return{key:"hortensien",label:"Hortensien"};if(isGrass(p))return{key:"ziergraeser",label:"Ziergräser"};if(isClimber(p))return{key:"kletterpflanzen",label:"Kletterpflanzen"};var name=String(p.name||p.scientific||"Pflanzen").trim();return{key:"plant-"+norm(p.scientific||p.name).replace(/\s+/g,"-"),label:name}}
 function qtyLabel(p){var q=Math.max(1,Number(p.quantity||1)),s=String(p.name||p.scientific||"Pflanze");return s+(q>1?" ×"+q:"")+(p.area?" · "+p.area:"")}
 function add(map,c){var old=map[c.key];if(old){var ids={};old.plants.forEach(function(p){ids[String(p.id||p.name||p.scientific)]=1});c.plants.forEach(function(p){var id=String(p.id||p.name||p.scientific);if(!ids[id]){ids[id]=1;old.plants.push(p)}});return}map[c.key]=c}
@@ -39,7 +83,13 @@ function tasks(){
   }
   plants.forEach(function(p){
     addCare(p,"fert",p.fertMonths);
-    addCare(p,"cut",p.cutMonths);
+    var special=speciesCare(p);
+    if(!speciesCutOverride(p))addCare(p,"cut",p.cutMonths);
+    special.forEach(function(x){add(map,x)});
+    if(isHerbaceousSpringCut(p))add(map,{kind:"spring",title:"Stauden zurückschneiden / ausputzen",group:"Stauden",icon:"🌿",start:3,end:4,plants:[p],note:"Abgestorbene Stängel vor dem neuen Austrieb bodennah entfernen. Neue Triebe und überwinternde Tiere schonen.",source:"RHS · Perennials: Cutting Back",key:"spring|perennials|3|4"});
+    if(isTenderPerennialCut(p))add(map,{kind:"spring",title:"Frostempfindlichere Stauden zurückschneiden",group:"Stauden",icon:"🌿",start:4,end:5,plants:[p],note:"Alte Stängel erst zurücknehmen, wenn stärkere Fröste weitgehend vorbei sind; der alte Austrieb schützt die Krone im Winter.",source:"RHS · Perennials: Cutting Back",key:"spring|tender-perennials|4|5"});
+    if(isTallPerennial(p))add(map,{kind:"support",title:"Hohe Stauden stützen",group:"Stauden",icon:"🪴",start:5,end:5,plants:[p],note:"Stützen früh setzen, bevor die Triebe lang und kopflastig werden.",source:"RHS · Perennial Growing Guide",key:"support|tall-perennials|5|5"});
+    if(isFruitTree(p))add(map,{kind:"fruit",title:"Obstbäume – Fruchtbehang prüfen",group:"Obstbäume",icon:"🍎",start:6,end:7,plants:[p],note:"Nach dem natürlichen Junifall prüfen, ob der Behang sehr dicht ist. Bei Überbehang kann Ausdünnen Fruchtgröße und Aststabilität verbessern.",source:"RHS · Fruit Thinning",key:"fruit|tree-thinning|6|7"});
     if(isGrass(p)&&!ranges(p.cutMonths).length){
       var g=groupFor(p,"cut");add(map,{kind:"spring",title:g.label+" zurückschneiden",group:g.label,icon:"🌾",start:3,end:3,plants:[p],note:"Vertrocknete Halme erst gegen Ende des Winters bzw. vor dem Neuaustrieb zurücknehmen.",source:"RHS · Gartenwelt-Pflegeregel",key:"spring-grass|"+g.key+"|3|3"});
     }
