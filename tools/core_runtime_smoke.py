@@ -82,11 +82,9 @@ def main():
     start = time.perf_counter()
     try:
         print("CORE SMOKE: loading local app", flush=True)
-        try:
-            d.get(base + TMP.name + "?smoke=" + str(int(time.time())))
-        except TimeoutException:
-            d.execute_script("window.stop()")
-            print("CORE SMOKE: page-load timeout; continuing with loaded DOM", flush=True)
+        target = base + TMP.name + "?smoke=" + str(int(time.time()))
+        d.get("about:blank")
+        d.execute_script("window.location.replace(arguments[0])", target)
         w = WebDriverWait(d, 15)
         w.until(EC.presence_of_element_located((By.CSS_SELECTOR, "body")))
         print("CORE SMOKE: DOM ready", flush=True)
