@@ -57,19 +57,31 @@ Deno.serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!supabaseUrl || !serviceKey) return reply(500, { ok: false, error: "server_not_configured" });
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    if (!supabaseUrl || !serviceKey || !anonKey) return reply(500, { ok: false, error: "server_not_configured" });
+
+    const authResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/jgw_status_garden`, {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        p_garden_id: gardenId,
+        p_secret_hash: secretHash,
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    let authData: any = null;
+    try { authData = await authResponse.json(); } catch (_) {}
+    if (Array.isArray(authData) && authData.length === 1) authData = authData[0];
+    if (!authResponse.ok || !authData || authData.ok !== true) {
+      return reply(403, { ok: false, error: "forbidden" });
+    }
 
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-
-    const { data: authData, error: authError } = await admin.rpc("jgw_status_garden", {
-      p_garden_id: gardenId,
-      p_secret_hash: secretHash,
-    });
-    if (authError || !authData || authData.ok !== true) {
-      return reply(403, { ok: false, error: "forbidden" });
-    }
 
     if (action === "upload") {
       const rel = cleanRelativePath(body?.path);
