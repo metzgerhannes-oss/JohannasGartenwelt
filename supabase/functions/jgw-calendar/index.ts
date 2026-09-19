@@ -450,7 +450,8 @@ Deno.serve(async (req: Request) => {
       headers:{
         "Content-Type":"text/calendar; charset=utf-8",
         "Content-Disposition":'inline; filename="johannas-gartenwelt-pflege.ics"',
-        "Cache-Control":"public, max-age=3600, s-maxage=3600",
+        "Cache-Control":"private, max-age=3600",
+        "X-Content-Type-Options":"nosniff",
         "Access-Control-Allow-Origin":"*"
       }
     });
