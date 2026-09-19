@@ -56,8 +56,12 @@ Deno.serve(async (req: Request) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    let serviceKey = "";
+    let anonKey = "";
+    try { serviceKey = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}").default || ""; } catch (_) {}
+    try { anonKey = JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") || "{}").default || ""; } catch (_) {}
+    serviceKey ||= Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    anonKey ||= Deno.env.get("SUPABASE_ANON_KEY") || "";
     if (!supabaseUrl || !serviceKey || !anonKey) return reply(500, { ok: false, error: "server_not_configured" });
 
     const authResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/jgw_status_garden`, {
