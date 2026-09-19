@@ -81,7 +81,9 @@ def run():
     httpd, base = server()
     d = browser()
     try:
-        d.get(base + "?audit=" + str(int(time.time())))
+        target = base + "?audit=" + str(int(time.time()))
+        d.get("about:blank")
+        d.execute_script("window.location.replace(arguments[0])", target)
         visible(d, "body", 20)
         wait(d, 15).until(lambda x: x.execute_script("return !!window.JGWUX && !!window.JGWLibraryV4"))
 
