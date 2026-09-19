@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -51,6 +52,7 @@ h1,h2,h3,.brand h1,.plantname,.state-title{
     <h2>Zugang für ein neues Gerät</h2>
     <div class="muted">Diese Seite liest die auf diesem Gerät gespeicherten Zugangsdaten. Der QR-Code enthält Supabase-URL, Publishable Key, Garten-ID und PlantNet-API-Key <span class="secure">verschlüsselt</span>. Die Garten-PIN wird nicht in den QR-Code geschrieben.</div>
     <div id="configChecks" class="status"></div>
+    <div class="field" style="margin-top:12px"><label for="generatorPin">Garten-PIN zur Freigabe</label><input id="generatorPin" type="password" autocomplete="current-password" minlength="6" placeholder="PIN einmal eingeben"><div class="muted" style="margin-top:5px">Die PIN wird nur zum Prüfen und Verschlüsseln des QR-Codes verwendet und nicht gespeichert.</div></div>
     <div class="actions">
       <button class="btn" id="makeQr" type="button">Zugangs-QR-Code erzeugen</button>
       <a class="btn secondary" href="./">Zur Gartenwelt</a>
@@ -74,9 +76,9 @@ h1,h2,h3,.brand h1,.plantname,.state-title{
       <div class="step"><div class="stepno">4</div><div class="steptext"><b>Als Web-App öffnen</b> eingeschaltet lassen.</div></div>
       <div class="step"><div class="stepno">5</div><div class="steptext"><b>Hinzufügen</b> bestätigen.</div></div>
       <div class="step"><div class="stepno">6</div><div class="steptext">Safari verlassen und das neue Symbol <b>Johanna´s Gartenwelt</b> auf dem Home-Bildschirm öffnen. Jetzt dürfen keine Safari-Leisten mehr sichtbar sein.</div></div>
-      <div class="step"><div class="stepno">7</div><div class="steptext">Dort einmal die <b>Garten-PIN</b> eingeben. Danach sind Garten, Sync und PlantNet dauerhaft in der Home-Screen-App eingerichtet.</div></div>
+      <div class="step"><div class="stepno">7</div><div class="steptext">Dort einmal die <b>Garten-PIN</b> eingeben. Daraus wird lokal ein Geräteschlüssel abgeleitet; die PIN selbst wird nicht gespeichert.</div></div>
     </div>
-    <div class="status warn"><b>Warum dieser Zwischenschritt?</b><br>Safari und die Home-Screen-Web-App haben getrennte lokale Speicher. Die verschlüsselten Einrichtungsdaten werden deshalb für kurze Zeit über einen sicheren Installations-Cookie an die neue Web-App übergeben; die PIN bleibt separat.</div>
+    <div class="status warn"><b>Warum dieser Zwischenschritt?</b><br>Safari und die Home-Screen-Web-App haben getrennte lokale Speicher. Die verschlüsselten Einrichtungsdaten werden deshalb für kurze Zeit über einen sicheren Installations-Cookie an die neue Web-App übergeben; die PIN bleibt separat und wird nach der Einrichtung nicht gespeichert.</div>
     <div class="actions"><button class="btn secondary hidden" id="safariOnly" type="button" aria-hidden="true" tabindex="-1">Nur in Safari einrichten</button><button class="btn ghost" id="cancelInstall" type="button">Abbrechen</button></div>
   </section>
 
@@ -132,7 +134,7 @@ function tokenFromInstallQuery(){try{return new URLSearchParams(location.search)
 function putTokenInInstallUrl(token){var url=location.pathname+"?install="+encodeURIComponent(token);history.replaceState(null,"",url)}
 function clearSetupUrl(){history.replaceState(null,"",location.pathname)}
 function showInstallGuide(token){activeToken=token;setInstallCookie(token);putTokenInInstallUrl(token);hideAll();show("installBox",true)}
-function showReceiver(token,context){activeToken=token;receiverContext=context||"standalone";hideAll();show("receiverBox",true);el("receiverMode").textContent=receiverContext==="safari"?"Safari":"Home-Screen-App";show("standaloneConfirmed",receiverContext!=="safari");el("receiverIntro").innerHTML=receiverContext==="safari"?"Du bist noch in Safari. Bitte nicht hier einrichten, sondern zuerst als Web-App zum Home-Bildschirm hinzufügen und anschließend das neue Home-Screen-Symbol öffnen.":"Der Einrichtungs-Code wurde in die Home-Screen-App übernommen. Gib jetzt nur noch die Garten-PIN ein.";setTimeout(function(){try{el("setupPin").focus()}catch(e){}},80)}
+function showReceiver(token,context){activeToken=token;receiverContext=context||"standalone";hideAll();show("receiverBox",true);el("receiverMode").textContent=receiverContext==="safari"?"Safari":"Home-Screen-App";show("standaloneConfirmed",receiverContext!=="safari");el("receiverIntro").innerHTML=receiverContext==="safari"?"Du bist noch in Safari. Bitte nicht hier einrichten, sondern zuerst als Web-App zum Home-Bildschirm hinzufügen und anschließend das neue Home-Screen-Symbol öffnen.":"Der Einrichtungs-Code wurde in die Home-Screen-App übernommen. Gib die Garten-PIN einmal ein; gespeichert wird anschließend nur der daraus abgeleitete Geräteschlüssel.";setTimeout(function(){try{el("setupPin").focus()}catch(e){}},80)}
 function storeConfig(p,pin){var app=readJSON(STORE);app.settings=app.settings||{};app.settings.plantnetKey=String(p.plantnetKey||"");if(!Array.isArray(app.plants))app.plants=[];if(!Array.isArray(app.zones))app.zones=[];localStorage.setItem(STORE,JSON.stringify(app));var sync={url:String(p.supabaseUrl).replace(/\/+$/,""),key:String(p.supabaseKey),gardenId:String(p.gardenId).trim().toLowerCase(),pin:pin,enabled:true,revision:0,lastSync:"",lastPayloadHash:"",dirty:false,initialPull:true};localStorage.setItem(SYNC_STORE,JSON.stringify(sync))}
 async function unlockSetup(e){e.preventDefault();var pin=el("setupPin").value;if(pin.length<6){el("receiverStatus").className="status bad";el("receiverStatus").textContent="Bitte die Garten-PIN mit mindestens 6 Zeichen eingeben.";return}if(!activeToken){el("receiverStatus").className="status bad";el("receiverStatus").textContent="Einrichtungs-Code fehlt.";return}el("unlockBtn").disabled=true;el("receiverStatus").className="status warn";el("receiverStatus").textContent="Zugangsdaten werden entschlüsselt …";try{var envelope=JSON.parse(b64urlToText(activeToken)),p=await decryptEnvelope(envelope,pin);if(!p||p.v!==1||!validUrl(String(p.supabaseUrl||""))||String(p.supabaseKey||"").length<=10||String(p.gardenId||"").length<6)throw new Error("Der QR-Code enthält keine gültige Garten-Konfiguration.");storeConfig(p,pin);clearInstallCookie();clearSetupUrl();el("receiverStatus").className="status ok";el("receiverStatus").innerHTML="<b>Einrichtung abgeschlossen.</b><br>Garten-ID, Supabase-Zugang und PlantNet-Key sind jetzt in diesem "+(receiverContext==="safari"?"Safari-Browser":"Home-Screen-App-Speicher")+" gespeichert. Der gemeinsame Garten wird geladen.";setTimeout(function(){location.replace("./")},1000)}catch(err){console.warn(err);el("receiverStatus").className="status bad";el("receiverStatus").textContent="PIN falsch oder QR-Code beschädigt. Bitte erneut versuchen.";el("unlockBtn").disabled=false}}
 function cancelSetup(){clearSetupUrl();location.replace("./")}
