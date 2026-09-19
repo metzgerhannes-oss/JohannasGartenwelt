@@ -12,11 +12,18 @@ on:
       - 'jgw-ux-patch.js'
       - 'jgw-photo-storage-v2.js'
       - 'garten-tipps.js'
+      - 'jgw-care-calendar-v1.js'
+      - 'jgw-task-bulk-v3.js'
+      - 'jgw-hardiness-data-v1.js'
+      - 'jgw-hardiness-v2.js'
+      - 'jgw-hardiness-labels-v1.js'
       - 'photo-storage.js'
       - 'tools/core_runtime_smoke.py'
       - 'tools/runtime_efficiency_audit.py'
       - 'tools/ux_v4_audit.py'
       - 'supabase/functions/**'
+      - 'supabase/config.toml'
+      - 'supabase_setup.sql'
 
 permissions:
   contents: read
@@ -53,7 +60,7 @@ jobs:
           PY
           node --check /tmp/index.html.js
           node --check /tmp/setup.html.js
-          for js in jgw-library-nav.js jgw-ux-shell.js jgw-library-v4.js jgw-ux-patch.js jgw-photo-storage-v2.js garten-tipps.js photo-storage.js; do
+          for js in jgw-library-nav.js jgw-ux-shell.js jgw-library-v4.js jgw-ux-patch.js jgw-photo-storage-v2.js garten-tipps.js jgw-care-calendar-v1.js jgw-task-bulk-v3.js jgw-hardiness-data-v1.js jgw-hardiness-v2.js jgw-hardiness-labels-v1.js photo-storage.js; do
             test ! -f "$js" || node --check "$js"
           done
           python -m py_compile tools/core_runtime_smoke.py tools/runtime_efficiency_audit.py tools/ux_v4_audit.py
@@ -64,12 +71,15 @@ jobs:
         run: |
           deno check supabase/functions/jgw-photo/index.ts
           deno check supabase/functions/trefle-enrich/index.ts
+          deno check supabase/functions/jgw-calendar/index.ts
       - name: Install browser test dependency
         run: python -m pip install --disable-pip-version-check selenium
-      - name: Core browser smoke test (diagnostic)
-        continue-on-error: true
+      - name: Core browser smoke test
         timeout-minutes: 2
         run: python tools/core_runtime_smoke.py
+      - name: UX browser audit
+        timeout-minutes: 3
+        run: python tools/ux_v4_audit.py
       - name: Upload audit screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
