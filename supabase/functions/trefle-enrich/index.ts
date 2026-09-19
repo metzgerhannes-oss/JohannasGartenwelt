@@ -55,7 +55,9 @@ async function fetchTimed(input: string | URL, init: RequestInit = {}) {
 
 async function gardenAuthorized(gardenId: string, secretHash: string) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+  let anonKey = "";
+  try { anonKey = JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") || "{}").default || ""; } catch (_) {}
+  anonKey ||= Deno.env.get("SUPABASE_ANON_KEY") || "";
   if (!supabaseUrl || !anonKey) return false;
 
   try {
