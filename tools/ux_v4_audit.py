@@ -82,8 +82,7 @@ def run():
     d = browser()
     try:
         target = base + "?audit=" + str(int(time.time()))
-        d.get("about:blank")
-        d.execute_script("window.location.replace(arguments[0])", target)
+        d.execute_cdp_cmd("Page.navigate", {"url": target})
         visible(d, "body", 20)
         wait(d, 15).until(lambda x: x.execute_script("return !!window.JGWUX && !!window.JGWLibraryV4"))
 
