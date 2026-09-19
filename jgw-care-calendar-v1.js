@@ -152,5 +152,5 @@ function installStyle(){if(el("jgw-care-calendar-style"))return;var s=document.c
 function start(){installStyle();var grid=el("calendarGrid"),toggle=el("calendarToggle");if(toggle)toggle.addEventListener("click",function(){expanded=!expanded;setTimeout(schedule,0)},true);if(grid)new MutationObserver(function(){if(grid.dataset.jgwCareRendering==="1"||rendering)return;schedule()}).observe(grid,{childList:true,subtree:true});document.querySelectorAll('.tab[data-view="calendar"]').forEach(function(b){b.addEventListener("click",function(){setTimeout(schedule,40)})});schedule()}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start,{once:true});else start();
 window.addEventListener("load",schedule,{once:true});
-window.JGWCareCalendar={tasks:tasks,render:renderCalendar,feedUrl:feedUrl};
+window.JGWCareCalendar={tasks:tasks,render:renderCalendar,feedUrl:feedUrl,hasSpeciesCutOverride:speciesCutOverride,cutTasksForPlant:function(p){return speciesCare(p)}};if(window.JGWCore&&JGWCore.renderCareViews)setTimeout(function(){JGWCore.renderCareViews()},0);
 })();
