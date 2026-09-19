@@ -39,7 +39,7 @@ def chrome():
     for arg in (
         "--headless=new", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--lang=de-DE",
         "--disable-background-networking", "--disable-component-update", "--disable-default-apps",
-        "--no-first-run", "--no-proxy-server"
+        "--no-first-run", "--no-proxy-server", "--allow-file-access-from-files"
     ):
         o.add_argument(arg)
     o.set_capability("goog:loggingPrefs", {"browser": "ALL"})
@@ -77,12 +77,12 @@ def click(d, css):
 def main():
     report = {"ok": False, "checks": [], "diagnostics": {}}
     make_copy()
-    server, base = serve()
+    server = None
     d = chrome()
     start = time.perf_counter()
     try:
         print("CORE SMOKE: loading local app", flush=True)
-        target = base + TMP.name + "?smoke=" + str(int(time.time()))
+        target = TMP.resolve().as_uri() + "?smoke=" + str(int(time.time()))
         d.execute_cdp_cmd("Page.navigate", {"url": target})
         w = WebDriverWait(d, 15)
         w.until(EC.presence_of_element_located((By.CSS_SELECTOR, "body")))
