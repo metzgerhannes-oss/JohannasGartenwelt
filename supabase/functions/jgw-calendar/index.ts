@@ -322,10 +322,10 @@ async function calendarPayload(token: string): Promise<any> {
   const base = Deno.env.get("SUPABASE_URL")!;
   let apiKey = "";
   try {
-    const keys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
+    const keys = JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") || "{}");
     apiKey = keys.default || "";
   } catch (_) {}
-  apiKey ||= Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  apiKey ||= Deno.env.get("SUPABASE_ANON_KEY") || "";
   if (!base || !apiKey) throw new Error("Supabase-Serverkonfiguration fehlt.");
 
   const r = await fetch(base + "/rest/v1/rpc/jgw_calendar_payload",{
