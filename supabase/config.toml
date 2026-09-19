@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.jgw-calendar]
 verify_jwt = false
+
+[functions.jgw-photo]
+verify_jwt = false
