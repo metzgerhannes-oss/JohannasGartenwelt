@@ -3,6 +3,13 @@
 const SHELL_CACHE = "jgw-shell-v1";
 const RUNTIME_CACHE = "jgw-runtime-v1";
 
+const OPTIONAL_CDN = [
+  "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css",
+  "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js",
+  "https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.css",
+  "https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"
+];
+
 const SHELL = [
   "./",
   "./index.html",
@@ -25,9 +32,17 @@ const SHELL = [
 
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(SHELL_CACHE)
-      .then(cache => cache.addAll(SHELL))
-      .then(() => self.skipWaiting())
+    Promise.all([
+      caches.open(SHELL_CACHE).then(cache => cache.addAll(SHELL)),
+      caches.open(RUNTIME_CACHE).then(async cache => {
+        await Promise.allSettled(OPTIONAL_CDN.map(async url => {
+          try {
+            const response = await fetch(url, { mode: "no-cors", cache: "no-cache" });
+            if (response) await cache.put(url, response.clone());
+          } catch (_) {}
+        }));
+      })
+    ]).then(() => self.skipWaiting())
   );
 });
 
