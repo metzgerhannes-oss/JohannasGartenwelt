@@ -6,11 +6,15 @@ on:
       - '.github/workflows/app-ui-refresh.yml'
       - 'index.html'
       - 'setup.html'
+      - 'manifest.webmanifest'
+      - 'setup.webmanifest'
       - 'jgw-library-nav.js'
       - 'jgw-ux-shell.js'
       - 'jgw-library-v4.js'
       - 'jgw-ux-patch.js'
       - 'jgw-photo-storage-v2.js'
+      - 'jgw-ui-cleanup-20260914.js'
+      - 'jgw-mobile-fix-v5.js'
       - 'garten-tipps.js'
       - 'jgw-care-calendar-v1.js'
       - 'jgw-task-bulk-v3.js'
@@ -64,7 +68,7 @@ jobs:
           PY
           node --check /tmp/index.html.js
           node --check /tmp/setup.html.js
-          for js in jgw-library-nav.js jgw-ux-shell.js jgw-library-v4.js jgw-ux-patch.js jgw-photo-storage-v2.js garten-tipps.js jgw-care-calendar-v1.js jgw-task-bulk-v3.js jgw-hardiness-data-v1.js jgw-hardiness-v2.js jgw-hardiness-labels-v1.js photo-storage.js; do
+          for js in jgw-library-nav.js jgw-ux-shell.js jgw-library-v4.js jgw-ux-patch.js jgw-photo-storage-v2.js jgw-ui-cleanup-20260914.js jgw-mobile-fix-v5.js garten-tipps.js jgw-care-calendar-v1.js jgw-task-bulk-v3.js jgw-hardiness-data-v1.js jgw-hardiness-v2.js jgw-hardiness-labels-v1.js photo-storage.js; do
             test ! -f "$js" || node --check "$js"
           done
           python -m py_compile tools/core_runtime_smoke.py tools/runtime_efficiency_audit.py tools/ux_v4_audit.py
