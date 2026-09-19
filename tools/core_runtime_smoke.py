@@ -83,8 +83,7 @@ def main():
     try:
         print("CORE SMOKE: loading local app", flush=True)
         target = base + TMP.name + "?smoke=" + str(int(time.time()))
-        d.get("about:blank")
-        d.execute_script("window.location.replace(arguments[0])", target)
+        d.execute_cdp_cmd("Page.navigate", {"url": target})
         w = WebDriverWait(d, 15)
         w.until(EC.presence_of_element_located((By.CSS_SELECTOR, "body")))
         print("CORE SMOKE: DOM ready", flush=True)
