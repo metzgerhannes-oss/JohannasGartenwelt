@@ -1625,14 +1625,14 @@ renderAll();migrateLegacySyncCredential().finally(function(){syncBootstrap()});s
 <script src="./jgw-ux-shell.js?v=20260914-3"></script>
 <script src="./jgw-library-v4.js?v=20260914-2"></script>
 <script src="./jgw-ux-patch.js?v=20260914-1"></script>
-<script src="./jgw-photo-storage-v2.js?v=20260919-1"></script>
+<script src="./jgw-photo-storage-v2.js?v=20260919-2"></script>
 <script src="./jgw-ui-cleanup-20260914.js?v=20260914-3"></script>
 <script src="./jgw-mobile-fix-v5.js?v=20260914-1"></script>
 <script src="./jgw-hardiness-data-v1.js?v=20260917-1"></script>
 <script src="./jgw-hardiness-v2.js?v=20260917-1"></script>
 <script src="./jgw-hardiness-labels-v1.js?v=20260917-2"></script>
 <script src="./garten-tipps.js?v=20260919-1"></script>
-<script src="./jgw-care-calendar-v1.js?v=20260919-6"></script>
+<script src="./jgw-care-calendar-v1.js?v=20260919-7"></script>
 <script src="./jgw-task-bulk-v3.js?v=20260917-1"></script>
 <script>\n(function(){\n  if(!("serviceWorker" in navigator)||location.protocol!=="https:")return;\n  window.addEventListener("load",function(){navigator.serviceWorker.register("./sw.js",{scope:"./"}).catch(function(e){console.warn("Service Worker",e)})},{once:true});\n  window.addEventListener("offline",function(){try{notice("Offline-Modus: Garten und gespeicherte Daten bleiben verfügbar.")}catch(e){}});\n  window.addEventListener("online",function(){try{notice("Wieder online.")}catch(e){}try{syncCheckRemote()}catch(e){}try{if(state.plz||state.gardenCenter)refreshWeather(false)}catch(e){}});\n})();\n</script>\n</body>
 </html>
