@@ -1,5 +1,4 @@
 import { chromium, devices } from "playwright";
-import fs from "node:fs";
 
 const base = "http://127.0.0.1:4173";
 const results = [];
@@ -7,20 +6,47 @@ let failed = false;
 
 function record(scope, name, ok, detail = "") {
   results.push({ scope, name, ok, detail });
+  console.log(JSON.stringify({ scope, name, ok, detail }));
   if (!ok) failed = true;
 }
 
+async function limited(label, promise, ms = 5000) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("TIMEOUT " + label + " after " + ms + "ms")), ms);
+      })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function inspectPage(browser, scope, url, contextOptions = {}) {
+  console.log("START " + scope + " " + url);
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
+  page.setDefaultTimeout(5000);
+  page.setDefaultNavigationTimeout(10000);
+
   const consoleErrors = [];
   const pageErrors = [];
   const cspViolations = [];
+  const navigations = [];
 
   page.on("console", msg => {
     if (msg.type() === "error") consoleErrors.push(msg.text());
   });
   page.on("pageerror", err => pageErrors.push(String(err && err.message || err)));
+  page.on("framenavigated", frame => {
+    if (frame === page.mainFrame()) {
+      navigations.push(frame.url());
+      console.log("NAV " + scope + " " + frame.url());
+    }
+  });
+
   await page.addInitScript(() => {
     window.__cspViolations = [];
     document.addEventListener("securitypolicyviolation", e => {
@@ -33,83 +59,127 @@ async function inspectPage(browser, scope, url, contextOptions = {}) {
     });
   });
 
-  const response = await page.goto(url, { waitUntil: "commit", timeout: 30000 });
-  record(scope, "HTTP/Navigation", !!response && response.ok(), response ? String(response.status()) : "no response");
-  await page.waitForSelector("body", { state: "attached", timeout: 15000 });
-  await page.waitForTimeout(3000);
+  let response = null;
   try {
-    const list = await page.evaluate(() => window.__cspViolations || []);
-    cspViolations.push(...list);
-  } catch {}
+    response = await limited(scope + " goto", page.goto(url, { waitUntil: "commit", timeout: 10000 }), 12000);
+    record(scope, "HTTP/Navigation", !!response && response.ok(), response ? String(response.status()) : "no response");
+  } catch (e) {
+    record(scope, "HTTP/Navigation", false, String(e.message || e));
+  }
 
-  return { context, page, consoleErrors, pageErrors, cspViolations };
+  try {
+    await limited(scope + " body", page.waitForSelector("body", { state: "attached", timeout: 5000 }), 6000);
+    record(scope, "body attached", true);
+  } catch (e) {
+    record(scope, "body attached", false, String(e.message || e));
+  }
+
+  await new Promise(r => setTimeout(r, 1200));
+
+  try {
+    const list = await limited(scope + " CSP read", page.evaluate(() => window.__cspViolations || []), 5000);
+    cspViolations.push(...list);
+  } catch (e) {
+    record(scope, "CSP read", false, String(e.message || e));
+  }
+
+  return { context, page, consoleErrors, pageErrors, cspViolations, navigations };
+}
+
+async function safeClose(context, scope) {
+  try { await limited(scope + " context.close", context.close(), 3000); } catch (e) {
+    console.log("CLOSE_TIMEOUT " + scope + " " + String(e.message || e));
+  }
 }
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
 
-  // Desktop main app
   {
-    const { context, page, consoleErrors, pageErrors, cspViolations } =
+    const { context, page, consoleErrors, pageErrors, cspViolations, navigations } =
       await inspectPage(browser, "main-desktop", base + "/index.html");
 
-    record("main-desktop", "title", /Johanna/.test(await page.title()), await page.title());
-    record("main-desktop", "body rendered", await page.locator("body").count() === 1);
-    record("main-desktop", "tabs present", await page.locator(".tab").count() >= 3, String(await page.locator(".tab").count()));
+    try {
+      const title = await limited("desktop title", page.title(), 5000);
+      record("main-desktop", "title", /Johanna/.test(title), title);
+    } catch (e) {
+      record("main-desktop", "title", false, String(e.message || e));
+    }
 
-    const tabs = page.locator(".tab");
-    const tabCount = await tabs.count();
-    let tabClicksOk = true;
+    let tabCount = 0;
+    try {
+      tabCount = await limited("desktop tab count", page.locator(".tab").count(), 5000);
+      record("main-desktop", "tabs present", tabCount >= 3, String(tabCount));
+    } catch (e) {
+      record("main-desktop", "tabs present", false, String(e.message || e));
+    }
+
+    let tabClicksOk = tabCount > 0;
     for (let i = 0; i < Math.min(tabCount, 6); i++) {
       try {
-        await tabs.nth(i).click({ timeout: 3000 });
-        await page.waitForTimeout(120);
+        await limited("tab click " + i, page.locator(".tab").nth(i).click({ timeout: 3000 }), 4500);
+        await new Promise(r => setTimeout(r, 100));
       } catch (e) {
         tabClicksOk = false;
+        record("main-desktop", "tab " + i + " clickable", false, String(e.message || e));
         break;
       }
     }
-    record("main-desktop", "first tabs clickable", tabClicksOk, "tested " + Math.min(tabCount, 6));
+    if (tabCount > 0 && tabClicksOk) record("main-desktop", "first tabs clickable", true, "tested " + Math.min(tabCount, 6));
 
-    const settingsButton = page.locator("#settingsButton, .gearbtn").first();
-    if (await settingsButton.count()) {
-      try {
-        await settingsButton.click();
-        await page.waitForTimeout(150);
-        const visible = await page.locator(".settings-overlay:not(.hidden)").count() > 0;
-        record("main-desktop", "settings opens", visible);
-      } catch (e) {
-        record("main-desktop", "settings opens", false, String(e.message || e));
+    try {
+      const settingsButton = page.locator("#settingsButton, .gearbtn").first();
+      const n = await limited("settings count", settingsButton.count(), 5000);
+      if (n) {
+        await limited("settings click", settingsButton.click({ timeout: 3000 }), 4500);
+        const visible = await limited("settings visible", page.locator(".settings-overlay:not(.hidden)").count(), 5000);
+        record("main-desktop", "settings opens", visible > 0, String(visible));
+      } else {
+        record("main-desktop", "settings button found", false);
       }
-    } else {
-      record("main-desktop", "settings button found", false);
+    } catch (e) {
+      record("main-desktop", "settings opens", false, String(e.message || e));
     }
 
     record("main-desktop", "no page errors", pageErrors.length === 0, pageErrors.join(" | "));
     record("main-desktop", "no CSP violations", cspViolations.length === 0, JSON.stringify(cspViolations));
     const relevantConsole = consoleErrors.filter(x => /Content Security Policy|Refused to|Uncaught|SyntaxError|ReferenceError/i.test(x));
     record("main-desktop", "no relevant console errors", relevantConsole.length === 0, relevantConsole.join(" | "));
-    await context.close();
+    record("main-desktop", "navigation stable", navigations.length <= 3, JSON.stringify(navigations));
+    await safeClose(context, "main-desktop");
   }
 
-  // Mobile/iPhone-ish main app
   {
     const mobile = devices["iPhone 13"];
-    const { context, page, consoleErrors, pageErrors, cspViolations } =
+    const { context, page, consoleErrors, pageErrors, cspViolations, navigations } =
       await inspectPage(browser, "main-mobile", base + "/index.html", mobile);
-    record("main-mobile", "renders", await page.locator("body").count() === 1);
-    record("main-mobile", "tabs present", await page.locator(".tab").count() >= 3, String(await page.locator(".tab").count()));
+
+    try {
+      const count = await limited("mobile tabs", page.locator(".tab").count(), 5000);
+      record("main-mobile", "tabs present", count >= 3, String(count));
+    } catch (e) {
+      record("main-mobile", "tabs present", false, String(e.message || e));
+    }
+
     record("main-mobile", "no page errors", pageErrors.length === 0, pageErrors.join(" | "));
     record("main-mobile", "no CSP violations", cspViolations.length === 0, JSON.stringify(cspViolations));
     const relevantConsole = consoleErrors.filter(x => /Content Security Policy|Refused to|Uncaught|SyntaxError|ReferenceError/i.test(x));
     record("main-mobile", "no relevant console errors", relevantConsole.length === 0, relevantConsole.join(" | "));
-    await context.close();
+    record("main-mobile", "navigation stable", navigations.length <= 3, JSON.stringify(navigations));
+    await safeClose(context, "main-mobile");
   }
 
-  // Setup page, seeded generator mode
   {
     const context = await browser.newContext();
-    await context.addInitScript(() => {
+    const page = await context.newPage();
+    page.setDefaultTimeout(5000);
+    page.setDefaultNavigationTimeout(10000);
+    const consoleErrors = [];
+    const pageErrors = [];
+    const cspViolations = [];
+    page.on("console", m => { if (m.type() === "error") consoleErrors.push(m.text()); });
+    page.on("pageerror", e => pageErrors.push(String(e.message || e)));
+    await page.addInitScript(() => {
       localStorage.setItem("giess_check_garten_v3", JSON.stringify({
         settings: { plantnetKey: "test-plantnet-key" }, plants: [], zones: []
       }));
@@ -120,37 +190,54 @@ async function inspectPage(browser, scope, url, contextOptions = {}) {
         secretHash: "a".repeat(64),
         enabled: true
       }));
-    });
-    const page = await context.newPage();
-    const consoleErrors = [];
-    const pageErrors = [];
-    page.on("console", m => { if (m.type() === "error") consoleErrors.push(m.text()); });
-    page.on("pageerror", e => pageErrors.push(String(e.message || e)));
-    await page.addInitScript(() => {
       window.__cspViolations = [];
       document.addEventListener("securitypolicyviolation", e => {
         window.__cspViolations.push({ directive:e.effectiveDirective, blockedURI:e.blockedURI });
       });
     });
-    const resp = await page.goto(base + "/setup.html", { waitUntil:"commit", timeout:30000 });
-    await page.waitForSelector("body", { state:"attached", timeout:15000 });
-    await page.waitForTimeout(3000);
-    record("setup", "HTTP/Navigation", !!resp && resp.ok(), resp ? String(resp.status()) : "no response");
-    record("setup", "generator visible", await page.locator("#generatorBox:not(.hidden)").count() === 1);
-    record("setup", "QR library loaded", await page.evaluate(() => typeof QRCode !== "undefined"));
-    const csp = await page.evaluate(() => window.__cspViolations || []);
-    record("setup", "no CSP violations", csp.length === 0, JSON.stringify(csp));
+
+    try {
+      const resp = await limited("setup goto", page.goto(base + "/setup.html", { waitUntil:"commit", timeout:10000 }), 12000);
+      record("setup", "HTTP/Navigation", !!resp && resp.ok(), resp ? String(resp.status()) : "no response");
+    } catch (e) {
+      record("setup", "HTTP/Navigation", false, String(e.message || e));
+    }
+
+    await new Promise(r => setTimeout(r, 1200));
+
+    try {
+      const visible = await limited("setup generator", page.locator("#generatorBox:not(.hidden)").count(), 5000);
+      record("setup", "generator visible", visible === 1, String(visible));
+    } catch (e) {
+      record("setup", "generator visible", false, String(e.message || e));
+    }
+
+    try {
+      const qr = await limited("setup QRCode", page.evaluate(() => typeof QRCode !== "undefined"), 5000);
+      record("setup", "QR library loaded", !!qr);
+    } catch (e) {
+      record("setup", "QR library loaded", false, String(e.message || e));
+    }
+
+    try {
+      const csp = await limited("setup CSP", page.evaluate(() => window.__cspViolations || []), 5000);
+      cspViolations.push(...csp);
+    } catch (e) {
+      record("setup", "CSP read", false, String(e.message || e));
+    }
+
+    record("setup", "no CSP violations", cspViolations.length === 0, JSON.stringify(cspViolations));
     record("setup", "no page errors", pageErrors.length === 0, pageErrors.join(" | "));
     const relevantConsole = consoleErrors.filter(x => /Content Security Policy|Refused to|Uncaught|SyntaxError|ReferenceError/i.test(x));
     record("setup", "no relevant console errors", relevantConsole.length === 0, relevantConsole.join(" | "));
-    await context.close();
+    await safeClose(context, "setup");
   }
 
-  await browser.close();
+  try { await limited("browser.close", browser.close(), 3000); } catch {}
 
-  console.log(JSON.stringify(results, null, 2));
+  console.log("FINAL_RESULTS " + JSON.stringify({ ok: !failed, results }));
   if (failed) process.exit(1);
 })().catch(err => {
-  console.error(err);
+  console.error("FATAL", err);
   process.exit(1);
 });
