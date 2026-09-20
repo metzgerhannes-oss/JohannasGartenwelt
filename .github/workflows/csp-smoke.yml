@@ -1,18 +1,48 @@
-name: CSP hardening checks
+name: Garden CSP & WebKit checks
 
 on:
   push:
     branches:
-      - csp-hardening-20260920
       - main
+    paths:
+      - '.github/workflows/csp-smoke.yml'
+      - 'index.html'
+      - 'setup.html'
+      - 'setup.js'
+      - 'setup.css'
+      - 'manifest.webmanifest'
+      - 'setup.webmanifest'
+      - 'sw.js'
+      - 'jgw-*.js'
+      - 'jgw-*.css'
+      - 'garten-tipps.js'
+      - 'vendor/**'
+      - 'scripts/csp-*.mjs'
+      - 'supabase/**'
+      - 'supabase_setup.sql'
   pull_request:
     branches:
       - main
+    paths:
+      - '.github/workflows/csp-smoke.yml'
+      - 'index.html'
+      - 'setup.html'
+      - 'setup.js'
+      - 'setup.css'
+      - 'manifest.webmanifest'
+      - 'setup.webmanifest'
+      - 'sw.js'
+      - 'jgw-*.js'
+      - 'jgw-*.css'
+      - 'garten-tipps.js'
+      - 'vendor/**'
+      - 'scripts/csp-*.mjs'
+      - 'supabase/**'
+      - 'supabase_setup.sql'
   workflow_dispatch:
 
 jobs:
   csp:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -43,37 +73,15 @@ jobs:
           node --check jgw-task-bulk-v3.js
           node --check sw.js
           node --check setup.js
-          node --check vokabeltrainer/js/core.js
-          node --check vokabeltrainer/js/storage.js
-          node --check vokabeltrainer/js/model.js
-          node --check vokabeltrainer/js/learning.js
-          node --check vokabeltrainer/js/translation.js
-          node --check vokabeltrainer/js/io.js
-          node --check vokabeltrainer/js/ui.js
-          node --check vokabeltrainer/js/app.js
-          node --check vokabeltrainer/sw.js
-          node --check scripts/vokabeltrainer-sense-smoke.mjs
-          node --check scripts/vokabeltrainer-subject-smoke.mjs
-          node --check scripts/vokabeltrainer-cache-smoke.mjs
-          node --check scripts/vokabeltrainer-sw-browser-smoke.mjs
           node --check vendor/leaflet/leaflet-1.9.4.js
           node --check vendor/leaflet-draw/leaflet.draw-1.0.4.js
           node --check vendor/qrcode/qrcode-1.0.0.min.js
-
-      - name: Vokabeltrainer sense model smoke
-        run: node scripts/vokabeltrainer-sense-smoke.mjs
-
-      - name: Vokabeltrainer subject system smoke
-        run: node scripts/vokabeltrainer-subject-smoke.mjs
-
-      - name: Vokabeltrainer cache persistence smoke
-        run: node scripts/vokabeltrainer-cache-smoke.mjs
 
       - name: Install Playwright WebKit
         run: |
           npm init -y
           npm install --no-save playwright@1.56.1
-          npx playwright install --with-deps webkit chromium
+          npx playwright install --with-deps webkit
 
       - name: Start local server
         run: |
@@ -83,6 +91,3 @@ jobs:
 
       - name: WebKit iPhone smoke test
         run: JGW_BASE=http://127.0.0.1:4173 node scripts/csp-webkit-smoke.mjs
-
-      - name: Chromium Vokabeltrainer service-worker cache smoke
-        run: JGW_BASE=http://127.0.0.1:4173 node scripts/vokabeltrainer-sw-browser-smoke.mjs
