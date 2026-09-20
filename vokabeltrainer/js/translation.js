@@ -71,8 +71,9 @@ function hybridShardKey(value){
   return `${first}${bucket}`;
 }
 function hybridExistingWords(){
-  return globalVocabulary(state?.activeSubject).map(v=>({term:v.term,translation:v.translation,termVariants:v.termVariants||[],translations:v.translations||[]}));
+  return globalVocabulary(state?.activeSubject).flatMap(v=>(v.senses||[]).map(s=>({term:v.term,translation:s.translation,termVariants:v.termVariants||[],translations:s.translations||[],senseId:s.id,vocabId:v.id})));
 }
+
 function hybridMemoryLookup(value,direction,scanRows=[]){
   const q=hybridNormalize(value); if(!q)return '';
   const candidates=[];
@@ -153,12 +154,9 @@ async function repairSuspiciousCompletePair(row){
 
 function annotateGlobalLibraryMatch(row){
   if(!row?.term||!row?.translation)return row;
-  const v=vocabularyMatch(state?.activeSubject||'english',row.term,row.extra||'',row.translation);
-  if(!v){delete row.libraryMatchId;delete row.libraryMatchStatus;return row;}
-  row.libraryMatchId=v.id;
-  const wanted=hybridNormalize(row.translation),known=[v.translation,...(v.translations||[])].some(x=>hybridNormalize(x)===wanted);
-  row.libraryMatchStatus=known?'existing':'new-meaning';
-  return row;
+  const match=vocabularySenseMatch(state?.activeSubject||'english',row.term,row.extra||'',row.translation),v=match.vocab;
+  if(!v){delete row.libraryMatchId;delete row.librarySenseId;delete row.libraryMatchStatus;return row;}
+  row.libraryMatchId=v.id;row.librarySenseId=match.sense?.id||'';row.libraryMatchStatus=match.sense?'existing':'new-meaning';return row;
 }
 async function enrichHybridRows(rows){
   if(!Array.isArray(rows)||!rows.length)return rows||[];
