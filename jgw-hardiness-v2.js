@@ -128,17 +128,7 @@ function assess(p,plant,site){
 
 function installStyle(){
   if(document.getElementById(STYLE_ID))return;
-  var s=document.createElement("style");s.id=STYLE_ID;s.textContent=`
-.jgw-hardiness-card{border:1px solid var(--line);border-radius:15px;padding:12px;background:#f7faf8}
-.jgw-hardiness-card.ok{background:#eef6eb;border-color:#d1e2cb}.jgw-hardiness-card.warn{background:#fff5df;border-color:#ead6a5}.jgw-hardiness-card.bad{background:#faece7;border-color:#e6c7bd}.jgw-hardiness-card.info{background:#f3f5f0;border-color:#dce3d6}
-.jgw-hardiness-head{display:grid;grid-template-columns:42px minmax(0,1fr);gap:10px;align-items:center}.jgw-hardiness-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:24px;font-weight:900;background:#fff;color:var(--forest-dark);border:1px solid rgba(80,100,72,.12)}
-.jgw-hardiness-card.ok .jgw-hardiness-icon{background:#4f8959;color:#fff}.jgw-hardiness-card.warn .jgw-hardiness-icon{background:#d0a13e;color:#fff}.jgw-hardiness-card.bad .jgw-hardiness-icon{background:#b7675d;color:#fff}.jgw-hardiness-card.info .jgw-hardiness-icon{background:#7e9278;color:#fff}
-.jgw-hardiness-title{font-weight:850;color:var(--forest-dark);line-height:1.25}.jgw-hardiness-sub{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}
-.jgw-hardiness-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.jgw-hardiness-kv{padding:9px;border-radius:11px;background:rgba(255,255,255,.68);border:1px solid rgba(120,110,95,.08)}.jgw-hardiness-kv span{display:block;font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}.jgw-hardiness-kv b{display:block;margin-top:3px;color:#5d5349;font-size:12px}
-.jgw-hardiness-note{font-size:11px;color:var(--muted);line-height:1.45;margin-top:9px}.jgw-hardiness-loading{font-size:12px;color:var(--muted);padding:3px 0}.jgw-hardiness-source{font-size:9.5px;color:var(--muted);line-height:1.35;margin-top:7px}
-@media(max-width:420px){.jgw-hardiness-grid{grid-template-columns:1fr 1fr}.jgw-hardiness-head{grid-template-columns:38px minmax(0,1fr)}.jgw-hardiness-icon{width:38px;height:38px;border-radius:11px;font-size:21px}}
-`;document.head.appendChild(s)
-}
+  }
 function currentPlant(){
   var content=document.getElementById("plantDetailContent"),s=appState();if(!content||!s||!Array.isArray(s.plants))return null;
   var marker=content.querySelector(".detailRefresh[data-id],.detailEdit[data-id]");if(!marker)return null;
