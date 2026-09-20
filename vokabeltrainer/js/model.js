@@ -13,10 +13,12 @@ function setWords(setId){return (state.setVocabulary||[]).filter(x=>x.setId===se
 function fortressWins(subject=state.activeSubject,schoolYear=currentSchoolYear()){const l=learner(),key=`${subject}:${schoolYear}`;l.fortressWinsByYear=l.fortressWinsByYear||{};return l.fortressWinsByYear[key]||(l.fortressWinsByYear[key]=[]);}
 
 function normalize(s){return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[.,;:!?()[\]{}"']/g,'').replace(/\s+/g,' ')}
-function answerMatches(answer, target){
-  const a=normalize(answer), t=normalize(target); if(a===t) return true;
-  return t.split(/\s*[/;,]\s*/).some(part=>a===normalize(part));
+function answerMatches(answer,target){
+  const a=normalize(answer),targets=(Array.isArray(target)?target:[target]).flatMap(x=>String(x||'').split(/\s*[/;,]\s*/)).filter(Boolean);if(!a)return false;
+  return targets.some(t=>a===normalize(t));
 }
+function termTargets(w){return [...new Set((w?.acceptedTerms?.length?w.acceptedTerms:[w?.term]).filter(Boolean))]}
+function translationTargets(w){return [...new Set((w?.acceptedTranslations?.length?w.acceptedTranslations:[w?.translation]).filter(Boolean))]}
 function levenshtein(a,b){a=normalize(a);b=normalize(b);const dp=Array.from({length:a.length+1},(_,i)=>[i]);for(let j=1;j<=b.length;j++)dp[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)dp[i][j]=Math.min(dp[i-1][j]+1,dp[i][j-1]+1,dp[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return dp[a.length][b.length]}
 function detectConfusions(word, pool){
   const scored=pool.filter(x=>x.id!==word.id).map(x=>({w:x,d:levenshtein(word.term,x.term)})).filter(x=>x.d<=Math.max(2,Math.floor(word.term.length*.34))).sort((a,b)=>a.d-b.d).slice(0,2);
