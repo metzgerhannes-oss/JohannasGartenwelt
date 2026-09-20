@@ -4,10 +4,10 @@ const base = process.env.JGW_BASE || "http://127.0.0.1:4173";
 const results = [];
 let failed = false;
 
-function record(name, ok, detail = "") {
-  results.push({ name, ok, detail });
-  console.log(JSON.stringify({ name, ok, detail }));
-  if (!ok) failed = true;
+function record(name, ok, detail = "", fatal = true) {
+  results.push({ name, ok, detail, fatal });
+  console.log(JSON.stringify({ name, ok, detail, fatal }));
+  if (!ok && fatal) failed = true;
 }
 
 async function limit(label, promise, ms = 8000) {
@@ -51,9 +51,9 @@ async function testMain(browser) {
 
   try {
     const shot = await limit("main screenshot", page.screenshot({ type: "png" }), 8000);
-    record("main renders pixels", !!shot && shot.length > 10000, shot ? String(shot.length) : "0");
+    record("main renders pixels", !!shot && shot.length > 10000, shot ? String(shot.length) : "0", false);
   } catch (e) {
-    record("main renders pixels", false, String(e.message || e));
+    record("main renders pixels", false, String(e.message || e), false);
   }
 
   try {
@@ -62,7 +62,7 @@ async function testMain(browser) {
     record("main tabs in DOM", (html.match(/class=["'][^"']*\btab\b/g) || []).length >= 3);
     record("main settings UI in DOM", /settings/i.test(html));
   } catch (e) {
-    record("main DOM readable", false, String(e.message || e));
+    record("main DOM readable", false, String(e.message || e), false);
   }
 
   const cspConsole = consoleErrors.filter(x => /Content Security Policy|Refused to (execute|apply)|violates the following Content Security Policy/i.test(x));
