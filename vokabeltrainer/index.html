@@ -8,10 +8,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Vokabeltrainer">
-  <title>Vokabeltrainer – Beta v0.9.10</title>
+  <title>Vokabeltrainer – Beta v0.9.11</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
-  <link rel="stylesheet" href="css/app.css?v=0.9.10">
+  <link rel="stylesheet" href="css/app.css?v=0.9.11">
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -67,7 +67,7 @@
                 <div class="row gap align-center"><div class="eyebrow" id="subjectLabel">Englisch</div><span id="schoolYearPill" class="pill">–</span></div>
                 <h2 id="welcomeTitle">Dein Lernstand</h2>
               </div>
-              <div class="segmented" aria-label="Fach wählen">
+              <div id="subjectSwitcher" class="segmented" aria-label="Fach wählen">
                 <button data-subject="english" class="subject-btn active" aria-pressed="true">EN</button>
                 <button data-subject="latin" class="subject-btn" aria-pressed="false">LA</button>
               </div>
@@ -177,7 +177,6 @@
         <div class="settings-grid">
           <article class="card">
             <div class="eyebrow">Lernen</div><h2>Einstellungen</h2>
-            <label class="switch-row"><span><strong>LRS-Modus</strong><small>kürzere Einheiten, Audio zuerst, ruhigeres Layout</small></span><input id="lrsToggle" type="checkbox"></label>
             <label>Schriftgröße <input id="fontSizeRange" type="range" min="16" max="24" step="1"></label>
             <label>Buchstabenabstand <input id="letterSpacingRange" type="range" min="0" max="3" step="0.25"></label>
             <label>Blitzlesen-Tempo
@@ -197,7 +196,7 @@
             <button id="resetAppBtn" class="danger-outline">Alle App-Daten löschen</button>
           </article>
           <article class="card">
-            <div class="eyebrow">Profile</div><h2>Lernende</h2>
+            <div class="eyebrow">Profile</div><h2>Lernende & Lehrwerke</h2>
             <div id="profileList"></div>
             <button id="addProfileBtn" class="secondary">+ Profil</button>
           </article>
@@ -218,13 +217,14 @@
   <dialog id="modal"><form method="dialog" id="modalForm"><div id="modalContent"></div></form></dialog>
   <input id="fileInput" type="file" class="hidden" accept=".csv,.json,text/csv,application/json">
   <input id="photoInput" type="file" class="hidden" accept="image/*">
-  <script src="js/core.js?v=0.9.10" defer></script>
-  <script src="js/storage.js?v=0.9.10" defer></script>
-  <script src="js/model.js?v=0.9.10" defer></script>
-  <script src="js/learning.js?v=0.9.10" defer></script>
-  <script src="js/translation.js?v=0.9.10" defer></script>
-  <script src="js/io.js?v=0.9.10" defer></script>
-  <script src="js/ui.js?v=0.9.10" defer></script>
-  <script src="js/app.js?v=0.9.10" defer></script>
+  <input id="isbnPhotoInput" type="file" class="hidden" accept="image/*" capture="environment">
+  <script src="js/core.js?v=0.9.11" defer></script>
+  <script src="js/storage.js?v=0.9.11" defer></script>
+  <script src="js/model.js?v=0.9.11" defer></script>
+  <script src="js/learning.js?v=0.9.11" defer></script>
+  <script src="js/translation.js?v=0.9.11" defer></script>
+  <script src="js/io.js?v=0.9.11" defer></script>
+  <script src="js/ui.js?v=0.9.11" defer></script>
+  <script src="js/app.js?v=0.9.11" defer></script>
 </body>
 </html>
