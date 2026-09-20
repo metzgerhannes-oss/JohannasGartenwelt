@@ -1,6 +1,6 @@
 "use strict";
 
-const SHELL_CACHE = "jgw-shell-v2";
+const SHELL_CACHE = "jgw-shell-v4";
 const RUNTIME_CACHE = "jgw-runtime-v2";
 
 const OPTIONAL_CDN = [
@@ -16,6 +16,10 @@ const SHELL = [
   "./manifest.webmanifest",
   "./app-icon-180.png",
   "./app-icon.svg",
+  "./jgw-app.css",
+  "./jgw-runtime-styles.css",
+  "./jgw-app.js",
+  "./jgw-sw-register.js",
   "./jgw-ux-shell.js",
   "./jgw-library-v4.js",
   "./jgw-ux-patch.js",

@@ -1,0 +1,59 @@
+name: CSP hardening checks
+
+on:
+  push:
+    branches:
+      - csp-hardening-20260920
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  csp:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Static CSP audit
+        run: node scripts/csp-static-audit.mjs
+
+      - name: JavaScript syntax check
+        run: |
+          node --check jgw-app.js
+          node --check jgw-sw-register.js
+          node --check jgw-ux-shell.js
+          node --check jgw-library-v4.js
+          node --check jgw-ux-patch.js
+          node --check jgw-photo-storage-v2.js
+          node --check jgw-ui-cleanup-20260914.js
+          node --check jgw-mobile-fix-v5.js
+          node --check jgw-hardiness-data-v1.js
+          node --check jgw-hardiness-v2.js
+          node --check jgw-hardiness-labels-v1.js
+          node --check garten-tipps.js
+          node --check jgw-care-calendar-v1.js
+          node --check jgw-task-bulk-v3.js
+          node --check sw.js
+          node --check setup.js
+
+      - name: Install Playwright WebKit
+        run: |
+          npm init -y
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps webkit
+
+      - name: Start local server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/jgw-http.log 2>&1 &
+          echo $! > /tmp/jgw-http.pid
+          sleep 2
+
+      - name: WebKit iPhone smoke test
+        run: JGW_BASE=http://127.0.0.1:4173 node scripts/csp-webkit-smoke.mjs
