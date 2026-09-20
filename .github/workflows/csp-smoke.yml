@@ -27,15 +27,25 @@ jobs:
           npm init -y
           npm install --no-save playwright@1.56.1
           npx playwright install --with-deps chromium
-      - name: Start local server
+      - name: Prepare stable main baseline
         run: |
-          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/jgw-http.log 2>&1 &
-          echo $! > /tmp/jgw-http.pid
+          git fetch origin main --depth=1
+          rm -rf /tmp/jgw-main
+          git worktree add --detach /tmp/jgw-main FETCH_HEAD
+      - name: Start local servers
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/jgw-branch-http.log 2>&1 &
+          echo $! > /tmp/jgw-branch-http.pid
+          (cd /tmp/jgw-main && python3 -m http.server 4174 --bind 127.0.0.1 > /tmp/jgw-main-http.log 2>&1 & echo $! > /tmp/jgw-main-http.pid)
           sleep 2
+      - name: Run stable main baseline
+        id: baseline
+        continue-on-error: true
+        run: JGW_BASE=http://127.0.0.1:4174 node scripts/csp-smoke.mjs
       - name: Run CSP browser smoke test
         id: smoke
         continue-on-error: true
-        run: node scripts/csp-smoke.mjs
+        run: JGW_BASE=http://127.0.0.1:4173 node scripts/csp-smoke.mjs
       - name: Commit smoke result to test branch
         if: always() && github.event_name == 'push'
         run: |
@@ -46,6 +56,11 @@ jobs:
             git diff --cached --quiet || git commit -m "Test: CSP Browser-Smoke-Ergebnis [skip ci]"
             git push
           fi
-      - name: Fail when smoke test failed
+      - name: Report A/B result
+        if: always()
+        run: |
+          echo "stable-main=${{ steps.baseline.outcome }}"
+          echo "csp-branch=${{ steps.smoke.outcome }}"
+      - name: Fail when CSP smoke test failed
         if: steps.smoke.outcome == 'failure'
         run: exit 1
