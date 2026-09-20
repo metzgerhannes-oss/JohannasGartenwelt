@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - csp-hardening-20260920
+      - main
   pull_request:
     branches:
       - main
