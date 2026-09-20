@@ -14,9 +14,13 @@ const index = read("index.html");
 const setup = read("setup.html");
 
 function metaCsp(html){
-  const m = html.match(/<meta[^>]+http-equiv=["']Content-Security-Policy["'][^>]+content=["']([^"']*)["'][^>]*>/i)
-        || html.match(/<meta[^>]+content=["']([^"']*)["'][^>]+http-equiv=["']Content-Security-Policy["'][^>]*>/i);
-  return m ? m[1] : "";
+  const tags = html.match(/<meta\b[^>]*>/gi) || [];
+  for (const tag of tags) {
+    if (!/http-equiv\s*=\s*(["'])Content-Security-Policy\1/i.test(tag)) continue;
+    const m = tag.match(/content\s*=\s*(["'])([\s\S]*?)\1/i);
+    if (m) return m[2];
+  }
+  return "";
 }
 function inlineScripts(html){
   return (html.match(/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/gi) || []).length;
