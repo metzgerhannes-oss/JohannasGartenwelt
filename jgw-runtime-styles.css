@@ -1,0 +1,332 @@
+/* CSP-hardened static runtime styles. Extracted from legacy modules; order preserved. */
+
+/* --- jgw-ux-shell.js --- */
+:root{--jgw-radius:16px;--jgw-control:12px;--jgw-shadow:0 3px 12px rgba(65,77,59,.065)}
+body{padding-bottom:calc(78px + env(safe-area-inset-bottom) + var(--jgw-browser-bottom,0px))}
+.wrap{padding-bottom:18px}.head{border-radius:20px;box-shadow:var(--jgw-shadow);padding:18px 18px 12px}
+.box,.settings-section,.nature-card,.collection-card{border-radius:var(--jgw-radius)!important;box-shadow:var(--jgw-shadow)!important}
+.btn,.field input,.field select,.field textarea,.plant-search,.library-search{border-radius:var(--jgw-control)!important}.btn{box-shadow:none!important;min-height:44px}.btn.small{min-height:44px;font-size:12px;padding:9px 12px}
+.muted,.small,.field label,.chip,.collection-chip,.nature-chip,.eco-source,.reference-note{font-size:max(11px,.72rem)!important}.area-master-actions .btn,.area-delete-icon{min-width:44px!important;min-height:44px!important;height:44px!important}
+#legacyNavBridge{display:none!important}#quickAddPlant,#settingsGear{display:none!important}.syncmini{width:44px!important;min-width:44px!important;padding:0!important;justify-content:center;border-radius:50%!important}.syncmini-label,.seasonmark{display:none!important}
+.tabs{position:fixed!important;z-index:4300;left:0;right:0;bottom:var(--jgw-browser-bottom,0px);display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:0!important;padding:5px max(8px,env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))!important;background:rgba(255,253,249,.96)!important;border-top:1px solid var(--line);box-shadow:0 -5px 18px rgba(54,49,44,.08);backdrop-filter:blur(14px);overflow:visible!important}
+.tabs .tab{border:0!important;background:transparent!important;box-shadow:none!important;color:var(--muted)!important;border-radius:12px!important;min-height:52px!important;padding:5px 2px!important;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10.5px!important;line-height:1.05;font-weight:750;white-space:nowrap}.tabs .tab.active{color:var(--forest-dark)!important;background:#eef5e8!important}.tabs .navicon{width:22px;height:22px}.tabs .navicon svg{width:22px;height:22px}
+.jgw-fab{position:fixed;z-index:4400;right:18px;bottom:calc(76px + env(safe-area-inset-bottom) + var(--jgw-browser-bottom,0px));width:56px;height:56px;border:0;border-radius:50%;background:linear-gradient(135deg,#3f6844,#648766);color:#fff;display:grid;place-items:center;box-shadow:0 10px 24px rgba(63,104,68,.28);padding:0}.jgw-fab svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}.jgw-fab:active{transform:scale(.96)}
+.jgw-add-overlay{position:fixed;inset:0;z-index:6000;background:rgba(45,43,39,.36);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;padding:16px}.jgw-add-overlay.hidden{display:none!important}.jgw-add-sheet{width:min(620px,100%);background:var(--paper);border:1px solid var(--line);border-radius:22px;padding:14px;box-shadow:0 18px 50px rgba(40,40,35,.18)}.jgw-add-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 2px 10px}.jgw-add-head h3{margin:0}.jgw-add-close{width:44px;height:44px;border:1px solid var(--line);border-radius:50%;background:#fffdf9;color:var(--forest-dark);font-size:24px}.jgw-add-options{display:grid;gap:8px}.jgw-add-option{width:100%;min-height:70px;border:1px solid var(--line);border-radius:15px;background:#fffdf9;text-align:left;padding:12px 14px;display:grid;grid-template-columns:42px 1fr;gap:11px;align-items:center;color:var(--txt)}.jgw-add-option svg{width:28px;height:28px;fill:none;stroke:var(--forest-dark);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.jgw-add-option b{display:block;color:var(--forest-dark);font-size:15px}.jgw-add-option small{display:block;color:var(--muted);font-size:11px;margin-top:2px;line-height:1.35}
+#view-today>.box{margin-top:10px}.dashboard-task-box{margin-top:10px!important}.dashboard-task-box .dashboard-quick{display:none!important}.eco-compact-card{padding:14px!important}.eco-compact-stats{display:none!important}.eco-compact-score{font-size:28px!important}.eco-compact-recommend{margin-top:7px!important}.eco-compact-head .btn{min-height:40px!important}#ecoDashboard{display:none!important}
+.nature-head{padding:13px 14px!important}.nature-head .muted{margin-top:2px}.nature-tabs{margin-top:10px!important}.nature-tab{min-height:44px!important;padding:8px 12px!important}#newPlantBtn,#newHabitatBtn,#newAnimalBtn{display:none!important}#naturePlantsPane>.box:first-child .topline>.actions,#natureHabitatsPane>.box:first-child .library-toolbar>.actions,#natureAnimalsPane>.box:first-child .library-toolbar>.actions{width:100%}.plant-search,.library-search{width:100%!important;max-width:none!important;min-width:0!important;min-height:46px!important}
+.jgw-plant-tools{margin-top:10px;border:1px solid var(--line);border-radius:13px;background:#faf6ef;padding:0 11px}.jgw-plant-tools>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:12px}.jgw-plant-tools-inner{padding:0 0 11px;display:grid;gap:9px}.jgw-plant-tools .plant-toolbar{margin:0!important;padding:0!important;border:0!important}.jgw-plant-tools .plant-filters{padding:0!important;margin:0!important}
+.collection-grid{gap:9px!important}.collection-card{box-shadow:none!important}.collection-photo{aspect-ratio:4/3}.collection-body{padding:9px 10px 11px!important}.collection-name{font-size:15px!important;padding-right:0!important}.collection-latin{font-size:11px!important}.collection-chips,.insect-badge,.plant-add-one{display:none!important}.collection-status{font-size:11px!important}.favorite-plant{width:34px!important;height:34px!important}.plant-quantity-badge{min-width:26px!important;height:26px!important;font-size:11px!important}
+.plant-advanced{margin-top:12px;border:1px solid var(--line);border-radius:14px;background:#faf6ef;padding:0 12px}.plant-advanced>summary{min-height:46px;display:flex;align-items:center}.jgw-subgroup{border-top:1px solid #eee3d5;padding:0}.jgw-subgroup:first-of-type{border-top:0}.jgw-subgroup>summary{min-height:46px;display:flex;align-items:center;font-size:13px}.jgw-subgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;padding:0 0 12px}.jgw-subgrid .field.full{grid-column:1/-1}
+.jgw-native-photo-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;overflow:hidden!important}.jgw-photo-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.photo-preview{width:min(190px,45vw)!important;border-style:solid!important}.jgw-extra-actions{margin-top:10px;border-top:1px solid #eee3d5;padding-top:8px}.jgw-extra-actions>summary{min-height:44px;display:flex;align-items:center;font-size:12px}.jgw-extra-actions-body{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:4px}.jgw-simple-advanced{grid-column:1/-1;border:1px solid var(--line);border-radius:13px;background:#faf6ef;padding:0 11px}.jgw-simple-advanced>summary{min-height:44px;display:flex;align-items:center}.jgw-simple-advanced-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;padding:0 0 11px}.jgw-simple-advanced-body .field.full{grid-column:1/-1}
+.jgw-habitat-planning-title{grid-column:1/-1;margin-top:6px;padding:10px 3px 3px;border-top:1px solid #eee3d5;color:var(--forest-dark);font-weight:800;font-size:13px}
+.jgw-map-layers{display:flex;gap:6px;overflow-x:auto;padding:3px 0 9px;scrollbar-width:none}.jgw-map-layers::-webkit-scrollbar{display:none}.jgw-layer{min-height:40px;border:1px solid #dfd5c8;border-radius:999px;background:#fffdf9;color:var(--muted);font-size:11px;font-weight:800;padding:7px 11px;white-space:nowrap}.jgw-layer.on{background:#eef5e8;color:var(--forest-dark);border-color:#cfdcc8}#map.jgw-hide-plants .plant-marker:not(.plant-placement-marker){display:none!important}#map.jgw-hide-habitats .map-nature-marker:not(.map-animal-marker){display:none!important}#map.jgw-hide-animals .map-animal-marker{display:none!important}#map.jgw-hide-zones .leaflet-overlay-pane svg path{display:none!important}#fitGardenBtn{display:inline-flex!important}.mapbar .btn{min-height:44px}.legend{font-size:11px!important}
+.period[data-days="14"],.period[data-days="60"]{display:none!important}.jgw-weather-summary{margin-top:12px;padding:12px 13px;border:1px solid #dbe4d4;border-radius:14px;background:#f2f7ef;color:var(--forest-dark);font-size:14px;line-height:1.4}.jgw-weather-summary b{display:block;margin-bottom:2px}.grid .metric:has(#wEt0),.grid .metric:has(#wWet){display:none!important}#view-weather .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+@media(max-width:700px){.wrap{padding:10px}.head{padding:14px 13px 8px;margin-bottom:4px}.brand h1{font-size:24px!important}.jgw-fab{right:14px;bottom:calc(72px + env(safe-area-inset-bottom) + var(--jgw-browser-bottom,0px));width:54px;height:54px}.jgw-add-overlay{padding:8px}.jgw-add-sheet{border-radius:20px 20px 14px 14px}.state-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}.state-item{padding:8px!important}.state-item .state-value{font-size:12px!important}.collection-grid,.library-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.jgw-subgrid,.jgw-simple-advanced-body{grid-template-columns:1fr}.jgw-subgrid .field,.jgw-simple-advanced-body .field{grid-column:1!important}#view-weather .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.weathergrid{grid-template-columns:repeat(7,minmax(74px,1fr))!important;overflow-x:auto;padding-bottom:5px}.settings-sheet{padding-bottom:calc(95px + env(safe-area-inset-bottom))}}@media(max-width:370px){.tabs .tab{font-size:9.5px!important}.collection-grid{grid-template-columns:1fr!important}.state-grid{grid-template-columns:1fr!important}}
+
+@media(max-width:700px){
+  #plantList.collection-grid:not(.list-mode),#plantHighlights.collection-strip,#plantFavorites.collection-strip{align-items:stretch}
+  .collection-card{display:block!important;min-width:0!important;overflow:hidden!important}
+  .collection-card>.collection-photo{display:grid!important;width:100%!important;aspect-ratio:4/3!important;position:relative!important;overflow:hidden!important}
+  .collection-card>.collection-card-main{display:block!important;width:100%!important;min-width:0!important}
+  .collection-card .collection-body{display:block!important;width:100%!important;min-width:0!important;padding:9px 10px 11px!important}
+  .collection-card .collection-name{display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2;white-space:normal!important;overflow:hidden!important;text-overflow:clip!important;overflow-wrap:anywhere!important;word-break:normal!important;min-height:2.36em!important;max-height:2.36em!important;font-size:15px!important;line-height:1.18!important;padding:0!important;margin:0!important}
+  .collection-card .collection-latin{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;margin-top:3px!important}
+  .collection-card .insect-badge{display:inline-flex!important;align-items:center!important;position:absolute!important;right:7px!important;top:7px!important;left:auto!important;bottom:auto!important;font-size:10px!important;padding:4px 7px!important}
+  .collection-card .favorite-plant{display:grid!important;position:absolute!important;left:7px!important;top:7px!important;right:auto!important;bottom:auto!important;width:32px!important;height:32px!important}
+  .collection-card .plant-add-one{display:grid!important;position:absolute!important;right:7px!important;bottom:7px!important;top:auto!important;left:auto!important;min-width:38px!important;height:30px!important;padding:0 9px!important}
+  .collection-card .plant-quantity-badge{position:absolute!important;left:7px!important;right:auto!important;bottom:7px!important;top:auto!important}
+  .collection-card .collection-chips{display:none!important}
+}
+
+/* --- jgw-library-v4.js --- */
+.jgw-today-advice{background:linear-gradient(135deg,#f7f5e9,#eef5e8);border:1px solid #dde5ce}.jgw-today-advice h3{margin:0 0 4px}.jgw-today-advice .jgw-advice-main{font-size:14px;line-height:1.45;color:#53614a}.jgw-today-advice .actions{margin-top:10px}.jgw-advice-layout{display:grid;grid-template-columns:112px minmax(0,1fr);gap:14px;align-items:stretch}.jgw-advice-photo{position:relative;min-height:112px;border-radius:15px;overflow:hidden;display:grid;place-items:center;background:linear-gradient(145deg,#e7f0e2,#f5e8ea);border:1px solid #d8e2d0;font-size:42px;color:var(--forest-dark)}.jgw-advice-photo img{width:100%;height:100%;min-height:112px;object-fit:cover;display:block}.jgw-advice-source{position:absolute;right:5px;bottom:5px;border-radius:999px;padding:3px 6px;background:rgba(38,54,38,.74);color:#fff;font-size:8px;font-weight:800;line-height:1;backdrop-filter:blur(4px)}.jgw-advice-copy{min-width:0;display:flex;flex-direction:column;justify-content:center}.jgw-advice-copy .actions{margin-top:9px}@media(max-width:520px){.jgw-advice-layout{grid-template-columns:92px minmax(0,1fr);gap:11px}.jgw-advice-photo,.jgw-advice-photo img{min-height:98px}.jgw-advice-photo{font-size:36px}.jgw-today-advice h3{font-size:18px}.jgw-today-advice .jgw-advice-main{font-size:13px}}
+.jgw-library-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}.jgw-library-switch{display:grid;grid-template-columns:1fr 1fr;width:100%;padding:3px;border:1px solid #dfd4c7;border-radius:13px;background:#f2ebe3}.jgw-library-switch button{min-height:44px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-weight:800}.jgw-library-switch button.active{background:#fffdf9;color:var(--forest-dark);box-shadow:0 1px 5px rgba(54,49,44,.07)}
+.jgw-library-toolbar{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:12px}.jgw-library-search{width:100%;min-height:46px;border:1px solid #ddcfc0;border-radius:12px;padding:10px 12px;background:#fffdf9;color:var(--txt)}.jgw-library-filters{display:flex;gap:6px;overflow-x:auto;padding:10px 0 1px;scrollbar-width:none}.jgw-library-filters::-webkit-scrollbar{display:none}.jgw-library-filter{min-height:40px;border:1px solid #e1d6c9;background:#fffdf9;color:var(--muted);padding:7px 10px;border-radius:999px;white-space:nowrap;font-size:11px;font-weight:800}.jgw-library-filter.active{background:var(--forest);border-color:var(--forest);color:#fff}.jgw-library-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}.jgw-library-card{position:relative;padding:0;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fffdf9;text-align:left;color:inherit;box-shadow:0 3px 12px rgba(65,77,59,.065)}.jgw-library-photo{aspect-ratio:4/3;background:linear-gradient(145deg,#edf4e8,#f8ecee);display:grid;place-items:center;font-size:42px;overflow:hidden}.jgw-library-photo img{width:100%;height:100%;object-fit:cover}.jgw-library-body{padding:10px}.jgw-library-name{font:700 16px/1.15 Georgia,"Times New Roman",serif;color:var(--forest-dark)}.jgw-library-latin{font-size:11px;color:var(--muted);font-style:italic;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.jgw-library-meta{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.jgw-library-chip{font-size:11px;font-weight:750;padding:4px 6px;border-radius:999px;background:#eef5e8;border:1px solid #d7e4d0;color:#52664d}.jgw-library-owned{position:absolute;left:7px;top:7px;background:rgba(63,104,68,.92);color:#fff;border-radius:999px;padding:5px 7px;font-size:10px;font-weight:800}.jgw-library-empty{grid-column:1/-1;padding:26px 16px;text-align:center;border:1px dashed #dcd1c4;border-radius:14px;color:var(--muted);background:#fffdf9}.jgw-library-note{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.4}.jgw-detail-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.jgw-detail-fact{padding:9px;border-radius:11px;background:#f7f1e8}.jgw-detail-fact span{display:block;font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase}.jgw-detail-fact b{display:block;font-size:12px;color:var(--forest-dark);margin-top:2px}
+@media(max-width:700px){.jgw-library-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.jgw-library-toolbar{grid-template-columns:1fr}.jgw-library-toolbar .btn{width:100%}.jgw-library-name{font-size:15px}}@media(max-width:370px){.jgw-library-grid{grid-template-columns:1fr}}
+
+/* --- jgw-ux-patch.js --- */
+.jgw-settings-group{margin-top:12px;border:0;padding:0;background:transparent}.jgw-settings-group>summary{min-height:52px;display:flex;align-items:center;padding:0 14px;border:1px solid var(--line);border-radius:15px;background:#f5efe7;color:var(--forest-dark);font-size:15px;font-weight:800}.jgw-settings-group[open]>summary{border-radius:15px 15px 10px 10px;background:#eef5e8}.jgw-settings-group-body{padding-top:2px}.jgw-settings-group .settings-section{margin-top:9px}.eco-compact-recommend{display:none!important}#ecoDashboard.jgw-score-open{display:block!important}.jgw-today-kicker{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+
+/* --- jgw-ui-cleanup-20260914.js --- */
+/* Kompakter Regenhinweis */
+.jgw-yesterday-rain{
+  margin-top:8px!important;
+  padding:9px 11px!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:8px!important;
+  border-radius:14px!important;
+  box-shadow:none!important;
+}
+.jgw-yesterday-rain b{font-size:15px!important;line-height:1.2!important}
+.jgw-yesterday-rain .muted{font-size:11px!important;line-height:1.25!important;margin-top:2px!important}
+.jgw-yesterday-rain .muted[style*="font-size:11px"]{display:none!important}
+.jgw-yesterday-rain .jgw-rain-correct-btn{min-height:34px!important;height:34px!important;padding:5px 9px!important;font-size:10.5px!important;white-space:nowrap!important}
+
+/* Dezenter schwebender Hinzufügen-Button */
+.jgw-fab{
+  width:48px!important;
+  height:48px!important;
+  right:13px!important;
+  bottom:calc(82px + env(safe-area-inset-bottom) + var(--jgw-browser-bottom,0px))!important;
+  box-shadow:0 7px 18px rgba(63,104,68,.22)!important;
+}
+.jgw-fab svg{width:23px!important;height:23px!important}
+
+/* Alle Pflanzen: mobile Karten wirklich auf dem echten #plantList */
+@media(max-width:700px){
+  #plantList.collection-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:9px!important;
+  }
+  #plantList .collection-card{
+    display:block!important;
+    grid-template-columns:none!important;
+    grid-template-rows:none!important;
+    flex-direction:column!important;
+    flex-wrap:nowrap!important;
+    align-items:stretch!important;
+    min-width:0!important;
+    min-height:0!important;
+    overflow:hidden!important;
+  }
+  #plantList .collection-photo{
+    display:grid!important;
+    width:100%!important;
+    height:auto!important;
+    aspect-ratio:16/10!important;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    border-radius:0!important;
+    position:relative!important;
+    overflow:hidden!important;
+  }
+  #plantList .collection-photo>.collection-card-main{
+    display:block!important;
+    width:100%!important;
+    height:100%!important;
+  }
+  #plantList .collection-photo img{
+    width:100%!important;
+    height:100%!important;
+    object-fit:cover!important;
+  }
+  #plantList .collection-card>button.collection-card-main{
+    display:block!important;
+    width:100%!important;
+    min-width:0!important;
+    grid-column:auto!important;
+    grid-row:auto!important;
+  }
+  #plantList .collection-body{
+    display:block!important;
+    width:100%!important;
+    min-width:0!important;
+    padding:8px 9px 10px!important;
+  }
+  #plantList .collection-name{
+    display:-webkit-box!important;
+    -webkit-box-orient:vertical!important;
+    -webkit-line-clamp:2!important;
+    overflow:hidden!important;
+    white-space:normal!important;
+    text-overflow:clip!important;
+    overflow-wrap:anywhere!important;
+    font-size:14px!important;
+    line-height:1.15!important;
+    min-height:2.3em!important;
+    color:var(--forest-dark)!important;
+    font-weight:800!important;
+    padding:0!important;
+    margin:0!important;
+  }
+  #plantList .collection-latin{
+    display:block!important;
+    margin-top:3px!important;
+    font-size:9.5px!important;
+    line-height:1.2!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  #plantList .collection-area{
+    display:block!important;
+    margin-top:3px!important;
+    font-size:10px!important;
+    line-height:1.2!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  #plantList .collection-status{
+    display:block!important;
+    margin-top:4px!important;
+    font-size:10px!important;
+    line-height:1.2!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  #plantList .collection-chips{display:none!important}
+  #plantList .collection-card-name-mobile{display:none!important}
+
+  /* Aktionen kompakt auf dem Foto */
+  #plantList .insect-badge{
+    display:flex!important;
+    align-items:center!important;
+    position:absolute!important;
+    left:6px!important;
+    top:6px!important;
+    right:auto!important;
+    bottom:auto!important;
+    min-height:25px!important;
+    padding:3px 7px!important;
+    border-radius:999px!important;
+    font-size:10.5px!important;
+    line-height:1!important;
+    z-index:6!important;
+    background:rgba(255,253,249,.92)!important;
+    color:var(--forest-dark)!important;
+    border:1px solid rgba(255,255,255,.82)!important;
+    box-shadow:0 2px 7px rgba(54,49,44,.12)!important;
+    backdrop-filter:blur(4px)!important;
+  }
+  #plantList .favorite-plant{
+    display:grid!important;
+    place-items:center!important;
+    position:absolute!important;
+    right:6px!important;
+    top:6px!important;
+    left:auto!important;
+    bottom:auto!important;
+    width:30px!important;
+    height:30px!important;
+    min-width:30px!important;
+    min-height:30px!important;
+    font-size:18px!important;
+    z-index:7!important;
+  }
+  #plantList .plant-add-one{
+    display:grid!important;
+    place-items:center!important;
+    position:absolute!important;
+    right:6px!important;
+    bottom:6px!important;
+    top:auto!important;
+    left:auto!important;
+    width:32px!important;
+    min-width:32px!important;
+    height:28px!important;
+    min-height:28px!important;
+    padding:0!important;
+    border-radius:999px!important;
+    font-size:11px!important;
+    z-index:7!important;
+  }
+  #plantList .plant-quantity-badge{
+    left:6px!important;
+    bottom:6px!important;
+    right:auto!important;
+    top:auto!important;
+    min-width:25px!important;
+    height:25px!important;
+    font-size:10px!important;
+    z-index:7!important;
+  }
+}
+
+/* --- jgw-mobile-fix-v5.js --- */
+@media(max-width:700px){
+  .state-item{min-width:0!important}
+  .state-item .state-label{white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.08!important}
+  #naturePlantsPane>.box:first-child .topline>.actions{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 44px!important;
+    gap:8px!important;
+    align-items:center!important;
+    width:100%!important;
+  }
+  #naturePlantsPane #plantSearch{
+    grid-column:1!important;
+    width:100%!important;
+    min-width:0!important;
+  }
+  #naturePlantsPane #newPlantBtn{
+    display:grid!important;
+    place-items:center!important;
+    grid-column:2!important;
+    width:44px!important;
+    min-width:44px!important;
+    height:44px!important;
+    min-height:44px!important;
+    padding:0!important;
+    border-radius:50%!important;
+    font-size:0!important;
+  }
+  #naturePlantsPane #newPlantBtn::before{
+    content:"+";
+    font-size:24px!important;
+    line-height:1!important;
+  }
+  body.jgw-plants-active .jgw-fab{display:none!important}
+  #plantList.list-mode .plant-list-main b{
+    white-space:normal!important;
+    display:-webkit-box!important;
+    -webkit-box-orient:vertical!important;
+    -webkit-line-clamp:2!important;
+    overflow:hidden!important;
+    line-height:1.15!important;
+  }
+}
+
+/* --- jgw-hardiness-v2.js --- */
+.jgw-hardiness-card{border:1px solid var(--line);border-radius:15px;padding:12px;background:#f7faf8}
+.jgw-hardiness-card.ok{background:#eef6eb;border-color:#d1e2cb}.jgw-hardiness-card.warn{background:#fff5df;border-color:#ead6a5}.jgw-hardiness-card.bad{background:#faece7;border-color:#e6c7bd}.jgw-hardiness-card.info{background:#f3f5f0;border-color:#dce3d6}
+.jgw-hardiness-head{display:grid;grid-template-columns:42px minmax(0,1fr);gap:10px;align-items:center}.jgw-hardiness-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:24px;font-weight:900;background:#fff;color:var(--forest-dark);border:1px solid rgba(80,100,72,.12)}
+.jgw-hardiness-card.ok .jgw-hardiness-icon{background:#4f8959;color:#fff}.jgw-hardiness-card.warn .jgw-hardiness-icon{background:#d0a13e;color:#fff}.jgw-hardiness-card.bad .jgw-hardiness-icon{background:#b7675d;color:#fff}.jgw-hardiness-card.info .jgw-hardiness-icon{background:#7e9278;color:#fff}
+.jgw-hardiness-title{font-weight:850;color:var(--forest-dark);line-height:1.25}.jgw-hardiness-sub{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}
+.jgw-hardiness-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.jgw-hardiness-kv{padding:9px;border-radius:11px;background:rgba(255,255,255,.68);border:1px solid rgba(120,110,95,.08)}.jgw-hardiness-kv span{display:block;font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}.jgw-hardiness-kv b{display:block;margin-top:3px;color:#5d5349;font-size:12px}
+.jgw-hardiness-note{font-size:11px;color:var(--muted);line-height:1.45;margin-top:9px}.jgw-hardiness-loading{font-size:12px;color:var(--muted);padding:3px 0}.jgw-hardiness-source{font-size:9.5px;color:var(--muted);line-height:1.35;margin-top:7px}
+@media(max-width:420px){.jgw-hardiness-grid{grid-template-columns:1fr 1fr}.jgw-hardiness-head{grid-template-columns:38px minmax(0,1fr)}.jgw-hardiness-icon{width:38px;height:38px;border-radius:11px;font-size:21px}}
+
+/* --- garten-tipps.js --- */
+@media(max-width:700px){
+  .state-grid{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr) minmax(0,1fr)!important;gap:7px!important}
+  .state-item{padding:10px 8px!important;min-width:0!important}
+  .state-item .state-label{font-size:9px!important;letter-spacing:.035em!important;line-height:1.1!important;white-space:nowrap!important}
+  .state-item .state-value{font-size:13px!important;line-height:1.25!important;overflow-wrap:anywhere}
+  #view-calendar .dashboard-task-box{padding:15px!important;border-radius:18px!important;background:rgba(255,253,249,.98)!important;border-color:#e6dbcf!important;box-shadow:0 4px 14px rgba(65,77,59,.055)!important}
+  #view-calendar .dashboard-task-box>.topline{align-items:flex-start!important;flex-wrap:nowrap!important;gap:10px!important;margin-bottom:10px!important}
+  #view-calendar .dashboard-task-box>.topline>div{min-width:0}
+  #view-calendar .dashboard-task-box h3{font-size:23px!important;line-height:1.05!important;margin:0 0 4px!important}
+  #view-calendar .dashboard-task-box .topline .muted{font-size:12px!important;line-height:1.35!important}
+  #view-calendar .dashboard-task-count{flex:0 0 auto!important;min-width:auto!important;padding:7px 10px!important;border-radius:999px!important;background:#eef5e8!important;color:var(--forest-dark)!important;font-size:11px!important;font-weight:850!important;line-height:1!important;white-space:nowrap!important}
+  #view-calendar .tasklist{gap:8px!important}
+  #view-calendar .task{display:grid!important;grid-template-columns:40px minmax(0,1fr)!important;grid-auto-rows:auto!important;gap:8px 10px!important;align-items:start!important;padding:12px!important;border-radius:15px!important;min-width:0!important;box-shadow:none!important}
+  #view-calendar .task.bad{background:#fff8f5!important;border-color:#ead9d1!important;box-shadow:inset 3px 0 0 #cc8f7b!important}
+  #view-calendar .task.warn{background:#fffaf0!important;border-color:#eadfca!important;box-shadow:inset 3px 0 0 #d5ad61!important}
+  #view-calendar .task.ok{background:#f6faf3!important;border-color:#dce7d6!important;box-shadow:inset 3px 0 0 #82a477!important}
+  #view-calendar .taskicon{grid-column:1!important;grid-row:1!important;width:40px!important;height:40px!important;border-radius:12px!important;display:grid!important;place-items:center!important;background:rgba(255,255,255,.78)!important;border:1px solid rgba(90,100,80,.09)!important;font-size:19px!important;line-height:1!important}
+  #view-calendar .task>div:nth-child(2){grid-column:2!important;grid-row:1!important;min-width:0!important}
+  #view-calendar .task b{display:block!important;font-size:15px!important;line-height:1.28!important;color:var(--txt)!important;overflow-wrap:normal!important;word-break:normal!important;hyphens:auto}
+  #view-calendar .task .why{margin-top:4px!important;font-size:12px!important;line-height:1.42!important;color:var(--muted)!important}
+  #view-calendar .task>.jgw-moisture-feedback{grid-column:2!important;width:auto!important;margin:0!important;font-size:11px!important;line-height:1.35!important}
+  #view-calendar .task>.actions{grid-column:2!important;width:100%!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:7px!important;margin:0!important}
+  #view-calendar .task>.actions .btn{width:100%!important;min-height:40px!important;padding:8px 10px!important;font-size:11.5px!important}
+  #view-calendar .empty{padding:16px 8px!important}
+  #view-calendar .jgw-task-bulk-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:7px!important;margin:0 0 10px!important}
+  #view-calendar .jgw-task-bulk-actions .btn{width:100%!important;min-height:40px!important;padding:8px 10px!important;font-size:11.5px!important}
+}
+@media(max-width:370px){
+  .state-grid{gap:5px!important}.state-item{padding:9px 6px!important}.state-item .state-label{font-size:8.5px!important;letter-spacing:.02em!important}.state-item .state-value{font-size:12px!important}
+  #view-calendar .dashboard-task-box{padding:13px!important}
+  #view-calendar .task{grid-template-columns:36px minmax(0,1fr)!important;padding:10px!important;gap:7px 9px!important}
+  #view-calendar .taskicon{width:36px!important;height:36px!important;border-radius:11px!important;font-size:17px!important}
+}
+.jgw-task-bulk-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.jgw-task-bulk-actions .btn{box-shadow:none}
+
+/* --- jgw-care-calendar-v1.js --- */
+.jgw-care-item{border-top:1px solid #efe6db;padding:8px 0}.jgw-care-item:first-of-type{border-top:0}.jgw-care-item summary{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px;align-items:center;list-style:none;cursor:pointer}.jgw-care-item summary::-webkit-details-marker{display:none}.jgw-care-icon{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:#f5eee6}.jgw-care-item b{display:block;font-size:13px;color:var(--forest-dark)}.jgw-care-item small{display:block;margin-top:2px;color:var(--muted);font-size:10px}.jgw-care-detail{padding:8px 0 2px 38px;font-size:11px;line-height:1.45;color:var(--muted)}.jgw-care-detail>div+div{margin-top:5px}.jgw-care-source{font-size:9.5px!important;opacity:.86}.jgw-auto-calendar{padding:12px 0 14px;border-bottom:1px solid #eee3d8;margin-bottom:11px}.jgw-calendar-security{margin-top:10px}.jgw-calendar-security summary{font-size:11px}.jgw-calendar-url-label{font-size:10px;font-weight:700;color:var(--forest-dark);margin-top:12px;margin-bottom:5px}.jgw-calendar-url-wrap{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center}.jgw-calendar-url-input{min-width:0;width:100%;box-sizing:border-box;border:1px solid #ddd0c2;border-radius:9px;background:#fffdf9;padding:8px 9px;font-size:10px;color:var(--forest-dark);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}@media(max-width:520px){.jgw-calendar-url-wrap{grid-template-columns:1fr}.jgw-calendar-url-wrap .btn{width:100%}}
+
