@@ -4,7 +4,7 @@ if(window.__jgwCareCalendarV1)return;window.__jgwCareCalendarV1=true;
 
 var SYNC_KEY="johannas_gartenwelt_sync_v1";
 var MONTHS_LONG=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-var expanded=false,rendering=false,scheduled=false;
+var expanded=false,rendering=false,scheduled=false,feedUrlCache={key:"",url:""};
 
 function el(id){return document.getElementById(id)}
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]})}
@@ -140,17 +140,81 @@ function configured(c){return /^https:\/\/[^/]+\.supabase\.co$/i.test(String(c.u
 async function sha256Hex(s){var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
 async function rpc(c,fn,args){var r=await fetch(String(c.url).replace(/\/+$/,"")+"/rest/v1/rpc/"+fn,{method:"POST",headers:{"apikey":c.key,"Content-Type":"application/json"},body:JSON.stringify(args||{})}),txt=await r.text(),d=null;try{d=txt?JSON.parse(txt):null}catch(e){d=txt}if(!r.ok)throw new Error(d&&d.message?d.message:"HTTP "+r.status);if(Array.isArray(d)&&d.length===1)d=d[0];return d}
 async function syncSecret(c){if(/^[a-f0-9]{64}$/i.test(String(c.secretHash||"")))return String(c.secretHash).toLowerCase();if(String(c.pin||"").length<6)throw new Error("Geräteschlüssel fehlt.");var h=await sha256Hex(String(c.gardenId).trim().toLowerCase()+"|"+String(c.pin));c.secretHash=h;delete c.pin;try{localStorage.setItem(SYNC_KEY,JSON.stringify(c))}catch(e){}return h}
-async function feedUrl(rotate){var c=readSync();if(!configured(c))throw new Error("Geräte-Synchronisierung ist noch nicht vollständig eingerichtet.");var secret=await syncSecret(c),fn=rotate?"jgw_rotate_calendar_token":"jgw_get_calendar_token",d=await rpc(c,fn,{p_garden_id:String(c.gardenId).trim().toLowerCase(),p_secret_hash:secret});if(!d||d.ok!==true||!d.calendar_token)throw new Error("Kalenderzugang konnte nicht erzeugt werden.");return String(c.url).replace(/\/+$/,"")+"/functions/v1/jgw-calendar?token="+encodeURIComponent(d.calendar_token)}
-function ensureAutoCalendar(){
-  var tools=document.querySelector(".calendar-tools");if(!tools)return;var box=document.querySelector(".jgw-auto-calendar");if(!box){box=document.createElement("div");box.className="jgw-auto-calendar";var summary=tools.querySelector("summary");if(summary&&summary.nextSibling)tools.insertBefore(box,summary.nextSibling);else tools.appendChild(box)}var c=readSync();
-  if(!configured(c)){box.innerHTML='<div class="label">Automatischer Kalender</div><div class="muted" style="margin-top:5px">Für einen automatisch aktualisierten Pflegekalender zuerst die Geräte-Synchronisierung unter Einstellungen verbinden.</div>';return}
-  box.innerHTML='<div class="label">Automatischer Kalender</div><div class="muted" style="margin-top:5px">Einmal abonnieren. Änderungen an Pflanzen und Pflegefenstern werden danach automatisch beim Kalender-Abruf übernommen – wie beim Abfallkalender.</div><div class="actions" style="margin-top:9px"><button class="btn small jgw-subscribe-care" type="button">Pflegekalender abonnieren</button><button class="btn secondary small jgw-copy-care" type="button">Kalender-Link kopieren</button></div><details class="jgw-calendar-security"><summary>Kalenderzugang</summary><div class="muted" style="margin-top:6px">Der Kalender-Link enthält einen eigenen langen Zugriffsschlüssel, aber weder Garten-PIN noch API-Schlüssel. Wer den Link kennt, kann die gruppierten Pflegetermine sehen.</div><button class="btn ghost small jgw-reset-care" style="margin-top:8px" type="button">Kalender-Link zurücksetzen</button></details>';
-  var sub=box.querySelector(".jgw-subscribe-care"),copy=box.querySelector(".jgw-copy-care"),reset=box.querySelector(".jgw-reset-care");
-  sub.addEventListener("click",async function(){sub.disabled=true;sub.textContent="Kalender wird vorbereitet …";try{var u=await feedUrl(false);location.href=u.replace(/^https:/i,"webcal:")}catch(e){alert(e.message||String(e))}finally{sub.disabled=false;sub.textContent="Pflegekalender abonnieren"}});
-  copy.addEventListener("click",async function(){copy.disabled=true;try{var u=await feedUrl(false);await navigator.clipboard.writeText(u);copy.textContent="Link kopiert ✓";setTimeout(function(){copy.textContent="Kalender-Link kopieren"},1800)}catch(e){alert(e.message||String(e))}finally{copy.disabled=false}});
-  reset.addEventListener("click",async function(){if(!confirm("Der bisherige Kalender-Link funktioniert danach nicht mehr. Neuen Link erzeugen?"))return;reset.disabled=true;try{var u=await feedUrl(true);if(navigator.clipboard)await navigator.clipboard.writeText(u);alert("Neuer Kalender-Link erzeugt. Der alte Link ist ungültig. Der neue Link wurde kopiert.")}catch(e){alert(e.message||String(e))}finally{reset.disabled=false}})
+async function feedUrl(rotate){
+  var c=readSync();
+  if(!configured(c))throw new Error("Geräte-Synchronisierung ist noch nicht vollständig eingerichtet.");
+  var cacheKey=String(c.url||"").replace(/\\\/+$/,"")+"|"+String(c.gardenId||"").trim().toLowerCase();
+  if(!rotate&&feedUrlCache.key===cacheKey&&feedUrlCache.url)return feedUrlCache.url;
+  var secret=await syncSecret(c),fn=rotate?"jgw_rotate_calendar_token":"jgw_get_calendar_token";
+  var d=await rpc(c,fn,{p_garden_id:String(c.gardenId).trim().toLowerCase(),p_secret_hash:secret});
+  if(!d||d.ok!==true||!d.calendar_token)throw new Error("Kalenderzugang konnte nicht erzeugt werden.");
+  var url=String(c.url).replace(/\\\/+$/,"")+"/functions/v1/jgw-calendar?token="+encodeURIComponent(d.calendar_token);
+  feedUrlCache={key:cacheKey,url:url};
+  return url;
 }
-function installStyle(){if(el("jgw-care-calendar-style"))return;var s=document.createElement("style");s.id="jgw-care-calendar-style";s.textContent=".jgw-care-item{border-top:1px solid #efe6db;padding:8px 0}.jgw-care-item:first-of-type{border-top:0}.jgw-care-item summary{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px;align-items:center;list-style:none;cursor:pointer}.jgw-care-item summary::-webkit-details-marker{display:none}.jgw-care-icon{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:#f5eee6}.jgw-care-item b{display:block;font-size:13px;color:var(--forest-dark)}.jgw-care-item small{display:block;margin-top:2px;color:var(--muted);font-size:10px}.jgw-care-detail{padding:8px 0 2px 38px;font-size:11px;line-height:1.45;color:var(--muted)}.jgw-care-detail>div+div{margin-top:5px}.jgw-care-source{font-size:9.5px!important;opacity:.86}.jgw-auto-calendar{padding:12px 0 14px;border-bottom:1px solid #eee3d8;margin-bottom:11px}.jgw-calendar-security{margin-top:10px}.jgw-calendar-security summary{font-size:11px}";document.head.appendChild(s)}
+function copyCalendarUrl(url,input,button){
+  function done(){if(button){var old=button.textContent;button.textContent="Kopiert ✓";setTimeout(function(){button.textContent=old},1800)}}
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(url).then(done);
+  }
+  if(input){input.focus();input.select();input.setSelectionRange(0,input.value.length)}
+  try{document.execCommand("copy");done();return Promise.resolve()}catch(e){return Promise.reject(e)}
+}
+function ensureAutoCalendar(){
+  var tools=document.querySelector(".calendar-tools");if(!tools)return;
+  var box=document.querySelector(".jgw-auto-calendar");
+  if(!box){
+    box=document.createElement("div");box.className="jgw-auto-calendar";
+    var summary=tools.querySelector("summary");
+    if(summary&&summary.nextSibling)tools.insertBefore(box,summary.nextSibling);else tools.appendChild(box)
+  }
+  var c=readSync();
+  if(!configured(c)){
+    box.innerHTML='<div class="label">Automatischer Kalender · Dæly</div><div class="muted" style="margin-top:5px">Für den automatisch aktualisierten Pflegekalender zuerst die Geräte-Synchronisierung unter Einstellungen verbinden.</div>';
+    return
+  }
+  box.innerHTML='<div class="label">Automatischer Kalender · Dæly</div>'+
+    '<div class="muted" style="margin-top:5px">Monatliche Pflege-To-dos werden automatisch nach Tätigkeit und Pflanzengruppe gebündelt. Gießen bleibt bewusst außerhalb des Kalenders.</div>'+
+    '<div class="jgw-calendar-url-label">URL für Dæly</div>'+
+    '<div class="jgw-calendar-url-wrap"><input class="jgw-calendar-url-input" type="text" readonly value="Kalender-URL wird geladen …" aria-label="Kalender-URL für Dæly"><button class="btn secondary small jgw-copy-care" type="button">URL kopieren</button></div>'+
+    '<div class="actions" style="margin-top:9px"><button class="btn small jgw-subscribe-care" type="button">Kalender abonnieren</button></div>'+
+    '<details class="jgw-calendar-security"><summary>Kalenderzugang</summary><div class="muted" style="margin-top:6px">Der sichtbare Link enthält einen eigenen langen Zugriffsschlüssel, aber weder Garten-PIN noch API-Schlüssel. Wer den Link kennt, kann die gruppierten Pflegetermine sehen.</div><button class="btn ghost small jgw-reset-care" style="margin-top:8px" type="button">Kalender-Link zurücksetzen</button></details>';
+
+  var sub=box.querySelector(".jgw-subscribe-care"),
+      copy=box.querySelector(".jgw-copy-care"),
+      reset=box.querySelector(".jgw-reset-care"),
+      input=box.querySelector(".jgw-calendar-url-input");
+
+  function showUrl(u){if(input){input.value=u;input.title=u}}
+  function showError(e){if(input){input.value="Kalender-URL konnte nicht geladen werden";input.title=e&&e.message?e.message:String(e)}}
+
+  feedUrl(false).then(showUrl).catch(showError);
+
+  sub.addEventListener("click",async function(){
+    sub.disabled=true;sub.textContent="Kalender wird vorbereitet …";
+    try{var u=await feedUrl(false);showUrl(u);location.href=u.replace(/^https:/i,"webcal:")}
+    catch(e){alert(e.message||String(e))}
+    finally{sub.disabled=false;sub.textContent="Kalender abonnieren"}
+  });
+
+  copy.addEventListener("click",async function(){
+    copy.disabled=true;
+    try{var u=await feedUrl(false);showUrl(u);await copyCalendarUrl(u,input,copy)}
+    catch(e){alert(e.message||String(e))}
+    finally{copy.disabled=false}
+  });
+
+  reset.addEventListener("click",async function(){
+    if(!confirm("Der bisherige Kalender-Link funktioniert danach nicht mehr. Neuen Link erzeugen?"))return;
+    reset.disabled=true;
+    try{
+      var u=await feedUrl(true);showUrl(u);await copyCalendarUrl(u,input,null);
+      alert("Neuer Kalender-Link erzeugt. Der alte Link ist ungültig. Die neue Dæly-URL wird angezeigt und wurde kopiert.")
+    }catch(e){alert(e.message||String(e))}
+    finally{reset.disabled=false}
+  })
+}
+function installStyle(){if(el("jgw-care-calendar-style"))return;var s=document.createElement("style");s.id="jgw-care-calendar-style";s.textContent=".jgw-care-item{border-top:1px solid #efe6db;padding:8px 0}.jgw-care-item:first-of-type{border-top:0}.jgw-care-item summary{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px;align-items:center;list-style:none;cursor:pointer}.jgw-care-item summary::-webkit-details-marker{display:none}.jgw-care-icon{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:#f5eee6}.jgw-care-item b{display:block;font-size:13px;color:var(--forest-dark)}.jgw-care-item small{display:block;margin-top:2px;color:var(--muted);font-size:10px}.jgw-care-detail{padding:8px 0 2px 38px;font-size:11px;line-height:1.45;color:var(--muted)}.jgw-care-detail>div+div{margin-top:5px}.jgw-care-source{font-size:9.5px!important;opacity:.86}.jgw-auto-calendar{padding:12px 0 14px;border-bottom:1px solid #eee3d8;margin-bottom:11px}.jgw-calendar-security{margin-top:10px}.jgw-calendar-security summary{font-size:11px}.jgw-calendar-url-label{font-size:10px;font-weight:700;color:var(--forest-dark);margin-top:12px;margin-bottom:5px}.jgw-calendar-url-wrap{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center}.jgw-calendar-url-input{min-width:0;width:100%;box-sizing:border-box;border:1px solid #ddd0c2;border-radius:9px;background:#fffdf9;padding:8px 9px;font-size:10px;color:var(--forest-dark);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}@media(max-width:520px){.jgw-calendar-url-wrap{grid-template-columns:1fr}.jgw-calendar-url-wrap .btn{width:100%}}";document.head.appendChild(s)}
 function start(){installStyle();var grid=el("calendarGrid"),toggle=el("calendarToggle");if(toggle)toggle.addEventListener("click",function(){expanded=!expanded;setTimeout(schedule,0)},true);if(grid)new MutationObserver(function(){if(grid.dataset.jgwCareRendering==="1"||rendering)return;schedule()}).observe(grid,{childList:true,subtree:true});document.querySelectorAll('.tab[data-view="calendar"]').forEach(function(b){b.addEventListener("click",function(){setTimeout(schedule,40)})});schedule()}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",start,{once:true});else start();
 window.addEventListener("load",schedule,{once:true});
