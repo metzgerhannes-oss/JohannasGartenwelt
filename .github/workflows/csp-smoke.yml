@@ -43,9 +43,22 @@ jobs:
           node --check jgw-task-bulk-v3.js
           node --check sw.js
           node --check setup.js
+          node --check vokabeltrainer/js/core.js
+          node --check vokabeltrainer/js/storage.js
+          node --check vokabeltrainer/js/model.js
+          node --check vokabeltrainer/js/learning.js
+          node --check vokabeltrainer/js/translation.js
+          node --check vokabeltrainer/js/io.js
+          node --check vokabeltrainer/js/ui.js
+          node --check vokabeltrainer/js/app.js
+          node --check vokabeltrainer/sw.js
+          node --check scripts/vokabeltrainer-sense-smoke.mjs
           node --check vendor/leaflet/leaflet-1.9.4.js
           node --check vendor/leaflet-draw/leaflet.draw-1.0.4.js
           node --check vendor/qrcode/qrcode-1.0.0.min.js
+
+      - name: Vokabeltrainer sense model smoke
+        run: node scripts/vokabeltrainer-sense-smoke.mjs
 
       - name: Install Playwright WebKit
         run: |
