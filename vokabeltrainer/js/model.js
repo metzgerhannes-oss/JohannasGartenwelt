@@ -65,10 +65,8 @@ function armyStrength(subject=state.activeSubject,schoolYear=currentSchoolYear()
 }
 const fortresses=[{id:'outpost',name:'Vorposten',req:15},{id:'tower',name:'Wachturm',req:30},{id:'wall',name:'Grenzfestung',req:50},{id:'citadel',name:'Zitadelle',req:70},{id:'capital',name:'Hauptfestung',req:85},{id:'final',name:'Jahresfestung',req:100}];
 function nextFortress(subject=state.activeSubject,schoolYear=currentSchoolYear()){const wins=fortressWins(subject,schoolYear);return fortresses.find(f=>!wins.includes(f.id))||null}
-function rankFor(pct,subject){
-  const latin=['Tiro','Miles','Contubernium','Centurie','Cohorte','Legion'];
-  const english=['Rekruten','Trupp','Kompanie','Bataillon','Regiment','Armee'];
-  const arr=subject==='latin'?latin:english; const i=Math.min(5,Math.floor(pct/20)); return arr[i];
+function rankFor(pct,subject=state.activeSubject){
+  const arr=subjectCampaign(subject).ranks||SUBJECT_META.english.campaign.ranks;const i=Math.min(arr.length-1,Math.floor(pct/20));return arr[i];
 }
 function gearFor(pct){return ['I','II','III','IV','V','VI'][Math.min(5,Math.floor(pct/18))]}
 function soldiersFor(pct){return clamp(2+Math.floor(pct/9),2,13)}
@@ -117,7 +115,7 @@ function upcomingTestContext(subject=state.activeSubject){
   if(!single)return recurring; if(!recurring)return single; return single.date<=recurring.date?single:recurring;
 }
 function uniqueById(list){const seen=new Set();return list.filter(x=>x&&!seen.has(x.id)&&seen.add(x.id))}
-function testContextLabel(ctx,subject=state.activeSubject){if(!ctx)return '';const subjectName=subject==='latin'?'Latein':'Englisch';const when=ctx.days===0?'heute':ctx.days===1?'morgen':`in ${ctx.days} Tagen`;const recurrence=ctx.source==='series'||ctx.source==='mixed'?` · wöchentlich ${WEEKDAYS_SHORT[Number(ctx.series?.weekday)||0]}`:'';return `${subjectName}-Test ${when}${recurrence} · ${ctx.scopeText||ctx.sets.map(s=>s.title).join(' + ')}`}
+function testContextLabel(ctx,subject=state.activeSubject){if(!ctx)return '';const subjectName=subjectLabel(subject);const when=ctx.days===0?'heute':ctx.days===1?'morgen':`in ${ctx.days} Tagen`;const recurrence=ctx.source==='series'||ctx.source==='mixed'?` · wöchentlich ${WEEKDAYS_SHORT[Number(ctx.series?.weekday)||0]}`:'';return `${subjectName}-Test ${when}${recurrence} · ${ctx.scopeText||ctx.sets.map(s=>s.title).join(' + ')}`}
 function dailyPlanSignature(ctx,subject,sessionSize){
   const words=(ctx?ctx.words:schoolYearWords(subject)).map(w=>w.id).sort().join(',');
   return `${VERSION}:${ctx?`test:${ctx.source||'single'}:${ctx.date}:${ctx.sets.map(s=>s.id).sort().join(',')}`:`general:${currentSchoolYear()}`}:${sessionSize}:${words}`;

@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = '0.9.14';
+const VERSION = '0.9.15';
 const STORAGE_KEY = 'vokabeltrainer_v07';
 const DB_NAME = 'vokabeltrainer-db';
 const DB_STORE = 'app-state';
@@ -27,24 +27,42 @@ const currentSchoolYear = () => {
 
 const defaultSkills = () => ({recognition:0,listening:0,retrieval:0,spelling:0,context:0});
 const defaultGradeScale = () => ({n1:90,n2:80,n3:65,n4:50,n5:25});
-const defaultGradeScales = () => ({english:defaultGradeScale(),latin:defaultGradeScale()});
 const SUBJECT_META = Object.freeze({
-  english:{id:'english',label:'Englisch',short:'EN',available:true},
-  latin:{id:'latin',label:'Latein',short:'LA',available:true},
-  french:{id:'french',label:'Französisch',short:'FR',available:false}
+  english:{id:'english',label:'Englisch',short:'EN',available:true,aliases:['en','englisch','english'],speechLang:'en-GB',ocrLang:'eng',lexicalProfile:'english',importProfile:'modern',ocrRepairProfile:'english',functionWords:['the','to','a','an','is','are','was','were','have','has','with','from','for','of','in','on','at','my','your','we','they','he','she'],capabilities:{hybridDictionary:true,latinGrammar:false,extraIdentity:false},campaign:{unitLabel:'Armee',title:'Deine Armee',eyebrow:'Kampagne',festive:'WINTERLAGER · DEZEMBER-SPEZIAL',ranks:['Rekruten','Trupp','Kompanie','Bataillon','Regiment','Armee']}},
+  latin:{id:'latin',label:'Latein',short:'LA',available:true,aliases:['la','latein','latin'],speechLang:'la',ocrLang:'lat',lexicalProfile:'latin',importProfile:'latin',ocrRepairProfile:'',functionWords:[],capabilities:{hybridDictionary:false,latinGrammar:true,extraIdentity:true},campaign:{unitLabel:'Legion',title:'Deine Legion',eyebrow:'Römische Kampagne',festive:'WINTERLAGER · SATURNALIA',ranks:['Tiro','Miles','Contubernium','Centurie','Cohorte','Legion']}},
+  french:{id:'french',label:'Französisch',short:'FR',available:false,aliases:['fr','französisch','franzoesisch','french','français','francais'],speechLang:'fr-FR',ocrLang:'fra',lexicalProfile:'french',importProfile:'modern',ocrRepairProfile:'',functionWords:['le','la','les','un','une','des','de','du','est','sont','avec','pour','dans','sur','mon','ma','mes','ton','ta','tes','nous','vous','ils','elles'],capabilities:{hybridDictionary:false,latinGrammar:false,extraIdentity:false},campaign:{unitLabel:'Armee',title:'Deine Armee',eyebrow:'Kampagne',festive:'WINTERLAGER · DEZEMBER-SPEZIAL',ranks:['Rekruten','Trupp','Kompanie','Bataillon','Regiment','Armee']}}
 });
+const knownSubjectIds=()=>Object.keys(SUBJECT_META);
 const availableSubjectIds=()=>Object.values(SUBJECT_META).filter(x=>x.available).map(x=>x.id);
-const subjectLabel=id=>SUBJECT_META[id]?.label||id;
-const subjectShort=id=>SUBJECT_META[id]?.short||String(id||'').slice(0,2).toUpperCase();
+const subjectMeta=id=>SUBJECT_META[id]||null;
+const isKnownSubject=id=>!!SUBJECT_META[id];
+const normalizeSubjectId=(id,fallback='english')=>isKnownSubject(String(id||''))?String(id):(isKnownSubject(fallback)?fallback:'english');
+const subjectLabel=id=>subjectMeta(id)?.label||String(id||'');
+const subjectShort=id=>subjectMeta(id)?.short||String(id||'').slice(0,2).toUpperCase();
+const subjectSpeechLang=id=>subjectMeta(id)?.speechLang||'';
+const subjectOcrLang=id=>subjectMeta(id)?.ocrLang||'';
+const subjectImportProfile=id=>subjectMeta(id)?.importProfile||'modern';
+const subjectFunctionWords=id=>subjectMeta(id)?.functionWords||[];
+const subjectHasCapability=(id,cap)=>!!subjectMeta(id)?.capabilities?.[cap];
+const subjectCampaign=id=>subjectMeta(id)?.campaign||SUBJECT_META.english.campaign;
+const subjectMap=factory=>Object.fromEntries(knownSubjectIds().map(id=>[id,typeof factory==='function'?factory(id):deepClone(factory)]));
+const defaultGradeScales=()=>subjectMap(()=>defaultGradeScale());
+const defaultTestSeries=()=>subjectMap(()=>null);
+const defaultSubjectArrays=()=>subjectMap(()=>[]);
+function subjectFromExternal(value,fallback=state?.activeSubject||'english'){
+  const raw=String(value||'').trim().toLowerCase();if(!raw)return normalizeSubjectId(fallback);
+  const hit=Object.values(SUBJECT_META).find(meta=>meta.id===raw||meta.label.toLowerCase()===raw||meta.short.toLowerCase()===raw||(meta.aliases||[]).some(x=>String(x).toLowerCase()===raw));
+  return hit?.id||normalizeSubjectId(fallback);
+}
 function normalizeLearnerSubjects(l,hints=[]){
   const allowed=new Set(availableSubjectIds());
   const fromProfile=Array.isArray(l?.activeSubjects)?l.activeSubjects:[];
-  const out=[...new Set([...fromProfile,...hints].filter(x=>allowed.has(x)))];
-  return out.length?out:['english'];
+  const out=[...new Set([...fromProfile,...hints].map(x=>normalizeSubjectId(x,'')).filter(x=>allowed.has(x)))];
+  return out.length?out:[availableSubjectIds()[0]||'english'];
 }
 function learnerActiveSubjects(l=state?.learners?.find(x=>x.id===state?.activeLearnerId)){return normalizeLearnerSubjects(l)}
 function isSubjectActive(subject,l=state?.learners?.find(x=>x.id===state?.activeLearnerId)){return learnerActiveSubjects(l).includes(subject)}
-function ensureActiveSubject(){const l=state?.learners?.find(x=>x.id===state?.activeLearnerId)||state?.learners?.[0];const active=learnerActiveSubjects(l);if(!active.includes(state?.activeSubject))state.activeSubject=active[0]||'english';return state?.activeSubject;}
+function ensureActiveSubject(){const l=state?.learners?.find(x=>x.id===state?.activeLearnerId)||state?.learners?.[0];const active=learnerActiveSubjects(l);if(!active.includes(state?.activeSubject))state.activeSubject=active[0]||availableSubjectIds()[0]||'english';return state?.activeSubject;}
 
 const PROGRESS_FIELDS = new Set([
   'skills','level','repetitions','successes','independentSuccesses','assistedSuccesses','failures','intervalDays','dueDate',
@@ -100,7 +118,7 @@ function attachVocabularySenseApi(v){
 }
 function makeVocabulary(subject,term,translation,opts={}){
   const now=new Date().toISOString(),senses=Array.isArray(opts.senses)&&opts.senses.length?opts.senses.map(s=>makeVocabularySense(s.translation,{...s,id:s.id||uid('sense')})):[makeVocabularySense(translation,{translations:opts.translations||[],examples:opts.examples||[]})];
-  const v={id:opts.id||uid('v'),subject:subject==='latin'?'latin':'english',term:String(term||'').trim(),termVariants:Array.isArray(opts.termVariants)?[...new Set(opts.termVariants.filter(Boolean))]:[],extra:opts.extra||'',mnemonic:opts.mnemonic||'',chunks:Array.isArray(opts.chunks)?opts.chunks.filter(Boolean):[],sources:Array.isArray(opts.sources)?opts.sources:[],verifiedAt:opts.verifiedAt||null,createdAt:opts.createdAt||now,updatedAt:opts.updatedAt||now,senses};
+  const v={id:opts.id||uid('v'),subject:normalizeSubjectId(subject),term:String(term||'').trim(),termVariants:Array.isArray(opts.termVariants)?[...new Set(opts.termVariants.filter(Boolean))]:[],extra:opts.extra||'',mnemonic:opts.mnemonic||'',chunks:Array.isArray(opts.chunks)?opts.chunks.filter(Boolean):[],sources:Array.isArray(opts.sources)?opts.sources:[],verifiedAt:opts.verifiedAt||null,createdAt:opts.createdAt||now,updatedAt:opts.updatedAt||now,senses};
   return attachVocabularySenseApi(v);
 }
 function makeSetVocabulary(setId,vocabId,senseIdOrOpts='',opts={}){
@@ -119,7 +137,7 @@ function normalizeIsbn(value){
   return '';
 }
 function formatIsbn(isbn){return normalizeIsbn(isbn)||String(isbn||'').replace(/[^0-9Xx]/g,'')}
-function makeBook(isbn13,subject,opts={}){const now=new Date().toISOString();return {id:opts.id||uid('book'),isbn13:normalizeIsbn(isbn13),subject:SUBJECT_META[subject]?.available?subject:'english',title:String(opts.title||'').trim(),publisher:String(opts.publisher||'').trim(),edition:String(opts.edition||'').trim(),createdAt:opts.createdAt||now,updatedAt:opts.updatedAt||now}}
+function makeBook(isbn13,subject,opts={}){const now=new Date().toISOString();return {id:opts.id||uid('book'),isbn13:normalizeIsbn(isbn13),subject:normalizeSubjectId(subject),title:String(opts.title||'').trim(),publisher:String(opts.publisher||'').trim(),edition:String(opts.edition||'').trim(),createdAt:opts.createdAt||now,updatedAt:opts.updatedAt||now}}
 function bookById(id){return (state?.books||[]).find(x=>x.id===id)||null}
 function bookByIsbn(isbn){const normalized=normalizeIsbn(isbn);return normalized?(state?.books||[]).find(x=>x.isbn13===normalized)||null:null}
 function upsertBook(isbn,subject,opts={}){const isbn13=normalizeIsbn(isbn);if(!isbn13)throw new Error('Ungültige ISBN');let b=bookByIsbn(isbn13),created=false;if(!b){b=makeBook(isbn13,subject,opts);state.books.push(b);created=true}else{if(subject&&b.subject!==subject&&!bookUsage(b.id).vocabulary)b.subject=subject;if(opts.title)b.title=String(opts.title).trim();if(opts.publisher)b.publisher=String(opts.publisher).trim();if(opts.edition)b.edition=String(opts.edition).trim();b.updatedAt=new Date().toISOString()}return {book:b,created}}
@@ -143,7 +161,7 @@ function defaultState(){
   const s={
     version: VERSION,senseModelVersion:1,
     activeLearnerId: 'learner_demo',activeSubject: 'english',
-    learners:[{id:'learner_demo',name:'Mein Profil',gradeLevel:'',activeSubjects:['english'],xp:0,lrsMode:false,fontSize:17,letterSpacing:0,flashSpeed:1600,streakDays:[],milestones:{},fortressWins:{english:[],latin:[]},fortressWinsByYear:{},campaignLog:[],dailyPlans:{},testSeries:{english:null,latin:null},gradeScales:defaultGradeScales(),createdAt:new Date().toISOString()}],
+    learners:[{id:'learner_demo',name:'Mein Profil',gradeLevel:'',activeSubjects:['english'],xp:0,lrsMode:false,fontSize:17,letterSpacing:0,flashSpeed:1600,streakDays:[],milestones:{},fortressWins:defaultSubjectArrays(),fortressWinsByYear:{},campaignLog:[],dailyPlans:{},testSeries:defaultTestSeries(),gradeScales:defaultGradeScales(),createdAt:new Date().toISOString()}],
     books:[],learnerBooks:[],bookVocabulary:[],sets:[],vocabulary:[],setVocabulary:[],learnerVocabulary:[],grades:[],practiceTests:[],activity:[]
   };
   attachRuntimeWordApi(s);return s;
@@ -151,7 +169,7 @@ function defaultState(){
 
 function lexicalKey(term,subject='english'){
   let x=String(term||'').normalize('NFKC').toLowerCase().replace(/[’‘`´]/g,"'").trim();
-  if(subject==='english'){
+  if(subjectMeta(subject)?.lexicalProfile==='english'){
     const contractions={"i'm":'i am',"you're":'you are',"he's":'he is',"she's":'she is',"it's":'it is',"we're":'we are',"they're":'they are',"can't":'cannot',"don't":'do not',"doesn't":'does not',"didn't":'did not',"won't":'will not'};
     x=contractions[x]||x;
     x=x.replace(/^to\s+([a-z][a-z' -]+)$/,'$1').replace(/\s*\(\s*to\s*\)\s*$/,'');
@@ -162,7 +180,7 @@ function meaningKey(value){return String(value||'').normalize('NFKC').toLowerCas
 function vocabularyMatch(subject,term,extra='',translation=''){
   if(!state)return null;const key=lexicalKey(term,subject);if(!key)return null;
   const candidates=(state.vocabulary||[]).filter(v=>v.subject===subject&&lexicalKey(v.term,subject)===key);if(!candidates.length)return null;if(candidates.length===1)return candidates[0];
-  const ex=lexicalKey(extra,subject);if(subject==='latin'&&ex){const exact=candidates.find(v=>lexicalKey(v.extra,subject)===ex);if(exact)return exact;}
+  const ex=lexicalKey(extra,subject);if(subjectHasCapability(subject,'extraIdentity')&&ex){const exact=candidates.find(v=>lexicalKey(v.extra,subject)===ex);if(exact)return exact;}
   return candidates[0];
 }
 function vocabularySenseMatch(subject,term,extra='',translation=''){const vocab=vocabularyMatch(subject,term,extra);return vocab?{vocab,sense:senseMatch(vocab,translation)}:{vocab:null,sense:null};}

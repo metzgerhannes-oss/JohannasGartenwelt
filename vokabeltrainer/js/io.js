@@ -27,7 +27,7 @@ function importCsv(text){
   let linked=0,existingGlobal=0,newGlobal=0,duplicates=0,skipped=0;
   const setIndex=new Map(mySets().map(s=>[`${s.subject}\u0000${s.schoolYear}\u0000${s.title}`,s]));
   rows.forEach(r=>{
-    const subj=(r.subject||state.activeSubject).toLowerCase().startsWith('la')?'latin':'english';if(subj!==state.activeSubject){skipped++;return}
+    const subj=subjectFromExternal(r.subject||state.activeSubject,state.activeSubject);if(subj!==state.activeSubject){skipped++;return}
     const term=safeText(r.term,300).trim(),translation=safeText(r.translation,700).trim();if(!term||!translation){skipped++;return}
     const importYear=safeText(r.schoolyear||currentSchoolYear(),24),title=safeText(r.set||'Import',200)||'Import',setKey=`${subj}\u0000${importYear}\u0000${title}`;let set=setIndex.get(setKey);
     if(!set){let bookId='';const isbn=normalizeIsbn(r.isbn13||r.isbn||'');if(isbn){try{bookId=upsertBook(isbn,subj,{title:safeText(r.booktitle||'',200)}).book.id}catch(_e){}}set={id:uid('set'),learnerId:learner().id,subject:subj,title,schoolYear:importYear,bookId,bookSection:safeText(r.booksection||title,200),testDate:'',testScopeMode:'set',testFrom:1,testTo:0,testFormat:'target',from:'',to:''};state.sets.push(set);setIndex.set(setKey,set);rebuildWordIndexes();}
@@ -60,14 +60,12 @@ function germanScore(text){
   return score;
 }
 function foreignScore(text,subject){
-  const t=` ${normalize(text)} `; let score=0;
-  if(subject==='english'){
-    [' the ',' to ',' a ',' an ',' is ',' are ',' was ',' were ',' have ',' has ',' with ',' from ',' for ',' of ',' in ',' on ',' at '].forEach(x=>{if(t.includes(x))score+=1});
-    if(/\b(to\s+)?[a-z][a-z'-]{2,}\b/i.test(text))score+=1;
-  }else{
+  const t=` ${normalize(text)} `;let score=0,profile=subjectImportProfile(subject);
+  subjectFunctionWords(subject).forEach(word=>{if(t.includes(` ${normalize(word)} `))score+=1});
+  if(profile==='latin'){
     if(/\b(us|um|ae|is|ibus|orum|arum|ere|ire|are|ri)\b/i.test(text))score+=1;
     if(/\b[fmna]\.?\b/i.test(text))score+=1;
-  }
+  }else if(/\b[a-zÀ-ÿ][a-zÀ-ÿ'’-]{2,}\b/i.test(text))score+=1;
   return score;
 }
 function splitImportColumns(line){
@@ -83,12 +81,12 @@ function looksLikeExample(text,term,subject){
   const words=t.split(/\s+/).length;
   if(/[.!?]$/.test(t)&&words>=3)return true;
   if(term && normalize(t).includes(normalize(term)) && words>=3)return true;
-  if(subject==='english' && /\b(the|a|an|to|is|are|was|were|my|your|we|they|he|she)\b/i.test(t) && words>=3)return true;
-  return subject==='latin' && words>=3 && !/[=:|]/.test(t);
+  const normalizedWords=new Set(normalize(t).split(/\s+/));if(words>=3&&subjectFunctionWords(subject).some(x=>normalizedWords.has(normalize(x))))return true;
+  return subjectImportProfile(subject)==='latin' && words>=3 && !/[=:|]/.test(t);
 }
 function splitTermExtra(term,subject){
   let value=String(term||'').trim(), extra='';
-  if(subject==='latin'){
+  if(subjectImportProfile(subject)==='latin'){
     const m=value.match(/^([^,;]+)[,;]\s*(.+)$/);
     if(m && m[1].trim().split(/\s+/).length<=3){value=m[1].trim();extra=m[2].trim();}
   }else{
@@ -148,7 +146,7 @@ function scanReviewHtml(){
     }
     return '<span class="pill scan-check">prüfen</span>';
   };
-  return scanImportState.rows.map((r,i)=>{const choice=r.libraryMatchStatus==='sense-choice'?`<div class="notice subtle scan-source"><strong>Ist das eine neue Bedeutung oder nur eine andere Formulierung?</strong><label>Zuordnung<select id="scanSense_${i}"><option value="">Bitte wählen</option>${(r.librarySenseOptions||[]).map(s=>`<option value="${esc(s.id)}" ${r.selectedSenseId===s.id?'selected':''}>Gleiche Bedeutung wie „${esc(s.translation)}“${s.partOfSpeech?` · ${esc(s.partOfSpeech)}`:''}</option>`).join('')}<option value="__new__" ${r.selectedSenseId==='__new__'?'selected':''}>Neue Bedeutung · eigener Lernstand</option></select></label></div>`:'';return `<article class="scan-row ${r.confidence==='auto'?'scan-row-auto':''}"><div class="row spread align-center"><label class="scan-include"><input type="checkbox" id="scanUse_${i}" ${r.include?'checked':''}> übernehmen</label>${badge(r)}<button type="button" class="ghost" data-scan-remove="${i}">×</button></div><div class="scan-grid"><label>${state.activeSubject==='latin'?'Latein':'Englisch'}<input id="scanTerm_${i}" value="${esc(r.term)}"></label><label>Deutsch<input id="scanTrans_${i}" value="${esc(r.translation)}"></label><label>Zusatzform<input id="scanExtra_${i}" value="${esc(r.extra)}"></label><label>Beispielsatz / Phrase<input id="scanExample_${i}" value="${esc(r.example)}"></label></div>${choice}${r.libraryMatchStatus==='existing'?'<div class="microcopy scan-source">Globale Bibliothek: Bedeutung bereits vorhanden. Beim Import wird nur die Zuordnung zum Lernset angelegt.</div>':r.confidence==='auto'?`<div class="microcopy scan-source">${r.origin==='repair'?'OCR-Erkennung anhand der deutschen Bedeutung korrigiert':'Automatisch ergänzt'+(r.origin==='memory'?' aus der globalen Bibliothek':r.origin==='wikidict'?' aus lokalem Wörterbuch':'')}. Bitte kurz prüfen.</div>`:''}</article>`}).join('');
+  return scanImportState.rows.map((r,i)=>{const choice=r.libraryMatchStatus==='sense-choice'?`<div class="notice subtle scan-source"><strong>Ist das eine neue Bedeutung oder nur eine andere Formulierung?</strong><label>Zuordnung<select id="scanSense_${i}"><option value="">Bitte wählen</option>${(r.librarySenseOptions||[]).map(s=>`<option value="${esc(s.id)}" ${r.selectedSenseId===s.id?'selected':''}>Gleiche Bedeutung wie „${esc(s.translation)}“${s.partOfSpeech?` · ${esc(s.partOfSpeech)}`:''}</option>`).join('')}<option value="__new__" ${r.selectedSenseId==='__new__'?'selected':''}>Neue Bedeutung · eigener Lernstand</option></select></label></div>`:'';return `<article class="scan-row ${r.confidence==='auto'?'scan-row-auto':''}"><div class="row spread align-center"><label class="scan-include"><input type="checkbox" id="scanUse_${i}" ${r.include?'checked':''}> übernehmen</label>${badge(r)}<button type="button" class="ghost" data-scan-remove="${i}">×</button></div><div class="scan-grid"><label>${esc(subjectLabel(state.activeSubject))}<input id="scanTerm_${i}" value="${esc(r.term)}"></label><label>Deutsch<input id="scanTrans_${i}" value="${esc(r.translation)}"></label><label>Zusatzform<input id="scanExtra_${i}" value="${esc(r.extra)}"></label><label>Beispielsatz / Phrase<input id="scanExample_${i}" value="${esc(r.example)}"></label></div>${choice}${r.libraryMatchStatus==='existing'?'<div class="microcopy scan-source">Globale Bibliothek: Bedeutung bereits vorhanden. Beim Import wird nur die Zuordnung zum Lernset angelegt.</div>':r.confidence==='auto'?`<div class="microcopy scan-source">${r.origin==='repair'?'OCR-Erkennung anhand der deutschen Bedeutung korrigiert':'Automatisch ergänzt'+(r.origin==='memory'?' aus der globalen Bibliothek':r.origin==='wikidict'?' aus lokalem Wörterbuch':'')}. Bitte kurz prüfen.</div>`:''}</article>`}).join('');
 }
 function renderScanReview(){
   const el=$('#scanReview'); if(!el)return; el.innerHTML=scanReviewHtml();
@@ -215,7 +213,7 @@ function ocrUiNoise(text){
 }
 function safeOcrPair(term,translation,subject){
   let a=cleanOcrCell(term),b=cleanOcrCell(translation);
-  if(subject==='english'){
+  if(subjectMeta(subject)?.ocrRepairProfile==='english'){
     a=a.replace(/^l[’']m\b/i,"I'm").replace(/^I['’]m\s*\(=\s*am\)$/i,"I'm (= I am)");
     if(/^like$/i.test(a)&&/^ich mag[.!]?$/i.test(b))a='I like';
     b=b.replace(/\(beij\/in\)/i,'(bei/in)').replace(/\bPI\./g,'Pl.');
@@ -263,7 +261,7 @@ function tesseractTsvToVocabulary(tsv,subject=state.activeSubject){
     const translation=cleanOcrCell(matches.map(x=>x.r.text).join(' '));
     const term=cleanOcrCell(l.text);
     if(!term||!translation||ocrUiNoise(term)||ocrUiNoise(translation))continue;
-    if(subject==='english'&&germanScore(term)>2&&foreignScore(term,subject)===0&&records.length>3)break;
+    if(subjectMeta(subject)?.ocrRepairProfile==='english'&&germanScore(term)>2&&foreignScore(term,subject)===0&&records.length>3)break;
     records.push({y:l.yc,row:safeOcrPair(term,translation,subject)});
     if(records.length>=250)break;
   }
@@ -334,7 +332,7 @@ async function runTesseractOcr(file){
     const T=await loadTesseract();
     const prepared=await prepareOcrImage(file);
     const ocrBase=new URL('ocr/',window.location.href);
-    const langs=state.activeSubject==='latin'?['lat','deu']:['eng','deu'];
+    const foreignLang=subjectOcrLang(state.activeSubject);if(!foreignLang)throw new Error(`Für ${subjectLabel(state.activeSubject)} ist kein OCR-Sprachmodell konfiguriert.`);const langs=[foreignLang,'deu'];
     const createPromise=T.createWorker(langs,T.OEM?.LSTM_ONLY??1,{
       workerPath:new URL('tesseract/worker.min.js',ocrBase).href,
       corePath:new URL('core/tesseract-core-lstm.wasm.js',ocrBase).href,

@@ -122,7 +122,7 @@ async function hybridTranslate(value,direction,scanRows=[]){
   if(memory)return {text:memory,source:'memory'};
   const core=hybridCoreLookup(value,direction);
   if(core)return {text:core,source:'school'};
-  if(state?.activeSubject!=='english')return {text:'',source:''};
+  if(!subjectHasCapability(state?.activeSubject,'hybridDictionary'))return {text:'',source:''};
   const dict=await hybridDictionaryLookup(value,direction);
   if(dict)return {text:dict,source:'wikidict'};
   return {text:'',source:''};
@@ -133,7 +133,7 @@ const HYBRID_SUSPICIOUS_GERMAN_LEFT = new Set([
 ]);
 
 async function repairSuspiciousCompletePair(row){
-  if(state?.activeSubject!=='english'||!row?.term||!row?.translation)return false;
+  if(subjectMeta(state?.activeSubject)?.ocrRepairProfile!=='english'||!row?.term||!row?.translation)return false;
   const termKey=hybridNormalize(row.term);
   if(!HYBRID_SUSPICIOUS_GERMAN_LEFT.has(termKey))return false;
   // Do not trust the current scan row as translation memory here: it may be the OCR error we are repairing.
@@ -169,20 +169,16 @@ async function enrichHybridRows(rows){
       annotateGlobalLibraryMatch(row);
       continue;
     }
-    if(state?.activeSubject==='english'){
+    if(subjectHasCapability(state?.activeSubject,'hybridDictionary')){
       if(!row.term&&row.translation){
         const hit=await hybridTranslate(row.translation,'de-en',rows);
-        if(hit.text){
-          row.term=hit.text; row.confidence='auto'; row.origin=hit.source;
-        }
+        if(hit.text){row.term=hit.text;row.confidence='auto';row.origin=hit.source;}
       }else if(row.term&&!row.translation){
         const hit=await hybridTranslate(row.term,'en-de',rows);
-        if(hit.text){
-          row.translation=hit.text; row.confidence='auto'; row.origin=hit.source;
-        }
+        if(hit.text){row.translation=hit.text;row.confidence='auto';row.origin=hit.source;}
       }
     }else{
-      // For Latin, only reuse known learner/scan pairs. Do not invent Latin words from German.
+      // Subjects without a bundled dictionary only reuse known scan/library pairs; they never invent a foreign form.
       if(!row.term&&row.translation){
         const hit=hybridMemoryLookup(row.translation,'de-en',rows);
         if(hit){row.term=hit;row.confidence='auto';row.origin='memory';}

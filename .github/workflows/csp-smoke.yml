@@ -53,12 +53,16 @@ jobs:
           node --check vokabeltrainer/js/app.js
           node --check vokabeltrainer/sw.js
           node --check scripts/vokabeltrainer-sense-smoke.mjs
+          node --check scripts/vokabeltrainer-subject-smoke.mjs
           node --check vendor/leaflet/leaflet-1.9.4.js
           node --check vendor/leaflet-draw/leaflet.draw-1.0.4.js
           node --check vendor/qrcode/qrcode-1.0.0.min.js
 
       - name: Vokabeltrainer sense model smoke
         run: node scripts/vokabeltrainer-sense-smoke.mjs
+
+      - name: Vokabeltrainer subject system smoke
+        run: node scripts/vokabeltrainer-subject-smoke.mjs
 
       - name: Install Playwright WebKit
         run: |
