@@ -536,3 +536,27 @@ h1,h2,h3,.brand h1,.plantname,.state-title{
 #natureHabitatsPane .nature-card-photo:after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 -1px 0 rgba(70,78,63,.08)}
 .detail-hero .habitat-illustration{width:100%;height:100%;min-height:220px;display:block}
 /* /JGW HABITAT ILLUSTRATIONS */
+
+
+/* CSP phase 1: replaces former static inline style attributes */
+.jgw-bg-yellow{background:#f4c542!important}
+.jgw-bg-orange{background:#e99c38!important}
+.jgw-bg-green{background:#7caf6f!important}
+.jgw-bg-slate{background:#607080!important}
+.jgw-mt-2{margin-top:2px!important}
+.jgw-mt-5{margin-top:5px!important}
+.jgw-mt-7{margin-top:7px!important}
+.jgw-mt-8{margin-top:8px!important}
+.jgw-mt-9{margin-top:9px!important}
+.jgw-mt-10{margin-top:10px!important}
+.jgw-mt-11{margin-top:11px!important}
+.jgw-mt-12{margin-top:12px!important}
+.jgw-mt-13{margin-top:13px!important}
+.jgw-mt-14{margin-top:14px!important}
+.jgw-flex-wrap-start{display:flex!important;gap:12px!important;align-items:flex-start!important;flex-wrap:wrap!important}
+.jgw-flex-grow-220{flex:1!important;min-width:220px!important}
+.jgw-overflow-auto{overflow:auto!important}
+.jgw-inline-block{display:inline-block!important}
+.jgw-soft-panel{margin-top:14px!important;padding:12px!important;border:1px solid var(--line)!important;border-radius:14px!important;background:#fffdf9!important}
+.jgw-forest-text{color:var(--forest-dark)!important}
+.jgw-section-divider{margin-top:16px!important;padding-top:12px!important;border-top:1px solid var(--line)!important}
