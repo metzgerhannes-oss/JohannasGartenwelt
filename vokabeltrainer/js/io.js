@@ -149,7 +149,12 @@ function renderScanReview(){
 }
 function analyzeScanText(text,source='Text'){
   const raw=String(text||'').trim();
-  if(!raw){scanImportState.rows=[];renderScanReview();scanStatus('Kein Text erkannt. Foto möglichst gerade, nah und gut beleuchtet aufnehmen.','warn');return;}
+  if(!raw){
+    scanImportState.rows=[];renderScanReview();
+    if(scanImportState.ocrBusy) scanStatus('OCR läuft noch. Bitte kurz warten, bis die Erkennung abgeschlossen ist.','subtle');
+    else scanStatus('Kein Text erkannt. Foto möglichst gerade, nah und gut beleuchtet aufnehmen.','warn');
+    return;
+  }
   const parsed=parseVocabularyText(raw,state.activeSubject);
   scanImportState.rows=parsed.rows; scanImportState.titleHint=parsed.titleHint;
   if(parsed.titleHint && ($('#scanNewTitle')?.value==='Foto-Import'||!$('#scanNewTitle')?.value.trim()))$('#scanNewTitle').value=parsed.titleHint;
@@ -157,28 +162,37 @@ function analyzeScanText(text,source='Text'){
   const message=parsed.rows.length?`${source}: ${parsed.rows.length} mögliche Vokabelpaare erkannt. Bitte kurz prüfen.`:`${source}: Text erkannt, aber noch keine sicheren Vokabelpaare. Text unten prüfen oder Zeilen manuell ergänzen.`;
   scanStatus(message,parsed.rows.length?'good':'warn');
 }
-function tesseractBlocksToText(blocks){
-  const rows=[];
-  for(const block of (blocks||[]))for(const para of (block.paragraphs||[]))for(const line of (para.lines||[])){
-    const words=(line.words||[]).filter(w=>String(w.text||'').trim()); if(!words.length)continue;
-    let out=''; let prev=null;
-    for(const w of words){
-      const text=String(w.text||'').trim(); if(!text)continue;
-      if(prev){
-        const pb=prev.bbox||{},wb=w.bbox||{}; const gap=(wb.x0??0)-(pb.x1??0);
-        const pw=Math.max(1,(pb.x1??0)-(pb.x0??0)); const cw=pw/Math.max(1,String(prev.text||'').length);
-        out+=gap>Math.max(18,cw*2.4)?'\t':' ';
-      }
-      out+=text; prev=w;
-    }
-    if(out.trim())rows.push(out.trim());
+function tesseractTsvToText(tsv){
+  const raw=String(tsv||'').trim(); if(!raw)return '';
+  const lines=raw.split(/\r?\n/); if(lines.length<2)return '';
+  const groups=new Map();
+  for(const row of lines.slice(1)){
+    const c=row.split('\t'); if(c.length<12)continue;
+    const text=c.slice(11).join('\t').trim(); if(!text)continue;
+    const level=Number(c[0]); if(level!==5)continue;
+    const key=[c[1],c[2],c[3],c[4]].join('-');
+    const item={left:Number(c[6])||0,width:Number(c[8])||0,text};
+    if(!groups.has(key))groups.set(key,[]); groups.get(key).push(item);
   }
-  return rows.join('\n');
+  const out=[];
+  for(const words of groups.values()){
+    words.sort((a,b)=>a.left-b.left); let line=''; let prev=null;
+    for(const w of words){
+      if(prev){
+        const gap=w.left-(prev.left+prev.width);
+        const cw=Math.max(3,prev.width/Math.max(1,prev.text.length));
+        line+=gap>Math.max(26,cw*3.2)?'\t':' ';
+      }
+      line+=w.text; prev=w;
+    }
+    if(line.trim())out.push(line.trim());
+  }
+  return out.join('\n');
 }
 async function prepareOcrImage(file){
   if(!('createImageBitmap' in window))return file;
   try{
-    const bitmap=await createImageBitmap(file); const maxSide=2600; const scale=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
+    const bitmap=await createImageBitmap(file); const longest=Math.max(bitmap.width,bitmap.height); const scale=longest>2600?2600/longest:Math.min(1.5,2200/longest);
     const width=Math.max(1,Math.round(bitmap.width*scale)),height=Math.max(1,Math.round(bitmap.height*scale));
     const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d',{willReadFrequently:true});
     ctx.drawImage(bitmap,0,0,width,height);bitmap.close?.();
@@ -212,35 +226,49 @@ function humanOcrStatus(m){
 }
 async function runTesseractOcr(file){
   if(scanImportState.ocrBusy||!file)return;
-  scanImportState.ocrBusy=true; const retry=$('#scanOcrRetry'); if(retry)retry.disabled=true;
+  scanImportState.ocrBusy=true;
+  const retry=$('#scanOcrRetry'),analyze=$('#scanAnalyzeBtn');
+  if(retry)retry.disabled=true; if(analyze)analyze.disabled=true;
+  let watchdog=null;
   try{
-    scanStatus('Echte OCR läuft lokal im Browser …');scanOcrProgress(.02,'OCR wird vorbereitet …');
-    const T=await loadTesseract(); const langs=state.activeSubject==='latin'?['lat','deu']:['eng','deu'];
+    scanStatus('OCR wird auf diesem iPhone gestartet …');scanOcrProgress(.02,'OCR wird vorbereitet …');
+    const T=await loadTesseract();
     const prepared=await prepareOcrImage(file);
     const ocrBase=new URL('ocr/',window.location.href);
-    const worker=await T.createWorker(langs,T.OEM?.LSTM_ONLY??1,{
+    const createPromise=T.createWorker('deu',T.OEM?.LSTM_ONLY??1,{
       workerPath:new URL('tesseract/worker.min.js',ocrBase).href,
-      corePath:new URL('core',ocrBase).href.replace(/\/$/,''),
+      corePath:new URL('core/tesseract-core-lstm.wasm.js',ocrBase).href,
       langPath:new URL('lang',ocrBase).href.replace(/\/$/,''),
+      workerBlobURL:false,
       gzip:false,
       logger:m=>{const x=humanOcrStatus(m);scanOcrProgress(x.progress,x.label)},
       errorHandler:e=>console.warn('OCR worker',e)
     });
+    const timeoutPromise=new Promise((_,reject)=>{watchdog=setTimeout(()=>reject(new Error('OCR-Start-Timeout')),45000)});
+    const worker=await Promise.race([createPromise,timeoutPromise]);
+    if(watchdog){clearTimeout(watchdog);watchdog=null;}
     try{
-      await worker.setParameters({preserve_interword_spaces:'1',user_defined_dpi:'300'});
-      const result=await worker.recognize(prepared,{rotateAuto:true},{blocks:true});
-      let text=tesseractBlocksToText(result.data.blocks)||String(result.data.text||'');
-      $('#scanRawText').value=text.trim(); scanImportState.nativeOcr=true; scanOcrProgress(1,'OCR abgeschlossen');
+      await worker.setParameters({preserve_interword_spaces:'1',user_defined_dpi:'300',tessedit_pageseg_mode:String(T.PSM?.AUTO??3)});
+      scanOcrProgress(.18,'Text wird erkannt …');
+      const result=await worker.recognize(prepared,{rotateAuto:true},{text:true,tsv:true});
+      const tsvText=tesseractTsvToText(result?.data?.tsv);
+      const plainText=String(result?.data?.text||'').trim();
+      const text=(tsvText||plainText).trim();
+      if(!text)throw new Error('OCR lieferte keinen Text');
+      $('#scanRawText').value=text; scanImportState.nativeOcr=true; scanOcrProgress(1,'OCR abgeschlossen');
       analyzeScanText(text,'OCR');
     }finally{await worker.terminate().catch(()=>{});}
   }catch(e){
+    if(watchdog){clearTimeout(watchdog);watchdog=null;}
     console.warn('Tesseract OCR',e); scanOcrProgress(0,'OCR konnte nicht abgeschlossen werden');
-    scanStatus('OCR fehlgeschlagen. OCR konnte nicht gestartet werden. Bitte Seite einmal neu laden und erneut versuchen.','warn');
-    if('TextDetector' in window && 'createImageBitmap' in window){
-      try{const bitmap=await createImageBitmap(file);const detector=new window.TextDetector();const found=await detector.detect(bitmap);bitmap.close?.();const text=found.map(x=>x.rawValue||x.text||'').filter(Boolean).join('\n');if(text.trim()){scanImportState.nativeOcr=true;$('#scanRawText').value=text;analyzeScanText(text,'Geräte-OCR');}}catch(_e){}
-    }
-  }finally{scanImportState.ocrBusy=false;if(retry)retry.disabled=false;}
+    const timeout=String(e?.message||e).includes('Timeout');
+    scanStatus(timeout?'OCR-Engine startet auf diesem iPhone nicht innerhalb von 45 Sekunden. Bitte Seite neu laden und noch einmal versuchen.':'OCR-Fehler: Die Erkennung konnte auf diesem Gerät nicht abgeschlossen werden. Bitte erneut starten.','warn');
+  }finally{
+    scanImportState.ocrBusy=false;
+    if(retry)retry.disabled=false; if(analyze)analyze.disabled=false;
+  }
 }
+
 function openScanImport(){
   scanImportState.rows=[]; scanImportState.titleHint=''; scanImportState.nativeOcr=false;scanImportState.ocrBusy=false;scanImportState.lastFile=null;
   if(scanImportState.imageUrl){URL.revokeObjectURL(scanImportState.imageUrl);scanImportState.imageUrl=null;}
