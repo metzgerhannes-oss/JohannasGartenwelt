@@ -128,11 +128,36 @@ async function hybridTranslate(value,direction,scanRows=[]){
   if(dict)return {text:dict,source:'wikidict'};
   return {text:'',source:''};
 }
+const HYBRID_SUSPICIOUS_GERMAN_LEFT = new Set([
+  'der','die','das','ein','eine','einer','einen','einem','eines','und','oder','ich','du','er','sie','wir','ihr',
+  'mit','fuer','von','aus','bei','im','in','am','an','auf','zu','zum','zur','ist','sind','bin','bist'
+]);
+
+async function repairSuspiciousCompletePair(row){
+  if(state?.activeSubject!=='english'||!row?.term||!row?.translation)return false;
+  const termKey=hybridNormalize(row.term);
+  if(!HYBRID_SUSPICIOUS_GERMAN_LEFT.has(termKey))return false;
+  // Do not trust the current scan row as translation memory here: it may be the OCR error we are repairing.
+  let candidate=hybridCoreLookup(row.translation,'de-en');
+  let source=candidate?'school':'';
+  if(!candidate){
+    const dict=await hybridDictionaryLookup(row.translation,'de-en');
+    if(dict){candidate=dict;source='wikidict';}
+  }
+  if(!candidate||hybridNormalize(candidate)===termKey)return false;
+  row.term=candidate;
+  row.confidence='auto';
+  row.origin='repair';
+  row.repairedFrom=termKey;
+  return true;
+}
+
 async function enrichHybridRows(rows){
   if(!Array.isArray(rows)||!rows.length)return rows||[];
-  // Existing complete rows act as translation memory for the same scan.
+  // Existing complete rows act as translation memory for the same scan, unless the left side is an obvious OCR spillover.
   for(const row of rows){
     if(row.term&&row.translation){
+      if(await repairSuspiciousCompletePair(row))continue;
       row.origin=row.origin||'ocr';
       row.confidence=row.confidence==='check'?'check':'good';
       continue;
