@@ -411,12 +411,25 @@ async function calendarPayload(token: string): Promise<any> {
 Deno.serve(async (req: Request) => {
   try {
     if (req.method === "OPTIONS") {
-      return new Response(null,{headers:{
+      return new Response(null,{status:204,headers:{
         "Access-Control-Allow-Origin":"*",
-        "Access-Control-Allow-Methods":"GET,OPTIONS",
-        "Access-Control-Allow-Headers":"content-type"
+        "Access-Control-Allow-Methods":"GET,HEAD,OPTIONS",
+        "Access-Control-Allow-Headers":"content-type",
+        "Access-Control-Max-Age":"86400",
+        "X-Content-Type-Options":"nosniff",
+        "Referrer-Policy":"no-referrer"
       }});
     }
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      return new Response("Method Not Allowed",{status:405,headers:{
+        "Allow":"GET, HEAD, OPTIONS",
+        "Cache-Control":"no-store",
+        "X-Content-Type-Options":"nosniff",
+        "Referrer-Policy":"no-referrer",
+        "Access-Control-Allow-Origin":"*"
+      }});
+    }
+    const isHead = req.method === "HEAD";
     const u = new URL(req.url);
     const token = String(u.searchParams.get("token") || "").trim().toLowerCase();
     if (!/^[a-f0-9]{64}$/.test(token)) {
@@ -445,20 +458,25 @@ Deno.serve(async (req: Request) => {
     }
     lines.push("END:VCALENDAR","");
 
-    return new Response(lines.join("\r\n"),{
+    return new Response(isHead ? null : lines.join("\r\n"),{
       status:200,
       headers:{
         "Content-Type":"text/calendar; charset=utf-8",
         "Content-Disposition":'inline; filename="johannas-gartenwelt-pflege.ics"',
         "Cache-Control":"private, max-age=3600",
         "X-Content-Type-Options":"nosniff",
+        "Referrer-Policy":"no-referrer",
+        "X-Robots-Tag":"noindex, nofollow, noarchive",
         "Access-Control-Allow-Origin":"*"
       }
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return Response.json({error:message},{status:404,headers:{
+    console.error("jgw-calendar failed", error instanceof Error ? error.message : String(error));
+    return Response.json({error:"calendar_not_found"},{status:404,headers:{
       "Cache-Control":"no-store",
+      "X-Content-Type-Options":"nosniff",
+      "Referrer-Policy":"no-referrer",
+      "X-Robots-Tag":"noindex, nofollow, noarchive",
       "Access-Control-Allow-Origin":"*"
     }});
   }
