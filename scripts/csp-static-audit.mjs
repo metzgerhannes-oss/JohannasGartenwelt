@@ -52,7 +52,7 @@ check("setup style elements hardened", /style-src-elem/.test(setupCsp) && !/styl
 check("index executable sources are self-only", /script-src\\s+'self';/.test(indexCsp) && /style-src\\s+'self';/.test(indexCsp) && /style-src-elem\\s+'self';/.test(indexCsp), indexCsp);
 check("setup executable sources are self-only", /script-src\\s+'self';/.test(setupCsp), setupCsp);
 check("main app has no CDN script/style loader", !/cdn\\.jsdelivr\\.net|cdnjs\\.cloudflare\\.com/.test(appJs), "");
-check("setup has no external script tag", !/<script[^>]+src=["']https?:\\/\\//i.test(setup), "");
+check("setup has no external script tag", !/<script[^>]+src=["']https?:[/][/]/i.test(setup), "");
 
 const jsFiles = fs.readdirSync(".").filter(x => x.endsWith(".js"));
 let dynamicStyleCount = 0;
