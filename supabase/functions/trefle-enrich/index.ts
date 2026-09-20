@@ -4,6 +4,7 @@ const ALLOWED_ORIGINS = new Set([
   "https://metzgerhannes-oss.github.io",
 ]);
 const UPSTREAM_TIMEOUT_MS = 8000;
+const MAX_REQUEST_BYTES = 16 * 1024;
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") || "";
@@ -16,6 +17,8 @@ function corsHeaders(req: Request) {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
   };
 }
 
@@ -109,6 +112,11 @@ Deno.serve(async (req: Request) => {
   }
   if (req.method !== "POST") {
     return json(req, { ok: false, error: "method_not_allowed" }, 405);
+  }
+
+  const contentLength = Number(req.headers.get("content-length") || "0");
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
+    return json(req, { ok: false, error: "request_too_large" }, 413);
   }
 
   let body: any;
