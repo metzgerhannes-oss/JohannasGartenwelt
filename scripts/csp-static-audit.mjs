@@ -41,6 +41,8 @@ check("index no inline scripts", inlineScripts(index) === 0, String(inlineScript
 check("setup no inline scripts", inlineScripts(setup) === 0, String(inlineScripts(setup)));
 check("index no inline style blocks", inlineStyles(index) === 0, String(inlineStyles(index)));
 check("setup no inline style blocks", inlineStyles(setup) === 0, String(inlineStyles(setup)));
+check("index no static style attributes", (index.match(/\\sstyle=(["']).*?\\1/gi) || []).length === 0, String((index.match(/\\sstyle=(["']).*?\\1/gi) || []).length));
+check("setup no static style attributes", (setup.match(/\\sstyle=(["']).*?\\1/gi) || []).length === 0, String((setup.match(/\\sstyle=(["']).*?\\1/gi) || []).length));
 check("index no inline event handlers", inlineHandlers(index) === 0, String(inlineHandlers(index)));
 check("setup no inline event handlers", inlineHandlers(setup) === 0, String(inlineHandlers(setup)));
 check("index script unsafe-inline removed", !/script-src[^;]*'unsafe-inline'/.test(indexCsp), indexCsp);
