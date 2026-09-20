@@ -46,7 +46,7 @@ function cleanImportText(text){
     .replace(/[\u00A0\u202F]/g,' ')
     .replace(/[•·▪◦]/g,' ')
     .split('\n')
-    .map(x=>x.replace(/[ \f\v]+/g,' ').replace(/ *\t */g,'\t').trim())
+    .map(x=>x.replace(/[ \f\v]{3,}/g,'  ').replace(/ *\t */g,'\t').trim())
     .filter(Boolean);
 }
 function importTitleHint(lines){
@@ -132,8 +132,14 @@ function parseVocabularyText(text,subject=state.activeSubject){
 function scanStatus(text,type='subtle'){
   const el=$('#scanStatus'); if(!el)return; el.className=`notice ${type}`; el.textContent=text;
 }
+function scanOcrProgress(progress=0,label=''){
+  const wrap=$('#scanOcrWrap'),bar=$('#scanOcrProgress'),txt=$('#scanOcrLabel');
+  if(!wrap||!bar||!txt)return;
+  wrap.classList.remove('hidden');
+  bar.value=clamp(Number(progress)||0,0,1); txt.textContent=label||'OCR wird vorbereitet …';
+}
 function scanReviewHtml(){
-  if(!scanImportState.rows.length)return '<p class="notice subtle">Noch keine Vokabelpaare erkannt. Text übernehmen und „Text analysieren“ wählen.</p>';
+  if(!scanImportState.rows.length)return '<p class="notice subtle">Noch keine Vokabelpaare erkannt. Foto aufnehmen oder Text einfügen und analysieren.</p>';
   return scanImportState.rows.map((r,i)=>`<article class="scan-row"><div class="row spread align-center"><label class="scan-include"><input type="checkbox" id="scanUse_${i}" ${r.include?'checked':''}> übernehmen</label><span class="pill ${r.confidence==='good'?'scan-good':''}">${r.confidence==='good'?'erkannt':'prüfen'}</span><button type="button" class="ghost" data-scan-remove="${i}">×</button></div><div class="scan-grid"><label>${state.activeSubject==='latin'?'Latein':'Englisch'}<input id="scanTerm_${i}" value="${esc(r.term)}"></label><label>Deutsch<input id="scanTrans_${i}" value="${esc(r.translation)}"></label><label>Zusatzform<input id="scanExtra_${i}" value="${esc(r.extra)}"></label><label>Beispielsatz / Phrase<input id="scanExample_${i}" value="${esc(r.example)}"></label></div></article>`).join('');
 }
 function renderScanReview(){
@@ -141,35 +147,123 @@ function renderScanReview(){
   $$('[data-scan-remove]').forEach(b=>b.onclick=()=>{scanImportState.rows.splice(Number(b.dataset.scanRemove),1);renderScanReview();scanStatus(`${scanImportState.rows.length} Zeilen zur Kontrolle.`)});
   const btn=$('#scanImportSave'); if(btn)btn.textContent=`Importieren (${scanImportState.rows.length})`;
 }
+function analyzeScanText(text,source='Text'){
+  const raw=String(text||'').trim();
+  if(!raw){scanImportState.rows=[];renderScanReview();scanStatus('Kein Text erkannt. Foto möglichst gerade, nah und gut beleuchtet aufnehmen.','warn');return;}
+  const parsed=parseVocabularyText(raw,state.activeSubject);
+  scanImportState.rows=parsed.rows; scanImportState.titleHint=parsed.titleHint;
+  if(parsed.titleHint && ($('#scanNewTitle')?.value==='Foto-Import'||!$('#scanNewTitle')?.value.trim()))$('#scanNewTitle').value=parsed.titleHint;
+  renderScanReview();
+  const message=parsed.rows.length?`${source}: ${parsed.rows.length} mögliche Vokabelpaare erkannt. Bitte kurz prüfen.`:`${source}: Text erkannt, aber noch keine sicheren Vokabelpaare. Text unten prüfen oder Zeilen manuell ergänzen.`;
+  scanStatus(message,parsed.rows.length?'good':'warn');
+}
+function tesseractBlocksToText(blocks){
+  const rows=[];
+  for(const block of (blocks||[]))for(const para of (block.paragraphs||[]))for(const line of (para.lines||[])){
+    const words=(line.words||[]).filter(w=>String(w.text||'').trim()); if(!words.length)continue;
+    let out=''; let prev=null;
+    for(const w of words){
+      const text=String(w.text||'').trim(); if(!text)continue;
+      if(prev){
+        const pb=prev.bbox||{},wb=w.bbox||{}; const gap=(wb.x0??0)-(pb.x1??0);
+        const pw=Math.max(1,(pb.x1??0)-(pb.x0??0)); const cw=pw/Math.max(1,String(prev.text||'').length);
+        out+=gap>Math.max(18,cw*2.4)?'\t':' ';
+      }
+      out+=text; prev=w;
+    }
+    if(out.trim())rows.push(out.trim());
+  }
+  return rows.join('\n');
+}
+async function prepareOcrImage(file){
+  if(!('createImageBitmap' in window))return file;
+  try{
+    const bitmap=await createImageBitmap(file); const maxSide=2600; const scale=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
+    const width=Math.max(1,Math.round(bitmap.width*scale)),height=Math.max(1,Math.round(bitmap.height*scale));
+    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(bitmap,0,0,width,height);bitmap.close?.();
+    const img=ctx.getImageData(0,0,width,height),d=img.data;
+    for(let i=0;i<d.length;i+=4){const lum=.299*d[i]+.587*d[i+1]+.114*d[i+2];const v=clamp((lum-128)*1.28+128,0,255);d[i]=d[i+1]=d[i+2]=v;}
+    ctx.putImageData(img,0,0);
+    return await new Promise(resolve=>canvas.toBlob(blob=>resolve(blob||file),'image/jpeg',.92));
+  }catch(e){console.warn('OCR preprocessing',e);return file;}
+}
+let tesseractLoadPromise=null;
+function loadTesseract(){
+  if(window.Tesseract?.createWorker)return Promise.resolve(window.Tesseract);
+  if(tesseractLoadPromise)return tesseractLoadPromise;
+  tesseractLoadPromise=new Promise((resolve,reject)=>{
+    const script=document.createElement('script');
+    script.src='ocr/tesseract/tesseract.min.js';
+    script.async=true; script.crossOrigin='anonymous';
+    script.onload=()=>window.Tesseract?.createWorker?resolve(window.Tesseract):reject(new Error('OCR-Bibliothek konnte nicht initialisiert werden.'));
+    script.onerror=()=>reject(new Error('OCR-Bibliothek konnte nicht geladen werden. Internetverbindung prüfen.'));
+    document.head.appendChild(script);
+  });
+  return tesseractLoadPromise;
+}
+function humanOcrStatus(m){
+  const p=Number(m?.progress)||0,status=String(m?.status||'');
+  const labels={
+    'loading tesseract core':'OCR-Engine wird geladen …','initializing tesseract':'OCR wird gestartet …','loading language traineddata':'Sprachmodell wird geladen …',
+    'initializing api':'Sprachmodell wird vorbereitet …','recognizing text':'Text wird erkannt …'
+  };
+  return {progress:p,label:labels[status]||'OCR arbeitet …'};
+}
+async function runTesseractOcr(file){
+  if(scanImportState.ocrBusy||!file)return;
+  scanImportState.ocrBusy=true; const retry=$('#scanOcrRetry'); if(retry)retry.disabled=true;
+  try{
+    scanStatus('Echte OCR läuft lokal im Browser …');scanOcrProgress(.02,'OCR wird vorbereitet …');
+    const T=await loadTesseract(); const langs=state.activeSubject==='latin'?['lat','deu']:['eng','deu'];
+    const prepared=await prepareOcrImage(file);
+    const ocrBase=new URL('ocr/',window.location.href);
+    const worker=await T.createWorker(langs,T.OEM?.LSTM_ONLY??1,{
+      workerPath:new URL('tesseract/worker.min.js',ocrBase).href,
+      corePath:new URL('core',ocrBase).href.replace(/\/$/,''),
+      langPath:new URL('lang',ocrBase).href.replace(/\/$/,''),
+      gzip:false,
+      logger:m=>{const x=humanOcrStatus(m);scanOcrProgress(x.progress,x.label)},
+      errorHandler:e=>console.warn('OCR worker',e)
+    });
+    try{
+      await worker.setParameters({preserve_interword_spaces:'1',user_defined_dpi:'300'});
+      const result=await worker.recognize(prepared,{rotateAuto:true},{blocks:true});
+      let text=tesseractBlocksToText(result.data.blocks)||String(result.data.text||'');
+      $('#scanRawText').value=text.trim(); scanImportState.nativeOcr=true; scanOcrProgress(1,'OCR abgeschlossen');
+      analyzeScanText(text,'OCR');
+    }finally{await worker.terminate().catch(()=>{});}
+  }catch(e){
+    console.warn('Tesseract OCR',e); scanOcrProgress(0,'OCR konnte nicht abgeschlossen werden');
+    scanStatus('OCR fehlgeschlagen. OCR konnte nicht gestartet werden. Bitte Seite einmal neu laden und erneut versuchen.','warn');
+    if('TextDetector' in window && 'createImageBitmap' in window){
+      try{const bitmap=await createImageBitmap(file);const detector=new window.TextDetector();const found=await detector.detect(bitmap);bitmap.close?.();const text=found.map(x=>x.rawValue||x.text||'').filter(Boolean).join('\n');if(text.trim()){scanImportState.nativeOcr=true;$('#scanRawText').value=text;analyzeScanText(text,'Geräte-OCR');}}catch(_e){}
+    }
+  }finally{scanImportState.ocrBusy=false;if(retry)retry.disabled=false;}
+}
 function openScanImport(){
-  scanImportState.rows=[]; scanImportState.titleHint=''; scanImportState.nativeOcr=false;
+  scanImportState.rows=[]; scanImportState.titleHint=''; scanImportState.nativeOcr=false;scanImportState.ocrBusy=false;scanImportState.lastFile=null;
   if(scanImportState.imageUrl){URL.revokeObjectURL(scanImportState.imageUrl);scanImportState.imageUrl=null;}
   const sets=mySets();
-  modal(`<div class="eyebrow">Foto-/Textimport</div><h2>Vokabelseite übernehmen</h2><p>Für eigene Schulbuchseiten: Foto lokal aufnehmen, Text mit iOS Live Text / „Text scannen“ übernehmen und vor dem Speichern kontrollieren. Das Foto wird nicht hochgeladen und nicht gespeichert.</p><div class="scan-layout"><div><div id="scanImageBox" class="scan-image-box"><span>Noch kein Foto</span></div><button type="button" id="scanPhotoBtn" class="secondary top-space">Foto aufnehmen / auswählen</button><p class="microcopy">Wenn der Browser native Texterkennung anbietet, versucht die App sie lokal. Auf dem iPhone: in das Textfeld tippen und „Text scannen“ verwenden oder Live Text aus Fotos kopieren.</p></div><div><label>Erkannter / kopierter Text<textarea id="scanRawText" rows="10" placeholder="Hier den erkannten Text einfügen …"></textarea></label><div class="row gap wrap"><button type="button" id="scanAnalyzeBtn" class="primary">Text analysieren</button><button type="button" id="scanAddRowBtn" class="ghost">+ leere Zeile</button></div><div id="scanStatus" class="notice subtle">Noch keine Analyse.</div></div></div><hr><div class="scan-target"><label>Ziel-Lernset<select id="scanSetSelect">${sets.map(s=>`<option value="${s.id}">${esc(s.title)} · ${esc(s.schoolYear)}</option>`).join('')}<option value="__new__" ${sets.length?'':'selected'}>+ Neues Lernset</option></select></label><label id="scanNewTitleWrap" class="${sets.length?'hidden':''}">Titel für neues Lernset<input id="scanNewTitle" value="Foto-Import"></label><label id="scanNewYearWrap" class="${sets.length?'hidden':''}">Schuljahr<input id="scanNewYear" value="${esc(currentSchoolYear())}"></label></div><h3>Kontrolle vor dem Import</h3><div id="scanReview"></div><div class="modal-actions"><button value="cancel" class="ghost">Abbrechen</button><button type="button" id="scanImportSave" class="primary">Importieren (0)</button></div>`);
+  modal(`<div class="eyebrow">Fotoimport mit OCR</div><h2>Vokabelseite fotografieren</h2><p>Foto aufnehmen oder auswählen. Die App erkennt den Text automatisch und ordnet mögliche Vokabelpaare vor. Das Foto bleibt auf diesem Gerät.</p><div class="scan-layout"><div><div id="scanImageBox" class="scan-image-box"><span>Noch kein Foto</span></div><button type="button" id="scanPhotoBtn" class="primary top-space">📷 Foto aufnehmen / auswählen</button><p class="microcopy">Tipp: Seite gerade, nah und ohne Schatten fotografieren. Die kostenlose OCR-Engine und Sprachmodelle werden vom Vokabeltrainer selbst geladen und anschließend lokal zwischengespeichert.</p></div><div><label>OCR-Text<textarea id="scanRawText" rows="10" placeholder="Der erkannte Text erscheint hier …"></textarea></label><div id="scanOcrWrap" class="ocr-progress hidden"><progress id="scanOcrProgress" max="1" value="0"></progress><span id="scanOcrLabel">OCR wird vorbereitet …</span></div><div class="row gap wrap"><button type="button" id="scanAnalyzeBtn" class="secondary">Text neu analysieren</button><button type="button" id="scanOcrRetry" class="ghost">OCR erneut starten</button><button type="button" id="scanAddRowBtn" class="ghost">+ leere Zeile</button></div><div id="scanStatus" class="notice subtle">Foto auswählen – OCR startet automatisch.</div></div></div><hr><div class="scan-target"><label>Ziel-Lernset<select id="scanSetSelect">${sets.map(s=>`<option value="${s.id}">${esc(s.title)} · ${esc(s.schoolYear)}</option>`).join('')}<option value="__new__" ${sets.length?'':'selected'}>+ Neues Lernset</option></select></label><label id="scanNewTitleWrap" class="${sets.length?'hidden':''}">Titel für neues Lernset<input id="scanNewTitle" value="Foto-Import"></label><label id="scanNewYearWrap" class="${sets.length?'hidden':''}">Schuljahr<input id="scanNewYear" value="${esc(currentSchoolYear())}"></label></div><h3>Kontrolle vor dem Import</h3><div id="scanReview"></div><div class="modal-actions"><button value="cancel" class="ghost">Abbrechen</button><button type="button" id="scanImportSave" class="primary">Importieren (0)</button></div>`);
   renderScanReview();
   const toggleNew=()=>{const show=$('#scanSetSelect').value==='__new__';$('#scanNewTitleWrap').classList.toggle('hidden',!show);$('#scanNewYearWrap').classList.toggle('hidden',!show)};
   $('#scanSetSelect').onchange=toggleNew;
   $('#scanPhotoBtn').onclick=()=>$('#photoInput').click();
-  $('#scanAnalyzeBtn').onclick=()=>{const parsed=parseVocabularyText($('#scanRawText').value,state.activeSubject);scanImportState.rows=parsed.rows;scanImportState.titleHint=parsed.titleHint;if(parsed.titleHint && ($('#scanNewTitle').value==='Foto-Import'||!$('#scanNewTitle').value.trim()))$('#scanNewTitle').value=parsed.titleHint;renderScanReview();const message=parsed.rows.length?`${parsed.rows.length} mögliche Vokabelpaare erkannt. Bitte jede Zeile kurz prüfen.`:'Keine sicheren Paare erkannt. Text ggf. zeilenweise als Fremdsprache – Deutsch einfügen.';scanStatus(message,parsed.rows.length?'good':'warn')};
+  $('#scanAnalyzeBtn').onclick=()=>analyzeScanText($('#scanRawText').value,'Textanalyse');
+  $('#scanOcrRetry').onclick=()=>scanImportState.lastFile?runTesseractOcr(scanImportState.lastFile):scanStatus('Bitte zuerst ein Foto auswählen.','warn');
   $('#scanAddRowBtn').onclick=()=>{scanImportState.rows.push(makeImportRow('','','','','check'));renderScanReview()};
   $('#scanImportSave').onclick=importScannedRows;
 }
 async function handleScanPhoto(file){
   if(!file || !file.type.startsWith('image/'))return;
   if(file.size>MAX_PHOTO_BYTES){scanStatus('Das Foto ist größer als 20 MB. Bitte ein kleineres Bild verwenden.','warn');return;}
+  scanImportState.lastFile=file;
   if(scanImportState.imageUrl)URL.revokeObjectURL(scanImportState.imageUrl);
   scanImportState.imageUrl=URL.createObjectURL(file);
   const box=$('#scanImageBox'); if(box)box.innerHTML=`<img src="${scanImportState.imageUrl}" alt="Ausgewählte Vokabelseite">`;
-  scanStatus('Foto lokal geladen. Keine Übertragung an einen Server.');
-  if('TextDetector' in window && 'createImageBitmap' in window){
-    try{
-      scanStatus('Foto lokal geladen. Native Texterkennung läuft …');
-      const bitmap=await createImageBitmap(file); const detector=new window.TextDetector(); const found=await detector.detect(bitmap); bitmap.close?.();
-      const text=found.map(x=>x.rawValue||x.text||'').filter(Boolean).join('\n');
-      if(text.trim()){scanImportState.nativeOcr=true;$('#scanRawText').value=text;scanStatus('Text lokal erkannt. Jetzt „Text analysieren“ wählen.','good');}
-      else scanStatus('Foto geladen. Wenn iOS „Text scannen“ anbietet, den Text damit in das Feld übernehmen – alternativ Live Text aus Fotos kopieren.','subtle');
-    }catch(e){scanStatus('Foto geladen. Wenn iOS „Text scannen“ anbietet, den Text damit in das Feld übernehmen – alternativ Live Text aus Fotos kopieren.','subtle');}
-  }else scanStatus('Foto geladen. Wenn iOS „Text scannen“ anbietet, den Text damit in das Feld übernehmen – alternativ Live Text aus Fotos kopieren.','subtle');
+  $('#scanRawText').value=''; scanImportState.rows=[];renderScanReview();
+  await runTesseractOcr(file);
 }
 function importScannedRows(){
   const rows=scanImportState.rows.map((r,i)=>({
