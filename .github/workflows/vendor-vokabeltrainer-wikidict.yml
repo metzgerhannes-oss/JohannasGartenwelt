@@ -68,7 +68,19 @@ jobs:
 
           def shard_key(key):
               simple=re.sub(r'[^a-z0-9]','',key)
-              return simple[:2] or '__'
+              if not simple:
+                  return '__'
+              first=simple[0]
+              second=simple[1] if len(simple)>1 else '_'
+              if 'a' <= second <= 'd': bucket='a'
+              elif 'e' <= second <= 'h': bucket='e'
+              elif 'i' <= second <= 'l': bucket='i'
+              elif 'm' <= second <= 'p': bucket='m'
+              elif 'q' <= second <= 't': bucket='q'
+              elif 'u' <= second <= 'x': bucket='u'
+              elif second.isalnum(): bucket='y'
+              else: bucket='_'
+              return first+bucket
 
           for direction,store in [('de-en',de_en),('en-de',en_de)]:
               groups=defaultdict(dict)
