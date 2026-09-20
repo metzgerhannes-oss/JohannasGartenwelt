@@ -8,17 +8,16 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Vokabeltrainer">
-  <title>Vokabeltrainer – Beta v0.9.3</title>
+  <title>Vokabeltrainer – Beta v0.9.4</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
-  <link rel="stylesheet" href="css/app.css?v=0.9.3">
+  <link rel="stylesheet" href="css/app.css?v=0.9.4">
 </head>
 <body>
   <div id="app" class="app-shell">
     <header class="topbar">
       <div>
-        <div class="eyebrow">Vokabeltrainer</div>
-        <h1 id="appTitle">Legion & Lernpfad</h1>
+        <h1 id="appTitle">Vokabeltrainer</h1>
       </div>
       <div class="top-actions">
         <button id="installBtn" class="ghost hidden">Installieren</button>
@@ -158,17 +157,16 @@
       </section>
 
       <section id="libraryView" class="view">
-        <div class="card">
-          <div class="row spread align-center">
-            <div><div class="eyebrow">Vokabeln</div><h2>Bibliothek</h2></div>
-            <div class="row gap wrap">
-              <button id="scanImportBtn" class="primary">Foto / Text importieren</button>
-              <button id="importCsvBtn" class="secondary">CSV importieren</button>
-              <button id="exportCsvBtn" class="ghost">CSV exportieren</button>
+        <div class="card library-card">
+          <div class="library-head">
+            <div>
+              <h2>Vokabeln</h2>
+              <span id="libraryCountPill" class="library-count">0 Wörter</span>
             </div>
+            <button id="libraryAddBtn" class="primary compact-action">+ Hinzufügen</button>
           </div>
           <div class="library-filters">
-            <label>Suche<input id="librarySearchInput" type="search" placeholder="Vokabel, Bedeutung oder Lernset"></label>
+            <label>Suche<input id="librarySearchInput" type="search" placeholder="Vokabel oder Bedeutung"></label>
             <label>Lernset<select id="librarySetFilter"><option value="">Alle Lernsets</option></select></label>
           </div>
           <div id="wordLibrary"></div>
@@ -193,6 +191,7 @@
             <div class="row gap wrap">
               <button id="backupBtn" class="secondary">Backup JSON</button>
               <button id="restoreBtn" class="ghost">Backup einspielen</button>
+              <button id="exportCsvBtn" class="ghost">CSV exportieren</button>
             </div>
             <hr>
             <button id="resetAppBtn" class="danger-outline">Alle App-Daten löschen</button>
@@ -219,12 +218,12 @@
   <dialog id="modal"><form method="dialog" id="modalForm"><div id="modalContent"></div></form></dialog>
   <input id="fileInput" type="file" class="hidden" accept=".csv,.json,text/csv,application/json">
   <input id="photoInput" type="file" class="hidden" accept="image/*">
-  <script src="js/core.js?v=0.9.3" defer></script>
-  <script src="js/storage.js?v=0.9.3" defer></script>
-  <script src="js/model.js?v=0.9.3" defer></script>
-  <script src="js/learning.js?v=0.9.3" defer></script>
-  <script src="js/io.js?v=0.9.3" defer></script>
-  <script src="js/ui.js?v=0.9.3" defer></script>
-  <script src="js/app.js?v=0.9.3" defer></script>
+  <script src="js/core.js?v=0.9.4" defer></script>
+  <script src="js/storage.js?v=0.9.4" defer></script>
+  <script src="js/model.js?v=0.9.4" defer></script>
+  <script src="js/learning.js?v=0.9.4" defer></script>
+  <script src="js/io.js?v=0.9.4" defer></script>
+  <script src="js/ui.js?v=0.9.4" defer></script>
+  <script src="js/app.js?v=0.9.4" defer></script>
 </body>
 </html>
