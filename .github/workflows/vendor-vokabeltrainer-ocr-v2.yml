@@ -22,23 +22,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .ocr-tmp vokabeltrainer/ocr
-          mkdir -p .ocr-tmp vokabeltrainer/ocr/tesseract vokabeltrainer/ocr/core vokabeltrainer/ocr/lang vokabeltrainer/ocr/licenses
-          cd .ocr-tmp
+          rm -rf ocr-tmp vokabeltrainer/ocr
+          mkdir -p ocr-tmp vokabeltrainer/ocr/tesseract vokabeltrainer/ocr/core vokabeltrainer/ocr/lang vokabeltrainer/ocr/licenses
+          cd ocr-tmp
           npm init -y >/dev/null 2>&1
           npm install --ignore-scripts --no-audit --no-fund tesseract.js@7.0.0 tesseract.js-core@7.0.0 >/dev/null
           cd ..
-          cp .ocr-tmp/node_modules/tesseract.js/dist/tesseract.min.js vokabeltrainer/ocr/tesseract/
-          cp .ocr-tmp/node_modules/tesseract.js/dist/worker.min.js vokabeltrainer/ocr/tesseract/
-          cp .ocr-tmp/node_modules/tesseract.js/LICENSE.md vokabeltrainer/ocr/licenses/TESSERACT-JS-APACHE-2.0.txt
-          cp -a .ocr-tmp/node_modules/tesseract.js-core/. vokabeltrainer/ocr/core/
+          cp ocr-tmp/node_modules/tesseract.js/dist/tesseract.min.js vokabeltrainer/ocr/tesseract/
+          cp ocr-tmp/node_modules/tesseract.js/dist/worker.min.js vokabeltrainer/ocr/tesseract/
+          cp ocr-tmp/node_modules/tesseract.js/LICENSE.md vokabeltrainer/ocr/licenses/TESSERACT-JS-APACHE-2.0.txt
+          cp -a ocr-tmp/node_modules/tesseract.js-core/. vokabeltrainer/ocr/core/
           rm -f vokabeltrainer/ocr/core/package.json vokabeltrainer/ocr/core/README.md
-          cp .ocr-tmp/node_modules/tesseract.js-core/LICENSE vokabeltrainer/ocr/licenses/TESSERACT-JS-CORE-APACHE-2.0.txt
+          cp ocr-tmp/node_modules/tesseract.js-core/LICENSE vokabeltrainer/ocr/licenses/TESSERACT-JS-CORE-APACHE-2.0.txt
           for lang in eng deu lat; do
             curl -fL --retry 3 "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/${lang}.traineddata" -o "vokabeltrainer/ocr/lang/${lang}.traineddata"
           done
           curl -fL --retry 3 "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/LICENSE" -o vokabeltrainer/ocr/licenses/TESSDATA-APACHE-2.0.txt
-          rm -rf .ocr-tmp
+          rm -rf ocr-tmp
       - name: Commit OCR runtime
         shell: bash
         run: |
