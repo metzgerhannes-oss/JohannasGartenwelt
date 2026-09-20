@@ -1,1 +1,230 @@
-The requested file reference is not currently visible. Use files.search or files.list to rediscover the file, then retry with a returned ref_id or file_id.
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#172033">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'; worker-src 'self'; manifest-src 'self'">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Vokabeltrainer">
+  <title>Vokabeltrainer – Beta v0.9.1</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="../app-icon-180.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">Vokabeltrainer</div>
+        <h1 id="appTitle">Legion & Lernpfad</h1>
+      </div>
+      <div class="top-actions">
+        <button id="installBtn" class="ghost hidden">Installieren</button>
+        <button id="profileBtn" class="profile-chip">Profil</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="homeView" class="view active">
+        <article class="card today-focus">
+          <div class="today-main">
+            <div class="row gap align-center"><div class="eyebrow">Dein Tagesziel</div><span id="todayTestPill" class="pill hidden"></span></div>
+            <h2 id="todaySummary">Deine nächste Lerneinheit</h2>
+            <p id="todayContext" class="muted-line"></p>
+            <div class="today-progress-row">
+              <progress id="todayProgress" class="mastery-progress" max="1" value="0" aria-label="Tagesfortschritt"></progress>
+              <strong id="todayProgressText"></strong>
+            </div>
+            <p id="todayEstimate" class="muted-line"></p>
+          </div>
+          <div class="today-actions">
+            <button id="quickLearnHeroBtn" class="primary today-cta">Tagesziel starten</button>
+            <button id="todayTestBtn" class="ghost hidden">Testdatum setzen</button>
+          </div>
+        </article>
+
+        <article id="testCheckCard" class="card test-check-card hidden">
+          <div class="row spread align-center wrap">
+            <div>
+              <div class="eyebrow">Testcheck</div>
+              <h2 id="testCheckTitle">Bereit für den Vokabeltest?</h2>
+              <p id="testCheckContext" class="muted-line"></p>
+            </div>
+            <div class="test-check-score"><strong id="testReadyPct">0%</strong><small>testbereit</small></div>
+          </div>
+          <progress id="testReadyProgress" class="mastery-progress" max="100" value="0" aria-label="Testbereitschaft"></progress>
+          <div class="row spread align-center wrap top-space">
+            <span id="testReadyDetail" class="muted-line"></span>
+            <button id="practiceTestBtn" class="secondary">Testcheck starten</button>
+          </div>
+        </article>
+
+        <div class="hero-grid">
+          <article class="card progress-card">
+            <div class="row spread align-center">
+              <div>
+                <div class="row gap align-center"><div class="eyebrow" id="subjectLabel">Englisch</div><span id="schoolYearPill" class="pill">–</span></div>
+                <h2 id="welcomeTitle">Dein Lernstand</h2>
+              </div>
+              <div class="segmented" aria-label="Fach wählen">
+                <button data-subject="english" class="subject-btn active" aria-pressed="true">EN</button>
+                <button data-subject="latin" class="subject-btn" aria-pressed="false">LA</button>
+              </div>
+            </div>
+            <div class="big-progress">
+              <div class="progress-orb"><span id="masteryPct">0%</span></div>
+              <div class="progress-copy">
+                <strong id="masteryWords">0 / 0 gemeistert</strong>
+                <p>100 % bedeutet: alle Vokabeln des aktuellen Schuljahres nachhaltig beherrscht.</p>
+                <progress id="masteryProgress" class="mastery-progress" max="100" value="0" aria-label="Schuljahresfortschritt"></progress>
+              </div>
+            </div>
+            <div class="metric-grid">
+              <div><span class="metric" id="dueCount">0</span><small>heute fällig</small></div>
+              <div><span class="metric" id="streakCount">0</span><small>Tage aktiv</small></div>
+              <div><span class="metric" id="xpCount">0</span><small>XP</small></div>
+              <div><span class="metric" id="stableCount">0</span><small>langzeitstabil</small></div>
+            </div>
+          </article>
+
+          <article class="card campaign-card" id="campaignCard">
+            <div class="row spread align-center">
+              <div>
+                <div class="eyebrow" id="campaignEyebrow">Kampagne</div>
+                <h2 id="campaignTitle">Deine Armee</h2>
+              </div>
+              <span class="pill" id="armyRank">Rekruten</span>
+            </div>
+            <div id="battlefield" class="battlefield" role="img" aria-label="Armee und Festung"></div>
+            <div class="campaign-stats">
+              <div><small>Stärke</small><strong id="armyStrength">0</strong></div>
+              <div><small>Nächstes Ziel</small><strong id="fortressRequirement">15%</strong></div>
+              <div><small>Ausrüstung</small><strong id="gearLevel">I</strong></div>
+            </div>
+            <div class="row gap wrap">
+              <button id="attackBtn" class="primary">Festung angreifen</button>
+              <button id="duelBtn" class="secondary">Freundschaftsduell</button>
+            </div>
+            <div id="campaignMessage" class="notice subtle"></div>
+          </article>
+        </div>
+
+        <section id="optionalLearningCard" class="card">
+          <div class="row spread align-center">
+            <div>
+              <div class="eyebrow">Optional</div>
+              <h2>Weitere Lernarten</h2>
+            </div>
+            <span id="lrsBadge" class="pill hidden">LRS aktiv</span>
+          </div>
+          <div id="recommendations" class="recommend-grid"></div>
+        </section>
+
+        <section class="card">
+          <div class="row spread align-center">
+            <div>
+              <div class="eyebrow">Lernsets</div>
+              <h2>Dein Schuljahr</h2>
+            </div>
+            <button id="newSetBtn" class="secondary">+ Lernset</button>
+          </div>
+          <div id="setList" class="set-list"></div>
+        </section>
+      </section>
+
+      <section id="learnView" class="view">
+        <div class="card study-shell">
+          <div class="row spread align-center">
+            <button id="backHomeBtn" class="ghost">← Zurück</button>
+            <div class="row gap align-center">
+              <span class="pill" id="modePill">Adaptiv</span>
+              <span class="pill" id="sessionPill">0 / 0</span>
+            </div>
+          </div>
+          <div id="studyArea" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section id="dashboardView" class="view">
+        <div class="card">
+          <div class="row spread align-center">
+            <div><div class="eyebrow">Familie</div><h2>Fortschritt & Noten</h2></div>
+            <button id="addGradeBtn" class="secondary">+ Testnote</button>
+          </div>
+          <div id="dashboardContent"></div>
+        </div>
+      </section>
+
+      <section id="libraryView" class="view">
+        <div class="card">
+          <div class="row spread align-center">
+            <div><div class="eyebrow">Vokabeln</div><h2>Bibliothek</h2></div>
+            <div class="row gap wrap">
+              <button id="scanImportBtn" class="primary">Foto / Text importieren</button>
+              <button id="importCsvBtn" class="secondary">CSV importieren</button>
+              <button id="exportCsvBtn" class="ghost">CSV exportieren</button>
+            </div>
+          </div>
+          <div class="library-filters">
+            <label>Suche<input id="librarySearchInput" type="search" placeholder="Vokabel, Bedeutung oder Lernset"></label>
+            <label>Lernset<select id="librarySetFilter"><option value="">Alle Lernsets</option></select></label>
+          </div>
+          <div id="wordLibrary"></div>
+        </div>
+      </section>
+
+      <section id="settingsView" class="view">
+        <div class="settings-grid">
+          <article class="card">
+            <div class="eyebrow">Lernen</div><h2>Einstellungen</h2>
+            <label class="switch-row"><span><strong>LRS-Modus</strong><small>kürzere Einheiten, Audio zuerst, ruhigeres Layout</small></span><input id="lrsToggle" type="checkbox"></label>
+            <label>Schriftgröße <input id="fontSizeRange" type="range" min="16" max="24" step="1"></label>
+            <label>Buchstabenabstand <input id="letterSpacingRange" type="range" min="0" max="3" step="0.25"></label>
+            <label>Blitzlesen-Tempo
+              <select id="flashSpeedSelect"><option value="2200">ruhig</option><option value="1600">normal</option><option value="1100">schnell</option></select>
+            </label>
+          </article>
+          <article class="card">
+            <div class="eyebrow">Daten</div><h2>Sichern & übertragen</h2>
+            <p>Alle Lerndaten bleiben lokal auf diesem Gerät. Die App nutzt IndexedDB und übernimmt ältere Daten automatisch.</p>
+            <div id="storageStatus" class="notice subtle">Speicherstatus wird geprüft …</div>
+            <div class="row gap wrap">
+              <button id="backupBtn" class="secondary">Backup JSON</button>
+              <button id="restoreBtn" class="ghost">Backup einspielen</button>
+            </div>
+            <hr>
+            <button id="resetAppBtn" class="danger-outline">Alle App-Daten löschen</button>
+          </article>
+          <article class="card">
+            <div class="eyebrow">Profile</div><h2>Lernende</h2>
+            <div id="profileList"></div>
+            <button id="addProfileBtn" class="secondary">+ Profil</button>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navigation">
+      <button data-view="homeView" class="nav-btn active"><span>⌂</span>Heute</button>
+      <button data-action="quickLearn" class="nav-btn"><span>✦</span>Lernen</button>
+      <button data-view="libraryView" class="nav-btn"><span>▤</span>Vokabeln</button>
+      <button data-view="dashboardView" class="nav-btn"><span>▥</span>Fortschritt</button>
+      <button data-view="settingsView" class="nav-btn"><span>⚙</span>Mehr</button>
+    </nav>
+  </div>
+
+  <div id="toastRegion" class="toast-region" role="status" aria-live="polite" aria-atomic="true"></div>
+  <dialog id="modal"><form method="dialog" id="modalForm"><div id="modalContent"></div></form></dialog>
+  <input id="fileInput" type="file" class="hidden" accept=".csv,.json,text/csv,application/json">
+  <input id="photoInput" type="file" class="hidden" accept="image/*">
+  <script src="js/core.js" defer></script>
+  <script src="js/storage.js" defer></script>
+  <script src="js/model.js" defer></script>
+  <script src="js/learning.js" defer></script>
+  <script src="js/io.js" defer></script>
+  <script src="js/ui.js" defer></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>
