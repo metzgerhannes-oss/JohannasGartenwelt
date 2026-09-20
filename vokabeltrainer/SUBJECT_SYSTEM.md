@@ -47,7 +47,7 @@ Dadurch muss z. B. Französisch nicht mit neuen `if (subject === 'french')`-Blö
 
 ## Pädagogische Leitplanke
 
-Retrieval Practice bleibt fachübergreifend der Kern. Forschung zeigt den Nutzen von Retrieval auch beim Lernen französischer L3-Vokabeln; die Fachgenerik verändert daher nicht Mastery, Spacing oder die konservative Bewertung, sondern nur sprachspezifische Ein-/Ausgabe. Siehe u. a. die Studie zu Retrieval Practice bei französischen L3-Wörtern: https://doi.org/10.1016/j.system.2019.05.002
+Retrieval Practice bleibt fachübergreifend der Kern. Forschung zeigt den Nutzen von Retrieval auch beim Lernen französischer L3-Vokabeln; die Fachgenerik verändert daher nicht Mastery, Spacing oder die konservative Bewertung, sondern nur sprachspezifische Ein-/Ausgabe. Siehe u. a. die Studie zu Retrieval Practice bei französischen L3-Wörtern: https://doi.org/10.1016/j.lingua.2022.103294
 
 ## Aktivierungs-Check für ein neues Fach
 
