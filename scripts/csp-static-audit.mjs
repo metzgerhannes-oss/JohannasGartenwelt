@@ -12,6 +12,7 @@ function read(p){ return fs.readFileSync(p, "utf8"); }
 
 const index = read("index.html");
 const setup = read("setup.html");
+const appJs = read("jgw-app.js");
 
 function metaCsp(html){
   const tags = html.match(/<meta\b[^>]*>/gi) || [];
@@ -48,6 +49,10 @@ check("index script-src-attr none", /script-src-attr\s+'none'/.test(indexCsp), i
 check("setup script-src-attr none", /script-src-attr\s+'none'/.test(setupCsp), setupCsp);
 check("index style elements hardened", /style-src-elem/.test(indexCsp) && !/style-src-elem[^;]*'unsafe-inline'/.test(indexCsp), indexCsp);
 check("setup style elements hardened", /style-src-elem/.test(setupCsp) && !/style-src-elem[^;]*'unsafe-inline'/.test(setupCsp), setupCsp);
+check("index executable sources are self-only", /script-src\\s+'self';/.test(indexCsp) && /style-src\\s+'self';/.test(indexCsp) && /style-src-elem\\s+'self';/.test(indexCsp), indexCsp);
+check("setup executable sources are self-only", /script-src\\s+'self';/.test(setupCsp), setupCsp);
+check("main app has no CDN script/style loader", !/cdn\\.jsdelivr\\.net|cdnjs\\.cloudflare\\.com/.test(appJs), "");
+check("setup has no external script tag", !/<script[^>]+src=["']https?:\\/\\//i.test(setup), "");
 
 const jsFiles = fs.readdirSync(".").filter(x => x.endsWith(".js"));
 let dynamicStyleCount = 0;
@@ -69,7 +74,15 @@ check("all local HTML assets exist", missing.length === 0, missing.join(", "));
 const sw = read("sw.js");
 check("runtime stylesheet linked", index.includes("jgw-runtime-styles.css"));
 check("runtime stylesheet cached", sw.includes('"./jgw-runtime-styles.css"'));
-check("service worker cache bumped", /jgw-shell-v4/.test(sw));
+check("service worker cache bumped", /jgw-shell-v5/.test(sw));
+check("service worker has no executable CDN cache", !/OPTIONAL_CDN|RUNTIME_CACHE|cdn\\.jsdelivr\\.net/.test(sw), "");
+for (const p of [
+  "vendor/leaflet/leaflet-1.9.4.js",
+  "vendor/leaflet/leaflet-1.9.4.css",
+  "vendor/leaflet-draw/leaflet.draw-1.0.4.js",
+  "vendor/leaflet-draw/leaflet.draw-1.0.4.css",
+  "vendor/qrcode/qrcode-1.0.0.min.js"
+]) check("vendor asset exists: " + p, fs.existsSync(p), p);
 
 console.log("FINAL_STATIC " + JSON.stringify({ ok: failures.length === 0, checks, failures }));
 if (failures.length) process.exit(1);
