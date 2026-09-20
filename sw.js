@@ -1,7 +1,7 @@
 "use strict";
 
-const SHELL_CACHE = "jgw-shell-v1";
-const RUNTIME_CACHE = "jgw-runtime-v1";
+const SHELL_CACHE = "jgw-shell-v2";
+const RUNTIME_CACHE = "jgw-runtime-v2";
 
 const OPTIONAL_CDN = [
   "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css",
@@ -68,7 +68,7 @@ function sensitiveRequest(url) {
 async function networkFirst(request, fallbackUrl) {
   const cache = await caches.open(SHELL_CACHE);
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, { cache: "no-cache" });
     if (response && response.ok) {
       await cache.put(request, response.clone());
       if (fallbackUrl) await cache.put(fallbackUrl, response.clone());
@@ -100,7 +100,7 @@ self.addEventListener("fetch", event => {
   const url = new URL(request.url);
 
   if (sensitiveRequest(url)) {
-    event.respondWith(fetch(request));
+    event.respondWith(fetch(request, { cache: "no-store" }));
     return;
   }
 
