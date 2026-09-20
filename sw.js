@@ -1,15 +1,6 @@
 "use strict";
 
-const SHELL_CACHE = "jgw-shell-v4";
-const RUNTIME_CACHE = "jgw-runtime-v2";
-
-const OPTIONAL_CDN = [
-  "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css",
-  "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js",
-  "https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.css",
-  "https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"
-];
-
+const SHELL_CACHE = "jgw-shell-v5";
 const SHELL = [
   "./",
   "./index.html",
@@ -20,6 +11,10 @@ const SHELL = [
   "./jgw-runtime-styles.css",
   "./jgw-app.js",
   "./jgw-sw-register.js",
+  "./vendor/leaflet/leaflet-1.9.4.css",
+  "./vendor/leaflet/leaflet-1.9.4.js",
+  "./vendor/leaflet-draw/leaflet.draw-1.0.4.css",
+  "./vendor/leaflet-draw/leaflet.draw-1.0.4.js",
   "./jgw-ux-shell.js",
   "./jgw-library-v4.js",
   "./jgw-ux-patch.js",
@@ -36,17 +31,9 @@ const SHELL = [
 
 self.addEventListener("install", event => {
   event.waitUntil(
-    Promise.all([
-      caches.open(SHELL_CACHE).then(cache => cache.addAll(SHELL)),
-      caches.open(RUNTIME_CACHE).then(async cache => {
-        await Promise.allSettled(OPTIONAL_CDN.map(async url => {
-          try {
-            const response = await fetch(url, { mode: "no-cors", cache: "no-cache" });
-            if (response) await cache.put(url, response.clone());
-          } catch (_) {}
-        }));
-      })
-    ]).then(() => self.skipWaiting())
+    caches.open(SHELL_CACHE)
+      .then(cache => cache.addAll(SHELL))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -55,7 +42,7 @@ self.addEventListener("activate", event => {
     caches.keys()
       .then(keys => Promise.all(
         keys
-          .filter(key => key.startsWith("jgw-") && ![SHELL_CACHE, RUNTIME_CACHE].includes(key))
+          .filter(key => key.startsWith("jgw-") && key !== SHELL_CACHE)
           .map(key => caches.delete(key))
       ))
       .then(() => self.clients.claim())
@@ -85,18 +72,6 @@ async function networkFirst(request, fallbackUrl) {
   }
 }
 
-async function runtimeStaleWhileRevalidate(request) {
-  const cache = await caches.open(RUNTIME_CACHE);
-  const cached = await cache.match(request, { ignoreSearch: false });
-  const network = fetch(request).then(response => {
-    if (response && (response.ok || response.type === "opaque")) {
-      cache.put(request, response.clone()).catch(() => {});
-    }
-    return response;
-  }).catch(() => null);
-  return cached || await network || Response.error();
-}
-
 self.addEventListener("fetch", event => {
   const request = event.request;
   if (request.method !== "GET") return;
@@ -120,10 +95,5 @@ self.addEventListener("fetch", event => {
     }
 
     return;
-  }
-
-  if (url.hostname === "cdn.jsdelivr.net"
-      && ["script", "style", "font"].includes(request.destination)) {
-    event.respondWith(runtimeStaleWhileRevalidate(request));
   }
 });

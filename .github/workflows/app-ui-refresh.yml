@@ -6,6 +6,14 @@ on:
       - '.github/workflows/app-ui-refresh.yml'
       - 'index.html'
       - 'setup.html'
+      - 'jgw-app.js'
+      - 'jgw-app.css'
+      - 'jgw-runtime-styles.css'
+      - 'jgw-sw-register.js'
+      - 'setup.js'
+      - 'setup.css'
+      - 'vendor/**'
+      - 'scripts/csp-static-audit.mjs'
       - 'manifest.webmanifest'
       - 'setup.webmanifest'
       - 'sw.js'
@@ -46,28 +54,26 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import json, re
-          for fn in ['index.html','setup.html']:
-              s=Path(fn).read_text(encoding='utf-8')
-              blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S)
-              Path('/tmp/'+fn+'.js').write_text('\n'.join(b for b in blocks if b.strip()),encoding='utf-8')
-              assert 'JGW FINAL DESIGN' in s
+          import json
           idx=Path('index.html').read_text(encoding='utf-8')
           setup=Path('setup.html').read_text(encoding='utf-8')
+          app_css=Path('jgw-app.css').read_text(encoding='utf-8')
+          runtime_css=Path('jgw-runtime-styles.css').read_text(encoding='utf-8')
+          app_js=Path('jgw-app.js').read_text(encoding='utf-8')
           json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
           json.loads(Path('setup.webmanifest').read_text(encoding='utf-8'))
-          assert 'font-family:-apple-system' in idx
-          assert 'min-height:52px' in idx
+          assert 'JGW FINAL DESIGN' in app_css
+          assert 'font-family:-apple-system' in app_css
+          assert 'min-height:52px' in app_css or 'min-height:52px' in runtime_css
           assert '<link rel="apple-touch-icon" href="./app-icon-180.png">' in setup
           assert '<link rel="icon" href="./app-icon.svg" type="image/svg+xml">' in setup
           assert 'id="setupGuide"' in idx
           assert 'id="plantAdvanced"' in idx
           assert 'id="calendarToggle"' in idx
-          assert 'function renderOnboardingGuide()' in idx
+          assert 'function renderOnboardingGuide()' in app_js
           PY
-          node --check /tmp/index.html.js
-          node --check /tmp/setup.html.js
-          for js in sw.js jgw-ux-shell.js jgw-library-v4.js jgw-ux-patch.js jgw-photo-storage-v2.js jgw-ui-cleanup-20260914.js jgw-mobile-fix-v5.js garten-tipps.js jgw-care-calendar-v1.js jgw-task-bulk-v3.js jgw-hardiness-data-v1.js jgw-hardiness-v2.js jgw-hardiness-labels-v1.js; do
+          node scripts/csp-static-audit.mjs
+          for js in jgw-app.js jgw-sw-register.js setup.js sw.js jgw-ux-shell.js jgw-library-v4.js jgw-ux-patch.js jgw-photo-storage-v2.js jgw-ui-cleanup-20260914.js jgw-mobile-fix-v5.js garten-tipps.js jgw-care-calendar-v1.js jgw-task-bulk-v3.js jgw-hardiness-data-v1.js jgw-hardiness-v2.js jgw-hardiness-labels-v1.js vendor/leaflet/leaflet-1.9.4.js vendor/leaflet-draw/leaflet.draw-1.0.4.js vendor/qrcode/qrcode-1.0.0.min.js; do
             test ! -f "$js" || node --check "$js"
           done
           python -m py_compile tools/core_runtime_smoke.py tools/runtime_efficiency_audit.py tools/ux_v4_audit.py
