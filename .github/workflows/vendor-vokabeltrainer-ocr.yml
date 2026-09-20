@@ -1,0 +1,54 @@
+name: Vendor Vokabeltrainer OCR
+
+on:
+  push:
+    paths:
+      - '.github/workflows/vendor-vokabeltrainer-ocr.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  vendor:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download pinned OCR dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .ocr-tmp vokabeltrainer/ocr
+          mkdir -p .ocr-tmp vokabeltrainer/ocr/tesseract vokabeltrainer/ocr/core vokabeltrainer/ocr/lang vokabeltrainer/ocr/licenses
+          cd .ocr-tmp
+          npm init -y >/dev/null 2>&1
+          npm install --ignore-scripts --no-audit --no-fund tesseract.js@7.0.0 tesseract.js-core@7.0.0 >/dev/null
+          cd ..
+          cp .ocr-tmp/node_modules/tesseract.js/dist/tesseract.min.js vokabeltrainer/ocr/tesseract/
+          cp .ocr-tmp/node_modules/tesseract.js/dist/worker.min.js vokabeltrainer/ocr/tesseract/
+          cp .ocr-tmp/node_modules/tesseract.js/LICENSE.md vokabeltrainer/ocr/licenses/TESSERACT-JS-APACHE-2.0.txt
+          cp -a .ocr-tmp/node_modules/tesseract.js-core/. vokabeltrainer/ocr/core/
+          rm -f vokabeltrainer/ocr/core/package.json vokabeltrainer/ocr/core/README.md
+          cp .ocr-tmp/node_modules/tesseract.js-core/LICENSE vokabeltrainer/ocr/licenses/TESSERACT-JS-CORE-APACHE-2.0.txt
+          for lang in eng deu lat; do
+            curl -fL --retry 3 "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/${lang}.traineddata" -o "vokabeltrainer/ocr/lang/${lang}.traineddata"
+          done
+          curl -fL --retry 3 "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/LICENSE" -o vokabeltrainer/ocr/licenses/TESSDATA-APACHE-2.0.txt
+          rm -rf .ocr-tmp
+      - name: Commit OCR runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vokabeltrainer/ocr
+          if git diff --cached --quiet; then
+            echo "OCR runtime already current."
+            exit 0
+          fi
+          git commit -m "Vokabeltrainer: vendor OCR runtime"
+          git push
