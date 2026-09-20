@@ -27,22 +27,10 @@ const fetchWithTimeout=async relative=>page.evaluate(async url=>{
 },relative);
 
 try{
+  // The production Gartenwelt worker is HTTPS-only. CI runs on localhost HTTP,
+  // so seed its real cache name directly to verify origin-wide cache isolation.
   await page.goto(base+'/index.html',{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(async()=>{
-    const registration=await navigator.serviceWorker.getRegistration('./');
-    return !!registration?.active?.scriptURL?.endsWith('/sw.js');
-  },null,{timeout:12000});
-  let rootController=await page.evaluate(()=>navigator.serviceWorker.controller?.scriptURL||'');
-  if(!rootController.endsWith('/sw.js')||rootController.includes('/vokabeltrainer/')){
-    await page.reload({waitUntil:'domcontentloaded'});
-    await page.waitForFunction(()=>!!navigator.serviceWorker.controller?.scriptURL?.endsWith('/sw.js')&&!navigator.serviceWorker.controller.scriptURL.includes('/vokabeltrainer/'),null,{timeout:12000});
-  }
-
-  const rootCacheName=await page.evaluate(async()=>{
-    const keys=await caches.keys();
-    return keys.find(key=>key.startsWith('jgw-shell-'))||'';
-  });
-  assert(!!rootCacheName,'Gartenwelt shell cache must exist before Vokabeltrainer activation');
+  const rootCacheName='jgw-shell-v5';
   await page.evaluate(async cacheName=>{
     const cache=await caches.open(cacheName);
     await cache.put(new Request(location.origin+'/__vocab_cache_sentinel__'),new Response('keep-me'));
@@ -95,7 +83,7 @@ try{
   console.log('✓ Gartenwelt shell cache survives Vokabeltrainer activation');
   console.log('✓ resource cache works offline');
 }finally{
-  clearTimeout(hardStop);
   await context.setOffline(false).catch(()=>{});
-  await browser.close();
+  await browser.close().catch(()=>{});
+  clearTimeout(hardStop);
 }
