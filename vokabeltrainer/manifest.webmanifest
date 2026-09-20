@@ -1,0 +1,26 @@
+{
+  "name": "Vokabeltrainer – Legion & Lernpfad",
+  "short_name": "Vokabeltrainer",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#eef1f5",
+  "theme_color": "#172033",
+  "description": "Offline-PWA für Englisch und Latein mit täglichem Lernplan, adaptivem Lernen, Testcheck, LRS-Modus und gehärteter lokaler Datenspeicherung.",
+  "icons": [
+    {
+      "src": "../app-icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "../app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "id": "./",
+  "lang": "de"
+}
