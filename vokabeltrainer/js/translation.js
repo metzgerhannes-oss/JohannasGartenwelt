@@ -155,8 +155,8 @@ async function repairSuspiciousCompletePair(row){
 function annotateGlobalLibraryMatch(row){
   if(!row?.term||!row?.translation)return row;
   const match=vocabularySenseMatch(state?.activeSubject||'english',row.term,row.extra||'',row.translation),v=match.vocab;
-  if(!v){delete row.libraryMatchId;delete row.librarySenseId;delete row.libraryMatchStatus;return row;}
-  row.libraryMatchId=v.id;row.librarySenseId=match.sense?.id||'';row.libraryMatchStatus=match.sense?'existing':'new-meaning';return row;
+  if(!v){delete row.libraryMatchId;delete row.librarySenseId;delete row.librarySenseOptions;delete row.libraryMatchStatus;delete row.selectedSenseId;return row;}
+  row.libraryMatchId=v.id;row.librarySenseId=match.sense?.id||'';row.librarySenseOptions=(v.senses||[]).map(s=>({id:s.id,translation:s.translation,partOfSpeech:s.partOfSpeech||''}));row.libraryMatchStatus=match.sense?'existing':'sense-choice';if(match.sense)row.selectedSenseId=match.sense.id;return row;
 }
 async function enrichHybridRows(rows){
   if(!Array.isArray(rows)||!rows.length)return rows||[];
