@@ -20,11 +20,23 @@ function grammarTarget(w){
   if(m.kind==='verb')return {key:'principalParts',label:'Stammformen',prompt:`${w.term} – Stamm-/Grundformen?`,target:m.principalParts,rule:'Stammformen produktiv abrufen; sie helfen, gebeugte Verbformen später wiederzuerkennen.'};
   return {key:'form',label:'Zusatzform',prompt:`${w.term} – ergänzende Form?`,target:m.other,rule:'Form und Grundbedeutung zusammen verknüpfen; danach im Beispielsatz wiedererkennen.'};
 }
+function senseRecordForWord(w){const v=(state.vocabulary||[]).find(x=>x.id===w?.vocabId);return {v,sense:v?senseById(v,w?.senseId):null}}
+function ambiguousSenseWord(w){const {v}=senseRecordForWord(w);return (v?.senses||[]).length>1}
+function senseCueText(w){
+  const {v,sense}=senseRecordForWord(w);if(!v||!sense||(v.senses||[]).length<2)return '';
+  const parts=[],pos=String(sense.partOfSpeech||'').trim(),others=(v.senses||[]).filter(s=>s.id!==sense.id);if(pos&&others.some(s=>String(s.partOfSpeech||'').trim()!==pos))parts.push(pos);
+  const example=String(w.example||'').trim();if(example){const rx=new RegExp(String(w.term||'').replace(/[.*+?^$()|[\]{}\\]/g,'\\$&'),'i');parts.push(example.replace(rx,'_____'))}
+  return parts.join(' · ');
+}
+function meaningRecallHasCue(w){return !ambiguousSenseWord(w)||!!senseCueText(w)}
+function meaningPromptText(w){const cue=senseCueText(w);return cue?`${w.term} · ${cue}`:w.term}
+function meaningCueHtml(w){const cue=senseCueText(w);return cue?`<div class="study-sub">Kontext: ${esc(cue)}</div>`:''}
+
 function chooseAdaptiveMode(w){
   const s={...defaultSkills(),...(w.skills||{})},lrs=!!learner().lrsMode,modes=new Set(w.modesSeen||[]),acc=recentActiveAccuracy(w);
   if(acc!==null&&acc<.7){if(lrs&&s.listening<2)return 'listening';if(s.recognition<2)return 'recognition';if(!modes.has('chunks'))return 'chunks';}
   const testCtx=session?.isDaily?upcomingTestContext():null,fmt=testCtx?.testFormat||'target';
-  if(testCtx&&testCtx.days<=1&&(w.repetitions||0)>0){if(fmt==='source')return 'reverseRecall';if(fmt==='dictation')return 'spelling';if(fmt==='mixed')return session.index%2?'reverseRecall':'recall';}
+  if(testCtx&&testCtx.days<=1&&(w.repetitions||0)>0){if(fmt==='source')return meaningRecallHasCue(w)?'reverseRecall':'recall';if(fmt==='dictation')return 'spelling';if(fmt==='mixed')return session.index%2&&meaningRecallHasCue(w)?'reverseRecall':'recall';}
   if(lrs){
     if(s.listening<1)return 'listening';
     if(s.spelling<1&&!modes.has('chunks'))return 'chunks';
@@ -63,7 +75,7 @@ function startPracticeTest(full=false){
   session={mode:'practiceTest',setId:null,queue:pool.map(w=>w.setLinkId||w.id),index:0,correct:0,answered:0,currentSubmode:'practiceTest',locked:false,retryCounts:{},followupCounts:{},hintUsed:false,isDaily:false,testAnswers:[],practiceContext:{date:ctx.date,scopeText:ctx.scopeText||ctx.sets.map(s=>s.title).join(' + '),source:ctx.source,testFormat:ctx.testFormat||'target'},practiceFull:full};
   showView('learnView'); $('#modePill').textContent=full?'Prüfung · komplett':'Prüfung · Kurzcheck'; renderStudy();
 }
-function practiceDirection(w){const f=session?.practiceContext?.testFormat||'target';if(f==='source')return {prompt:w.term,target:w.translation,targets:translationTargets(w),label:'Deutsch'};if(f==='dictation')return {prompt:'🔊 Diktat',target:w.term,targets:termTargets(w),label:state.activeSubject==='latin'?'Latein':'Englisch',audio:true};if(f==='mixed'){const flip=(session.index%2)===1;return flip?{prompt:w.term,target:w.translation,targets:translationTargets(w),label:'Deutsch'}:{prompt:w.translation,target:w.term,targets:termTargets(w),label:state.activeSubject==='latin'?'Latein':'Englisch'};}return {prompt:w.translation,target:w.term,targets:termTargets(w),label:state.activeSubject==='latin'?'Latein':'Englisch'};}
+function practiceDirection(w){const f=session?.practiceContext?.testFormat||'target',meaningPrompt=meaningPromptText(w);if(f==='source')return {prompt:meaningPrompt,target:w.translation,targets:translationTargets(w),label:'Deutsch'};if(f==='dictation')return {prompt:'🔊 Diktat',target:w.term,targets:termTargets(w),label:state.activeSubject==='latin'?'Latein':'Englisch',audio:true};if(f==='mixed'){const flip=(session.index%2)===1;return flip?{prompt:meaningPrompt,target:w.translation,targets:translationTargets(w),label:'Deutsch'}:{prompt:w.translation,target:w.term,targets:termTargets(w),label:state.activeSubject==='latin'?'Latein':'Englisch'};}return {prompt:w.translation,target:w.term,targets:termTargets(w),label:state.activeSubject==='latin'?'Latein':'Englisch'};}
 function renderPracticeTest(w){
   const d=practiceDirection(w);$('#studyArea').innerHTML=`<div class="study-card"><div class="eyebrow">Prüfungssimulation</div><div class="study-prompt">${esc(d.prompt)}</div><div class="study-sub">Schreibe die passende Antwort auf ${esc(d.label)}. Keine Hinweise, Auswertung erst am Ende.</div>${d.audio?'<button id="practiceSpeakBtn" class="secondary">🔊 Anhören</button>':''}<input id="answerField" class="answer-input" autocomplete="off" autocapitalize="none" spellcheck="false"><div class="top-space"><button id="answerBtn" class="primary">Antwort speichern</button></div></div>`;
   if(d.audio){$('#practiceSpeakBtn').onclick=()=>speak(w.term);setTimeout(()=>speak(w.term),150)}
@@ -96,7 +108,7 @@ function renderStudy(){
   if(session.mode==='flash') return renderFlash(w);
   if(session.mode==='chunks') return renderChunks(w);
   if(session.mode==='handwriting') return renderHandwriting(w);
-  const sub=session.mode==='adaptive'?chooseAdaptiveMode(w):session.mode; session.currentSubmode=sub; $('#modePill').textContent=session.mode==='adaptive'?`Adaptiv · ${modeLabel(sub)}`:modeLabel(sub);
+  let sub=session.mode==='adaptive'?chooseAdaptiveMode(w):session.mode;if(sub==='reverseRecall'&&!meaningRecallHasCue(w))sub='recall'; session.currentSubmode=sub; $('#modePill').textContent=session.mode==='adaptive'?`Adaptiv · ${modeLabel(sub)}`:modeLabel(sub);
   if(sub==='recognition')renderRecognition(w); else if(sub==='listening')renderListening(w); else if(sub==='chunks')renderChunks(w); else if(sub==='reverseRecall')renderReverseRecall(w); else if(sub==='spelling')renderSpelling(w); else if(sub==='context')renderContext(w); else renderRecall(w);
 }
 function cardExtras(w){
@@ -117,8 +129,9 @@ function grammarMatches(answer,target,key){
 function gradeGrammar(w,g,answer){if(session.locked)return;session.locked=true;const ok=grammarMatches(answer,g.target,g.key),assisted=!!session.hintUsed;$('#studyArea .study-card').insertAdjacentHTML('beforeend',`<div class="feedback notice ${ok?'good':'bad'}"><strong>${ok?(assisted?'Richtig mit Hilfe.':'Richtig.'):'Noch nicht richtig.'}</strong><br>${ok?'':`Deine Antwort: ${esc(answer||'–')}<br>`}Richtig: <strong>${esc(g.target)}</strong>${w.example?`<br><small>Im Kontext: ${esc(w.example)}</small>`:''}</div>`);recordGrammarResult(w,g.key,ok,assisted);setTimeout(()=>nextStudy(ok,w),ok?850:2300)}
 function recordGrammarResult(w,key,ok,assisted){w.grammarSkills=w.grammarSkills||{genitive:0,gender:0,principalParts:0,form:0};w.grammarSuccessDays=w.grammarSuccessDays||[];if(ok){w.grammarSkills[key]=clamp((w.grammarSkills[key]||0)+(assisted?.5:1),0,4);if(!assisted)w.grammarSuccessDays=[...new Set([...w.grammarSuccessDays,today()])];session.correct++;learner().xp+=assisted?1:2}else{w.grammarSkills[key]=clamp((w.grammarSkills[key]||0)-1,0,4);w.errorProfile.grammar=(w.errorProfile.grammar||0)+1}w.repetitions++;w.lastReviewedAt=new Date().toISOString();w.practiceDays=[...new Set([...(w.practiceDays||[]),today()])];session.answered++;recordActivity('latinGrammar',{wordId:w.id,key,correct:ok,assisted});persistOnly()}
 function renderRecognition(w){
-  const pool=schoolYearWords().filter(x=>x.id!==w.id); const opts=uniqueOptions(w.translation,shuffle(pool).map(x=>x.translation));
-  $('#studyArea').innerHTML=`<div class="study-card"><div class="eyebrow">Erkennen</div><div class="study-prompt">${esc(w.term)}</div><div class="study-sub">Welche Bedeutung passt?</div><div class="answer-grid">${opts.map(o=>`<button class="answer-option" data-answer="${esc(o)}">${esc(o)}</button>`).join('')}</div>${cardExtras(w)}</div>`;
+  const pool=schoolYearWords().filter(x=>x.id!==w.id);if(ambiguousSenseWord(w)&&!meaningRecallHasCue(w)){const opts=uniqueOptions(w.term,shuffle(pool).map(x=>x.term));$('#studyArea').innerHTML=`<div class="study-card"><div class="eyebrow">Erkennen</div><div class="study-prompt">${esc(w.translation)}</div><div class="study-sub">Welche Vokabel passt zu dieser Bedeutung?</div><div class="answer-grid">${opts.map(o=>`<button class="answer-option" data-answer="${esc(o)}">${esc(o)}</button>`).join('')}</div>${cardExtras(w)}</div>`;$$('[data-answer]').forEach(b=>b.onclick=()=>gradeChoice(b,w,b.dataset.answer,termTargets(w),'recognition'));return}
+  const opts=uniqueOptions(w.translation,shuffle(pool).map(x=>x.translation));
+  $('#studyArea').innerHTML=`<div class="study-card"><div class="eyebrow">Erkennen</div><div class="study-prompt">${esc(w.term)}</div>${meaningCueHtml(w)}<div class="study-sub">Welche Bedeutung passt?</div><div class="answer-grid">${opts.map(o=>`<button class="answer-option" data-answer="${esc(o)}">${esc(o)}</button>`).join('')}</div>${cardExtras(w)}</div>`;
   $$('[data-answer]').forEach(b=>b.onclick=()=>gradeChoice(b,w,b.dataset.answer,translationTargets(w),'recognition'));
 }
 function renderRecall(w){
@@ -126,7 +139,7 @@ function renderRecall(w){
   $('#answerBtn').onclick=()=>gradeText(w,$('#answerField').value,termTargets(w),'retrieval','retrieval'); $('#answerField').onkeydown=e=>{if(e.key==='Enter')$('#answerBtn').click()}; $('#hintBtn').onclick=()=>{session.hintUsed=true;$('#hintBtn').textContent=`${w.term.slice(0,Math.max(1,Math.ceil(w.term.length*.3)))}…`}; setTimeout(()=>$('#answerField').focus(),40);
 }
 function renderReverseRecall(w){
-  $('#studyArea').innerHTML=`<div class="study-card"><div class="eyebrow">Aktiver Abruf · Bedeutung</div><div class="study-prompt">${esc(w.term)}</div><div class="study-sub">Schreibe die deutsche Bedeutung aus dem Gedächtnis.</div><input id="answerField" class="answer-input" autocomplete="off"><div class="row gap center-actions top-space"><button id="answerBtn" class="primary">Prüfen</button><button id="hintBtn" class="ghost">Hinweis</button></div>${cardExtras(w)}</div>`;
+  $('#studyArea').innerHTML=`<div class="study-card"><div class="eyebrow">Aktiver Abruf · Bedeutung</div><div class="study-prompt">${esc(w.term)}</div>${meaningCueHtml(w)}<div class="study-sub">Schreibe die deutsche Bedeutung aus dem Gedächtnis.</div><input id="answerField" class="answer-input" autocomplete="off"><div class="row gap center-actions top-space"><button id="answerBtn" class="primary">Prüfen</button><button id="hintBtn" class="ghost">Hinweis</button></div>${cardExtras(w)}</div>`;
   $('#answerBtn').onclick=()=>gradeText(w,$('#answerField').value,translationTargets(w),'retrieval','retrieval');$('#answerField').onkeydown=e=>{if(e.key==='Enter')$('#answerBtn').click()};$('#hintBtn').onclick=()=>{session.hintUsed=true;$('#hintBtn').textContent=`${w.translation.slice(0,Math.max(1,Math.ceil(w.translation.length*.3)))}…`};setTimeout(()=>$('#answerField')?.focus(),40);
 }
 function renderSpelling(w){
@@ -192,7 +205,7 @@ function renderChunks(w){
   $('#speakBtn').onclick=()=>speak(w.term); $$('[data-chunk]').forEach(b=>b.onclick=()=>{if(b.classList.contains('used'))return;b.classList.add('used');session.chunkBuilt.push(b.dataset.chunk);$('#assembled').textContent=session.chunkBuilt.join('')}); $('#chunkReset').onclick=()=>{session.chunkBuilt=[];$$('[data-chunk]').forEach(b=>b.classList.remove('used'));$('#assembled').innerHTML='&nbsp;'}; $('#chunkCheck').onclick=()=>{session.hintUsed=true;session.scaffoldedWords[w.id]=true;gradeText(w,session.chunkBuilt.join(''),termTargets(w),'spelling','spelling')}; setTimeout(()=>speak(w.term),150);
 }
 function renderFlash(w){
-  const speed=learner().lrsMode?Math.max(learner().flashSpeed,2000):learner().flashSpeed; $('#studyArea').innerHTML=`<div class="study-card"><div class="eyebrow">Wortblitz · Genauigkeit vor Tempo</div><button id="speakBtn" class="secondary">🔊 zuerst anhören</button><div id="flashWord" class="flash-word">…</div><div id="flashAnswer" class="hidden"><div class="study-sub">Welche Bedeutung hat das Wort?</div><div class="answer-grid" id="flashOptions"></div></div></div>`; $('#speakBtn').onclick=()=>speak(w.term); speak(w.term);
+  const speed=learner().lrsMode?Math.max(learner().flashSpeed,2000):learner().flashSpeed; $('#studyArea').innerHTML=`<div class="study-card"><div class="eyebrow">Wortblitz · Genauigkeit vor Tempo</div><button id="speakBtn" class="secondary">🔊 zuerst anhören</button><div id="flashWord" class="flash-word">…</div><div id="flashAnswer" class="hidden">${meaningCueHtml(w)}<div class="study-sub">Welche Bedeutung hat das Wort?</div><div class="answer-grid" id="flashOptions"></div></div></div>`; $('#speakBtn').onclick=()=>speak(w.term); speak(w.term);
   setTimeout(()=>{$('#flashWord').textContent=w.term;setTimeout(()=>{$('#flashWord').textContent='';const pool=schoolYearWords().filter(x=>x.id!==w.id);const opts=uniqueOptions(w.translation,shuffle(pool).map(x=>x.translation));$('#flashOptions').innerHTML=opts.map(o=>`<button class="answer-option" data-answer="${esc(o)}">${esc(o)}</button>`).join('');$('#flashAnswer').classList.remove('hidden');$$('#flashOptions [data-answer]').forEach(b=>b.onclick=()=>gradeChoice(b,w,b.dataset.answer,translationTargets(w),'reading',true));},speed)},500);
 }
 function renderShower(w){
