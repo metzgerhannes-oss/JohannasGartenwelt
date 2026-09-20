@@ -143,12 +143,12 @@ function scanReviewHtml(){
   const badge=r=>{
     if(r.confidence==='good')return '<span class="pill scan-good">erkannt</span>';
     if(r.confidence==='auto'){
-      const source={memory:'aus deinen Vokabeln',school:'automatisch ergänzt',wikidict:'Wörterbuch'}[r.origin]||'automatisch ergänzt';
+      const source={memory:'aus deinen Vokabeln',school:'automatisch ergänzt',wikidict:'Wörterbuch',repair:'OCR korrigiert'}[r.origin]||'automatisch ergänzt';
       return `<span class="pill scan-auto" title="${esc(source)}">ergänzt · prüfen</span>`;
     }
     return '<span class="pill scan-check">prüfen</span>';
   };
-  return scanImportState.rows.map((r,i)=>`<article class="scan-row ${r.confidence==='auto'?'scan-row-auto':''}"><div class="row spread align-center"><label class="scan-include"><input type="checkbox" id="scanUse_${i}" ${r.include?'checked':''}> übernehmen</label>${badge(r)}<button type="button" class="ghost" data-scan-remove="${i}">×</button></div><div class="scan-grid"><label>${state.activeSubject==='latin'?'Latein':'Englisch'}<input id="scanTerm_${i}" value="${esc(r.term)}"></label><label>Deutsch<input id="scanTrans_${i}" value="${esc(r.translation)}"></label><label>Zusatzform<input id="scanExtra_${i}" value="${esc(r.extra)}"></label><label>Beispielsatz / Phrase<input id="scanExample_${i}" value="${esc(r.example)}"></label></div>${r.confidence==='auto'?`<div class="microcopy scan-source">Automatisch ergänzt${r.origin==='memory'?' aus bereits bekannten Vokabeln':r.origin==='wikidict'?' aus lokalem Wörterbuch':''}. Bitte kurz prüfen.</div>`:''}</article>`).join('');
+  return scanImportState.rows.map((r,i)=>`<article class="scan-row ${r.confidence==='auto'?'scan-row-auto':''}"><div class="row spread align-center"><label class="scan-include"><input type="checkbox" id="scanUse_${i}" ${r.include?'checked':''}> übernehmen</label>${badge(r)}<button type="button" class="ghost" data-scan-remove="${i}">×</button></div><div class="scan-grid"><label>${state.activeSubject==='latin'?'Latein':'Englisch'}<input id="scanTerm_${i}" value="${esc(r.term)}"></label><label>Deutsch<input id="scanTrans_${i}" value="${esc(r.translation)}"></label><label>Zusatzform<input id="scanExtra_${i}" value="${esc(r.extra)}"></label><label>Beispielsatz / Phrase<input id="scanExample_${i}" value="${esc(r.example)}"></label></div>${r.confidence==='auto'?`<div class="microcopy scan-source">${r.origin==='repair'?'OCR-Erkennung anhand der deutschen Bedeutung korrigiert':'Automatisch ergänzt'+(r.origin==='memory'?' aus bereits bekannten Vokabeln':r.origin==='wikidict'?' aus lokalem Wörterbuch':'')}. Bitte kurz prüfen.</div>`:''}</article>`).join('');
 }
 function renderScanReview(){
   const el=$('#scanReview'); if(!el)return; el.innerHTML=scanReviewHtml();
@@ -211,7 +211,7 @@ function groupOcrColumnLines(words,tolerance){
   }).filter(g=>g.text);
 }
 function ocrUiNoise(text){
-  return /^(?:übersicht|finden|verwandte|herunterladen|download|suche|search|menü|menu)$/i.test(cleanOcrCell(text));
+  return /^(?:übersicht|finden|verwandte(?:s)?|herunterladen|download|suche|search|menü|menu|teilen|share|zurück|weiter|start|home|bookmark|lesezeichen)$/i.test(cleanOcrCell(text));
 }
 function safeOcrPair(term,translation,subject){
   let a=cleanOcrCell(term),b=cleanOcrCell(translation);
@@ -239,14 +239,18 @@ function tesseractTsvToVocabulary(tsv,subject=state.activeSubject){
   right=right.filter(g=>g.minX<divider+Math.max(180,(pageWidth-divider)*.38)&&!ocrUiNoise(g.text));
 
   const records=[]; const usedRight=new Set(); let consecutiveMissing=0;
-  const firstY=left[0]?.yc??0,lastY=left.at(-1)?.yc??Infinity;
+  const firstY=left[0]?.yc??0;
+  const gapStop=Math.max(90,medianH*3.1);
+  let parsedLastY=firstY;
 
   for(let i=0;i<left.length;i++){
     const l=left[i]; if(ocrUiNoise(l.text))break;
+    if(i>4 && l.yc-left[i-1].yc>gapStop)break;
     const prev=i?(left[i-1].yc+l.yc)/2:l.yc-medianH*1.7;
     const next=i+1<left.length?(l.yc+left[i+1].yc)/2:l.yc+medianH*1.9;
     const matches=right.map((r,idx)=>({r,idx})).filter(x=>x.r.yc>=prev&&x.r.yc<next&&!ocrUiNoise(x.r.text));
     if(!matches.length){
+      parsedLastY=l.yc;
       consecutiveMissing++;
       const term=cleanOcrCell(l.text);
       if(term)records.push({y:l.yc,row:makeImportRow(term,'','','','check','ocr')});
@@ -254,6 +258,7 @@ function tesseractTsvToVocabulary(tsv,subject=state.activeSubject){
       continue;
     }
     consecutiveMissing=0;
+    parsedLastY=l.yc;
     matches.forEach(x=>usedRight.add(x.idx));
     const translation=cleanOcrCell(matches.map(x=>x.r.text).join(' '));
     const term=cleanOcrCell(l.text);
@@ -265,7 +270,7 @@ function tesseractTsvToVocabulary(tsv,subject=state.activeSubject){
 
   // Preserve German-only rows that OCR saw on the right but lost on the left.
   right.forEach((r,idx)=>{
-    if(usedRight.has(idx)||r.yc<firstY-medianH||r.yc>lastY+medianH||ocrUiNoise(r.text))return;
+    if(usedRight.has(idx)||r.yc<firstY-medianH||r.yc>parsedLastY+medianH*1.25||ocrUiNoise(r.text))return;
     const translation=cleanOcrCell(r.text); if(!translation)return;
     const nearLeft=left.some(l=>Math.abs(l.yc-r.yc)<=tolerance*.65);
     if(!nearLeft)records.push({y:r.yc,row:makeImportRow('',translation,'','','check','ocr')});
