@@ -101,9 +101,8 @@ function migrateSenseModel(s){
     if(!v||typeof v!=='object')continue;
     const legacyPrimary=String(v.translation||'').trim(),legacyTranslations=Array.isArray(v.translations)?v.translations:[],legacyExamples=Array.isArray(v.examples)?v.examples:[];
     if(!Array.isArray(v.senses)||!v.senses.length){
-      const meanings=[legacyPrimary,...legacyTranslations].map(x=>String(x||'').trim()).filter(Boolean),seen=new Set();v.senses=[];
-      for(const meaning of meanings){const key=lexicalKey(meaning,'english');if(!key||seen.has(key))continue;seen.add(key);v.senses.push(makeVocabularySense(meaning,{examples:v.senses.length?[]:legacyExamples}))}
-      if(!v.senses.length&&legacyPrimary)v.senses=[makeVocabularySense(legacyPrimary,{examples:legacyExamples})];
+      const meanings=[legacyPrimary,...legacyTranslations].map(x=>String(x||'').trim()).filter(Boolean);v.senses=[];
+      if(meanings.length){const primary=meanings[0],aliases=meanings.slice(1);v.senses=[makeVocabularySense(primary,{translations:aliases,examples:legacyExamples})]}
     }else v.senses=v.senses.map(x=>makeVocabularySense(x?.translation||'',{...x,id:x?.id||uid('sense')})).filter(x=>x.translation);
     attachVocabularySenseApi(v);vocabById.set(v.id,v);
   }
@@ -122,6 +121,23 @@ function migrateSenseModel(s){
     for(const senseId of counts.keys()){if(senseId===chosen)continue;if(!(s.learnerVocabulary||[]).some(x=>x!==p&&x.learnerId===p.learnerId&&x.senseId===senseId)&&!additions.some(x=>x.learnerId===p.learnerId&&x.senseId===senseId))additions.push(makeLearnerVocabulary(p.learnerId,v.id,senseId));}
   }
   if(additions.length)s.learnerVocabulary.push(...additions);return s;
+}
+function repairV0912AliasSplit(s,sourceVersion){
+  if(sourceVersion!=='0.9.12'||s?.senseModelVersion)return s;
+  const progressBySense=new Map();for(const p of (s.learnerVocabulary||[])){if(!progressBySense.has(p.senseId))progressBySense.set(p.senseId,[]);progressBySense.get(p.senseId).push(p)}
+  for(const v of (s.vocabulary||[])){
+    const primary=primarySense(v);if(!primary||(v.senses||[]).length<2)continue;const t0=Date.parse(primary.createdAt||'')||0,keep=[primary];
+    for(const sense of v.senses.slice(1)){
+      const t=Date.parse(sense.createdAt||'')||0,near=t0&&t&&Math.abs(t-t0)<=5000,progress=progressBySense.get(sense.id)||[],untouched=progress.every(p=>(Number(p.repetitions)||0)===0&&(Number(p.successes)||0)===0&&(Number(p.failures)||0)===0),plain=!sense.partOfSpeech&&!(sense.examples||[]).length;
+      if(near&&untouched&&plain){
+        const aliases=[sense.translation,...(sense.translations||[])];for(const a of aliases){const key=meaningKey(a);if(key&&key!==meaningKey(primary.translation)&&!senseTranslationKeys(primary).includes(key))primary.translations.push(a)}
+        for(const link of (s.setVocabulary||[]))if(link.senseId===sense.id){if(!link.translationOverride)link.translationOverride=sense.translation;link.senseId=primary.id}
+        for(const row of (s.bookVocabulary||[]))if(row.senseId===sense.id){if(!row.translationOverride)row.translationOverride=sense.translation;row.senseId=primary.id}
+      }else keep.push(sense);
+    }
+    v.senses=keep;
+  }
+  return s;
 }
 
 
@@ -144,7 +160,7 @@ function hardenState(s){
   s.vocabulary=(Array.isArray(s.vocabulary)?s.vocabulary:[]).slice(0,100000).map(raw=>{
     const v=raw&&typeof raw==='object'?raw:{},old=String(v.id||''),id=safeId(old,'v',vocabUsed);if(!vocabMap.has(old))vocabMap.set(old,id);
     const rawSenses=Array.isArray(v.senses)?v.senses:[],senses=[];
-    for(const rawSense of rawSenses.slice(0,50)){const rs=rawSense&&typeof rawSense==='object'?rawSense:{},translation=safeText(rs.translation,700).trim();if(!translation)continue;const oldSense=String(rs.id||''),senseId=safeId(oldSense,'sense',senseUsed);if(oldSense&&!senseMap.has(oldSense))senseMap.set(oldSense,senseId);senses.push(makeVocabularySense(translation,{id:senseId,translations:(Array.isArray(rs.translations)?rs.translations:[]).slice(0,20).map(x=>safeText(x,700).trim()).filter(Boolean),examples:(Array.isArray(rs.examples)?rs.examples:[]).slice(0,12).map(x=>safeText(x,2000)).filter(Boolean),createdAt:safeText(rs.createdAt||new Date().toISOString(),40),updatedAt:safeText(rs.updatedAt||rs.createdAt||new Date().toISOString(),40)}));}
+    for(const rawSense of rawSenses.slice(0,50)){const rs=rawSense&&typeof rawSense==='object'?rawSense:{},translation=safeText(rs.translation,700).trim();if(!translation)continue;const oldSense=String(rs.id||''),senseId=safeId(oldSense,'sense',senseUsed);if(oldSense&&!senseMap.has(oldSense))senseMap.set(oldSense,senseId);senses.push(makeVocabularySense(translation,{id:senseId,translations:(Array.isArray(rs.translations)?rs.translations:[]).slice(0,20).map(x=>safeText(x,700).trim()).filter(Boolean),examples:(Array.isArray(rs.examples)?rs.examples:[]).slice(0,12).map(x=>safeText(x,2000)).filter(Boolean),partOfSpeech:safeText(rs.partOfSpeech,80).trim(),createdAt:safeText(rs.createdAt||new Date().toISOString(),40),updatedAt:safeText(rs.updatedAt||rs.createdAt||new Date().toISOString(),40)}));}
     if(!senses.length)return null;
     const out={...v,id,subject:v.subject==='latin'?'latin':'english',term:safeText(v.term,300).trim(),termVariants:(Array.isArray(v.termVariants)?v.termVariants:[]).slice(0,20).map(x=>safeText(x,300).trim()).filter(Boolean),extra:safeText(v.extra,700),mnemonic:safeText(v.mnemonic,1200),chunks:(Array.isArray(v.chunks)?v.chunks:[]).slice(0,30).map(x=>safeText(x,120)).filter(Boolean),sources:(Array.isArray(v.sources)?v.sources:[]).slice(-60).map(x=>{const mappedBook=bookMap.get(String(x?.bookId||''))||String(x?.bookId||'');return {kind:safeText(x?.kind||'unknown',80),setId:safeText(setMap.get(String(x?.setId||''))||x?.setId||'',120),bookId:bookIds.has(mappedBook)?mappedBook:'',at:safeText(x?.at||'',40)}}),verifiedAt:v.verifiedAt?safeText(v.verifiedAt,40):null,createdAt:safeText(v.createdAt||new Date().toISOString(),40),updatedAt:safeText(v.updatedAt||v.createdAt||new Date().toISOString(),40),senses};delete out.translation;delete out.translations;delete out.examples;return attachVocabularySenseApi(out);
   }).filter(v=>v?.term&&v.senses?.length);
@@ -179,11 +195,12 @@ function inspectBackup(x){
   if(x.learners.length>20)return 'Das Backup enthält ungewöhnlich viele Profile.';if(x.sets.length>10000)return 'Das Backup ist für diese App ungewöhnlich groß.';if(legacy&&x.words.length>100000)return 'Das Backup enthält ungewöhnlich viele Vokabeln.';if(normalized&&(x.vocabulary.length>100000||x.setVocabulary.length>200000||x.learnerVocabulary.length>100000))return 'Das Backup ist für diese App ungewöhnlich groß.';return '';
 }
 function migrate(s){
-  if(!s||!Array.isArray(s.learners))return defaultState();s.version=VERSION;s.activeSubject=s.activeSubject||'english';s.grades=s.grades||[];s.practiceTests=s.practiceTests||[];s.activity=s.activity||[];s.books=s.books||[];s.learnerBooks=s.learnerBooks||[];s.bookVocabulary=s.bookVocabulary||[];
+  if(!s||!Array.isArray(s.learners))return defaultState();const sourceVersion=String(s.version||'');s.version=VERSION;s.activeSubject=s.activeSubject||'english';s.grades=s.grades||[];s.practiceTests=s.practiceTests||[];s.activity=s.activity||[];s.books=s.books||[];s.learnerBooks=s.learnerBooks||[];s.bookVocabulary=s.bookVocabulary||[];
   s.learners.forEach(l=>{const hints=(s.sets||[]).filter(x=>x.learnerId===l.id).map(x=>x.subject==='latin'?'latin':'english');if(l.id===s.activeLearnerId)hints.push(s.activeSubject==='latin'?'latin':'english');l.gradeLevel=/^(?:[1-9]|1[0-3])$/.test(String(l.gradeLevel||''))?String(l.gradeLevel):'';l.activeSubjects=normalizeLearnerSubjects(l,hints);l.streakDays=l.streakDays||[];l.milestones=l.milestones||{};l.fortressWins=l.fortressWins||{english:[],latin:[]};l.fortressWinsByYear=l.fortressWinsByYear||{};l.campaignLog=l.campaignLog||[];l.dailyPlans=l.dailyPlans||{};l.testSeries=l.testSeries||{english:null,latin:null};l.fontSize=l.fontSize||17;l.letterSpacing=l.letterSpacing||0;l.flashSpeed=l.flashSpeed||1600;l.gradeScales=l.gradeScales||defaultGradeScales();['english','latin'].forEach(subject=>{l.gradeScales[subject]={...defaultGradeScale(),...(l.gradeScales[subject]||{})};const key=`${subject}:${currentSchoolYear()}`;if(!l.fortressWinsByYear[key]&&Array.isArray(l.fortressWins?.[subject])&&l.fortressWins[subject].length)l.fortressWinsByYear[key]=[...l.fortressWins[subject]]})});
   s.sets=(s.sets||[]).map(x=>({...x,schoolYear:x.schoolYear||currentSchoolYear(),bookId:x.bookId||'',bookSection:x.bookSection||x.title||'',testScopeMode:x.testScopeMode||'set',testFrom:Number(x.testFrom)||1,testTo:Number(x.testTo)||0,testFormat:x.testFormat||'target'}));
   migrateLegacyLibrary(s);
   migrateSenseModel(s);
+  repairV0912AliasSplit(s,sourceVersion);s.senseModelVersion=1;
   s.practiceTests=(s.practiceTests||[]).map(t=>{const subject=t.subject||'english',owner=s.learners.find(l=>l.id===t.learnerId),scale={...defaultGradeScale(),...((owner?.gradeScales||defaultGradeScales())[subject]||{})};return {...t,gradeScaleSnapshot:t.gradeScaleSnapshot||scale,suggestedGrade:t.suggestedGrade||suggestGradeFromScale(t.percent,scale)}});
   return hardenState(s);
 }
