@@ -1,7 +1,4 @@
-name: CSP smoke test
-
-permissions:
-  contents: write
+name: CSP hardening checks
 
 on:
   push:
@@ -13,54 +10,50 @@ on:
   workflow_dispatch:
 
 jobs:
-  smoke:
+  csp:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Install Playwright
+
+      - name: Static CSP audit
+        run: node scripts/csp-static-audit.mjs
+
+      - name: JavaScript syntax check
+        run: |
+          node --check jgw-app.js
+          node --check jgw-sw-register.js
+          node --check jgw-ux-shell.js
+          node --check jgw-library-v4.js
+          node --check jgw-ux-patch.js
+          node --check jgw-photo-storage-v2.js
+          node --check jgw-ui-cleanup-20260914.js
+          node --check jgw-mobile-fix-v5.js
+          node --check jgw-hardiness-data-v1.js
+          node --check jgw-hardiness-v2.js
+          node --check jgw-hardiness-labels-v1.js
+          node --check garten-tipps.js
+          node --check jgw-care-calendar-v1.js
+          node --check jgw-task-bulk-v3.js
+          node --check sw.js
+          node --check setup.js
+
+      - name: Install Playwright WebKit
         run: |
           npm init -y
           npm install --no-save playwright@1.56.1
-          npx playwright install --with-deps chromium
-      - name: Prepare stable main baseline
+          npx playwright install --with-deps webkit
+
+      - name: Start local server
         run: |
-          git fetch origin main --depth=1
-          rm -rf /tmp/jgw-main
-          git worktree add --detach /tmp/jgw-main FETCH_HEAD
-      - name: Start local servers
-        run: |
-          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/jgw-branch-http.log 2>&1 &
-          echo $! > /tmp/jgw-branch-http.pid
-          (cd /tmp/jgw-main && python3 -m http.server 4174 --bind 127.0.0.1 > /tmp/jgw-main-http.log 2>&1 & echo $! > /tmp/jgw-main-http.pid)
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/jgw-http.log 2>&1 &
+          echo $! > /tmp/jgw-http.pid
           sleep 2
-      - name: Run stable main baseline
-        id: baseline
-        continue-on-error: true
-        run: JGW_BASE=http://127.0.0.1:4174 node scripts/csp-smoke.mjs
-      - name: Run CSP browser smoke test
-        id: smoke
-        continue-on-error: true
-        run: JGW_BASE=http://127.0.0.1:4173 node scripts/csp-smoke.mjs
-      - name: Commit smoke result to test branch
-        if: always() && github.event_name == 'push'
-        run: |
-          if [ -f csp-smoke-result.json ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add csp-smoke-result.json
-            git diff --cached --quiet || git commit -m "Test: CSP Browser-Smoke-Ergebnis [skip ci]"
-            git push
-          fi
-      - name: Report A/B result
-        if: always()
-        run: |
-          echo "stable-main=${{ steps.baseline.outcome }}"
-          echo "csp-branch=${{ steps.smoke.outcome }}"
-      - name: Fail when CSP smoke test failed
-        if: steps.smoke.outcome == 'failure'
-        run: exit 1
+
+      - name: WebKit iPhone smoke test
+        run: JGW_BASE=http://127.0.0.1:4173 node scripts/csp-webkit-smoke.mjs
