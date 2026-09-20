@@ -1,5 +1,5 @@
-const CACHE='vokabeltrainer-v0.9.8-hybrid-import';
-const ASSETS=['./','./index.html','./css/app.css?v=0.9.8','./js/core.js?v=0.9.8','./js/storage.js?v=0.9.8','./js/model.js?v=0.9.8','./js/learning.js?v=0.9.8','./js/translation.js?v=0.9.8','./js/io.js?v=0.9.8','./js/ui.js?v=0.9.8','./js/app.js?v=0.9.8','./manifest.webmanifest','./assets/icons/icon-180.png','./assets/icons/icon-192.png','./assets/icons/icon-512.png'];
+const CACHE='vokabeltrainer-v0.9.9-table-fix';
+const ASSETS=['./','./index.html','./css/app.css?v=0.9.9','./js/core.js?v=0.9.9','./js/storage.js?v=0.9.9','./js/model.js?v=0.9.9','./js/learning.js?v=0.9.9','./js/translation.js?v=0.9.9','./js/io.js?v=0.9.9','./js/ui.js?v=0.9.9','./js/app.js?v=0.9.9','./manifest.webmanifest','./assets/icons/icon-180.png','./assets/icons/icon-192.png','./assets/icons/icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
   const requests=ASSETS.map(path=>new Request(new URL(path,self.location).href,{cache:'reload'}));
