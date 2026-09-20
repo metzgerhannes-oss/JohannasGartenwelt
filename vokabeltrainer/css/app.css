@@ -57,3 +57,15 @@ html[data-letter-space="0"]{--letter-space:0px}html[data-letter-space="0.25"]{--
 .load-more{display:flex;align-items:center;justify-content:center;gap:12px;padding:14px 0 2px;flex-wrap:wrap}
 
 .toast-region{position:fixed;left:50%;top:18px;transform:translate(-50%,-18px);z-index:60;max-width:min(620px,calc(100% - 28px));padding:11px 15px;border-radius:13px;box-shadow:0 12px 30px #0003;opacity:0;pointer-events:none;transition:.18s ease;background:#fff;color:var(--ink);border:1px solid var(--line);font-weight:800}.toast-region.show{opacity:1;transform:translate(-50%,0)}.toast-region.good{background:#ecfdf5;color:#065f46;border-color:#a7f3d0}.toast-region.warn{background:#fff7ed;color:#9a3412;border-color:#fed7aa}.toast-region.bad{background:#fef2f2;color:#991b1b;border-color:#fecaca}
+
+
+/* Handschrift – multisensorisches Schreiben */
+.handwriting-card{max-width:760px;margin:auto}
+.handwriting-wrap{position:relative;width:min(680px,100%);height:260px;margin:18px auto;border:2px solid var(--line);border-radius:18px;background:
+  linear-gradient(to bottom,transparent 66%,rgba(148,163,184,.28) 66%,rgba(148,163,184,.28) 67%,transparent 67%),
+  #fff;overflow:hidden;touch-action:none}
+.handwriting-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:2;touch-action:none}
+.trace-word{position:absolute;inset:0;display:grid;place-items:center;z-index:1;pointer-events:none;font-size:clamp(42px,11vw,88px);font-weight:900;letter-spacing:.04em;color:rgba(23,32,51,.16);user-select:none}
+.handwriting-note{max-width:620px;margin:16px auto 0}
+.handwriting-compare{margin-top:18px;text-align:center}
+@media(max-width:520px){.handwriting-wrap{height:230px}.trace-word{font-size:clamp(38px,13vw,70px)}}
