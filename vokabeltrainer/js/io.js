@@ -1,7 +1,7 @@
 'use strict';
 
 function exportCsv(){
-  const header=['set','subject','schoolYear','term','translation','extra','example','mnemonic','chunks']; const rows=[header.join(';')]; mySets().forEach(s=>setWords(s.id).forEach(w=>rows.push([s.title,s.subject,s.schoolYear,w.term,w.translation,w.extra,w.example,w.mnemonic,(w.chunks||[]).join('|')].map(csvCell).join(';'))));download(`vokabeln_${state.activeSubject}_${today()}.csv`,rows.join('\n'),'text/csv;charset=utf-8')
+  const header=['set','subject','schoolYear','isbn13','bookTitle','bookSection','term','translation','extra','example','mnemonic','chunks']; const rows=[header.join(';')]; mySets().forEach(s=>{const b=s.bookId?bookById(s.bookId):null;setWords(s.id).forEach(w=>rows.push([s.title,s.subject,s.schoolYear,b?.isbn13||'',b?.title||'',s.bookSection||'',w.term,w.translation,w.extra,w.example,w.mnemonic,(w.chunks||[]).join('|')].map(csvCell).join(';')))});download(`vokabeln_${state.activeSubject}_${today()}.csv`,rows.join('\n'),'text/csv;charset=utf-8')
 }
 function csvCell(v){const s=String(v??'');return /[;"\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s}
 function detectCsvSeparator(text){
@@ -30,7 +30,7 @@ function importCsv(text){
     const subj=(r.subject||state.activeSubject).toLowerCase().startsWith('la')?'latin':'english';if(subj!==state.activeSubject){skipped++;return}
     const term=safeText(r.term,300).trim(),translation=safeText(r.translation,700).trim();if(!term||!translation){skipped++;return}
     const importYear=safeText(r.schoolyear||currentSchoolYear(),24),title=safeText(r.set||'Import',200)||'Import',setKey=`${subj}\u0000${importYear}\u0000${title}`;let set=setIndex.get(setKey);
-    if(!set){set={id:uid('set'),learnerId:learner().id,subject:subj,title,schoolYear:importYear,testDate:'',testScopeMode:'set',testFrom:1,testTo:0,testFormat:'target',from:'',to:''};state.sets.push(set);setIndex.set(setKey,set);rebuildWordIndexes();}
+    if(!set){let bookId='';const isbn=normalizeIsbn(r.isbn13||r.isbn||'');if(isbn){try{bookId=upsertBook(isbn,subj,{title:safeText(r.booktitle||'',200)}).book.id}catch(_e){}}set={id:uid('set'),learnerId:learner().id,subject:subj,title,schoolYear:importYear,bookId,bookSection:safeText(r.booksection||title,200),testDate:'',testScopeMode:'set',testFrom:1,testTo:0,testFormat:'target',from:'',to:''};state.sets.push(set);setIndex.set(setKey,set);rebuildWordIndexes();}
     const result=attachVocabularyToSet(set.id,{term,translation,extra:safeText(r.extra,700),example:safeText(r.example,2000),mnemonic:safeText(r.mnemonic,1200),chunks:safeText(r.chunks,3000).split('|').slice(0,30).map(x=>safeText(x.trim(),120)).filter(Boolean),source:'csv-import',verified:true});
     if(result.alreadyLinked){duplicates++;return}linked++;if(result.newVocabulary)newGlobal++;else existingGlobal++;
   });
@@ -405,11 +405,32 @@ function importScannedRows(){
   const rows=scanImportState.rows.map((r,i)=>({include:$(`#scanUse_${i}`)?.checked!==false,term:$(`#scanTerm_${i}`)?.value.trim()||'',translation:$(`#scanTrans_${i}`)?.value.trim()||'',extra:$(`#scanExtra_${i}`)?.value.trim()||'',example:$(`#scanExample_${i}`)?.value.trim()||'',confidence:r.confidence||'check'})).filter(r=>r.include&&r.term&&r.translation);
   if(!rows.length){scanStatus('Es gibt noch keine vollständige Vokabelzeile zum Importieren.','warn');return;}
   let setId=$('#scanSetSelect').value;
-  if(setId==='__new__'){const title=$('#scanNewTitle').value.trim()||scanImportState.titleHint||'Foto-Import',schoolYear=$('#scanNewYear').value.trim()||currentSchoolYear();const set={id:uid('set'),learnerId:learner().id,subject:state.activeSubject,title,schoolYear,testDate:'',testScopeMode:'set',testFrom:1,testTo:0,testFormat:'target',from:'',to:''};state.sets.push(set);setId=set.id;rebuildWordIndexes();}
+  if(setId==='__new__'){const title=$('#scanNewTitle').value.trim()||scanImportState.titleHint||'Foto-Import',schoolYear=$('#scanNewYear').value.trim()||currentSchoolYear(),book=currentBook(learner().id,state.activeSubject);const set={id:uid('set'),learnerId:learner().id,subject:state.activeSubject,title,schoolYear,bookId:book?.id||'',bookSection:book?title:'',testDate:'',testScopeMode:'set',testFrom:1,testTo:0,testFormat:'target',from:'',to:''};state.sets.push(set);setId=set.id;rebuildWordIndexes();}
   let linked=0,alreadyLinked=0,newGlobal=0,fromLibrary=0,newMeanings=0;
   rows.forEach(r=>{const result=attachVocabularyToSet(setId,{term:r.term,translation:r.translation,extra:r.extra,example:r.example,chunks:autoChunks(r.term),source:'photo-text-import',verified:true});if(result.alreadyLinked){alreadyLinked++;return}linked++;if(result.newVocabulary)newGlobal++;else fromLibrary++;if(result.translationAdded)newMeanings++;});
   closeModal();if(scanImportState.imageUrl){URL.revokeObjectURL(scanImportState.imageUrl);scanImportState.imageUrl=null;}save();
   toast(`${linked} Zuordnung${linked===1?'':'en'} gespeichert · ${newGlobal} neue globale Vokabel${newGlobal===1?'':'n'}${fromLibrary?` · ${fromLibrary} aus Bibliothek`:''}${newMeanings?` · ${newMeanings} neue Bedeutungsvariante${newMeanings===1?'':'n'}`:''}${alreadyLinked?` · ${alreadyLinked} bereits im Lernset`:''}.`,'good');
+}
+
+function extractIsbnFromText(text){
+  const src=String(text||'').toUpperCase();
+  const candidates=[];
+  for(const m of src.matchAll(/(?:ISBN(?:-1[03])?\s*:?)?\s*((?:97[89][\s-]*)?[0-9X][0-9X\s-]{8,20}[0-9X])/g)){const raw=m[1]||m[0],isbn=normalizeIsbn(raw);if(isbn&&!candidates.includes(isbn))candidates.push(isbn)}
+  if(!candidates.length){const digits=src.replace(/[^0-9X]/g,'');for(let i=0;i<=digits.length-13;i++){const isbn=normalizeIsbn(digits.slice(i,i+13));if(isbn&&!candidates.includes(isbn))candidates.push(isbn)}}
+  return candidates[0]||'';
+}
+function isbnStatus(text,type='subtle'){const el=$('#isbnScanStatus');if(!el)return;el.className=`notice ${type}`;el.textContent=text}
+async function handleIsbnPhoto(file){
+  if(!file||!file.type.startsWith('image/'))return;if(file.size>MAX_PHOTO_BYTES){isbnStatus('Foto ist zu groß. Bitte ein kleineres Bild verwenden.','warn');return}
+  isbnStatus('ISBN wird aus dem Foto gelesen …');
+  try{
+    if('BarcodeDetector' in window&&'createImageBitmap' in window){
+      try{const formats=await BarcodeDetector.getSupportedFormats?.()||[];if(formats.includes('ean_13')){const bitmap=await createImageBitmap(file),detector=new BarcodeDetector({formats:['ean_13']}),codes=await detector.detect(bitmap);bitmap.close?.();for(const code of codes){const isbn=normalizeIsbn(code.rawValue);if(isbn){const input=$('#bookIsbn');if(input){input.value=isbn;input.dispatchEvent(new Event('input',{bubbles:true}))}isbnStatus(`ISBN erkannt: ${formatIsbn(isbn)}`,'good');return}}}}catch(e){console.warn('Barcode ISBN',e)}
+    }
+    const T=await loadTesseract(),prepared=await prepareOcrImage(file),ocrBase=new URL('ocr/',window.location.href);
+    const worker=await T.createWorker('eng',T.OEM?.LSTM_ONLY??1,{workerPath:new URL('tesseract/worker.min.js',ocrBase).href,corePath:new URL('core/tesseract-core-lstm.wasm.js',ocrBase).href,langPath:new URL('lang',ocrBase).href.replace(/\/$/,''),workerBlobURL:false,gzip:false});
+    try{await worker.setParameters({user_defined_dpi:'300',tessedit_pageseg_mode:String(T.PSM?.AUTO??3),tessedit_char_whitelist:'ISBNisbn-0123456789Xx '});const result=await worker.recognize(prepared,{rotateAuto:true},{text:true});const isbn=extractIsbnFromText(result?.data?.text||'');if(!isbn){isbnStatus('Keine gültige ISBN erkannt. Bitte näher auf ISBN/Barcode fotografieren oder Nummer eingeben.','warn');return}const input=$('#bookIsbn');if(input){input.value=isbn;input.dispatchEvent(new Event('input',{bubbles:true}))}isbnStatus(`ISBN erkannt: ${formatIsbn(isbn)}`,'good')}finally{await worker.terminate().catch(()=>{})}
+  }catch(e){console.warn('ISBN OCR',e);isbnStatus('ISBN konnte aus dem Foto nicht gelesen werden. Bitte Nummer eingeben.','warn')}
 }
 
 function backup(){const payload={...deepClone(state),backupMeta:{appVersion:VERSION,exportedAt:new Date().toISOString()}};download(`vokabeltrainer_backup_${today()}.json`,JSON.stringify(payload,null,2),'application/json')}
