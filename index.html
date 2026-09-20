@@ -90,7 +90,7 @@
     </div>
     <div id="map" aria-label="Interaktive Gartenkarte"></div>
     <div class="legend">
-      <span><i class="swatch" style="background:#f4c542"></i>Vollsonne</span><span><i class="swatch" style="background:#e99c38"></i>Sonnig</span><span><i class="swatch" style="background:#7caf6f"></i>Halbschatten</span><span><i class="swatch" style="background:#607080"></i>Schatten</span>
+      <span><i class="swatch jgw-bg-yellow"></i>Vollsonne</span><span><i class="swatch jgw-bg-orange"></i>Sonnig</span><span><i class="swatch jgw-bg-green"></i>Halbschatten</span><span><i class="swatch jgw-bg-slate"></i>Schatten</span>
     </div>
     <div id="zoneEditor" class="zone-editor hidden">
       <h3>Neue Standortzone</h3>
@@ -100,7 +100,7 @@
         <div class="field"><label for="zoneRain">Niederschlag</label><select id="zoneRain"><option value="open">Offen / normal</option><option value="partial">Teilweise geschützt</option><option value="protected">Starker Regenschatten</option></select></div>
         <div class="field"><label for="zoneSoil">Boden</label><select id="zoneSoil"><option value="normal">Normal</option><option value="dry">Trocknet schnell</option><option value="moist">Bleibt länger feucht</option></select></div>
       </div>
-      <div class="actions" style="margin-top:10px"><button class="btn" id="saveZoneBtn" type="button">Zone speichern</button><button class="btn ghost" id="cancelZoneBtn" type="button">Abbrechen</button></div>
+      <div class="actions jgw-mt-10"><button class="btn" id="saveZoneBtn" type="button">Zone speichern</button><button class="btn ghost" id="cancelZoneBtn" type="button">Abbrechen</button></div>
     </div>
     <div class="zone-list" id="zoneList"></div>
   </div>
@@ -140,7 +140,7 @@
       <div class="formgrid">
         <div class="field full">
           <label for="plantPhoto">Foto</label>
-          <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap"><div class="photo-preview" id="photoPreview">Foto</div><div style="flex:1;min-width:220px"><input id="plantPhoto" type="file" accept="image/*" capture="environment"><div class="actions" style="margin-top:8px"><button type="button" class="btn secondary small" id="identifyBtn">Mit KI erkennen</button></div><div class="muted" id="aiStatus" style="margin-top:7px">Foto aufnehmen und auf Wunsch automatisch erkennen lassen.</div><div id="aiResults" class="airesults"></div></div></div>
+          <div class="jgw-flex-wrap-start"><div class="photo-preview" id="photoPreview">Foto</div><div class="jgw-flex-grow-220"><input id="plantPhoto" type="file" accept="image/*" capture="environment"><div class="actions jgw-mt-8"><button type="button" class="btn secondary small" id="identifyBtn">Mit KI erkennen</button></div><div class="muted jgw-mt-7" id="aiStatus">Foto aufnehmen und auf Wunsch automatisch erkennen lassen.</div><div id="aiResults" class="airesults"></div></div></div>
         </div>
         <div class="field plant-name-field"><label for="plantName">Pflanzenname *</label><input id="plantName" required autocomplete="off" placeholder="z. B. Hortensie"><div class="plant-name-assist muted" id="plantNameAssist">Name eintippen – ab 3 Zeichen sucht die Gartenwelt passende Pflanzennamen.</div><div class="plant-name-results hidden" id="plantNameResults" role="listbox" aria-label="Pflanzenvorschläge"></div></div>
         <div class="field"><label for="plantArea">Gartenbereich</label><select id="plantArea"></select><div class="area-select-note">Einheitliche Gartenbereiche für Pflanzen, Lebensräume und Tierbeobachtungen.</div></div>
@@ -148,9 +148,9 @@
       </div>
       <details class="plant-advanced" id="plantAdvanced">
         <summary>Weitere Angaben</summary>
-        <div class="formgrid" style="margin-top:11px">
+        <div class="formgrid jgw-mt-11">
           <div class="field"><label for="plantScientific">Botanischer Name</label><input id="plantScientific" placeholder="z. B. Hydrangea macrophylla"></div>
-          <div class="field full"><div class="plant-data-status" id="plantDataStatus"><b>Automatische Pflanzendaten</b><br><span>Nach Auswahl oder Fotoerkennung ergänzt die Gartenwelt verfügbare Pflege- und Herkunftsdaten automatisch.</span></div><div class="actions" style="margin-top:8px"><button class="btn secondary small" id="refreshPlantDataBtn" type="button">Pflanzendaten prüfen &amp; aktualisieren</button></div></div>
+          <div class="field full"><div class="plant-data-status" id="plantDataStatus"><b>Automatische Pflanzendaten</b><br><span>Nach Auswahl oder Fotoerkennung ergänzt die Gartenwelt verfügbare Pflege- und Herkunftsdaten automatisch.</span></div><div class="actions jgw-mt-8"><button class="btn secondary small" id="refreshPlantDataBtn" type="button">Pflanzendaten prüfen &amp; aktualisieren</button></div></div>
           <div class="field"><label for="plantType">Pflanzung</label><select id="plantType"><option value="bed" selected>Direkt im Gartenboden (Standard)</option><option value="pot">Kübel / Topf</option><option value="raised">Hochbeet</option><option value="balcony">Balkonkasten</option><option value="other">Sonstige Pflanzung</option></select></div>
           <div class="field"><label for="plantWater">Wasserbedarf</label><select id="plantWater"><option value="low">Niedrig</option><option value="normal" selected>Normal</option><option value="high">Hoch</option></select></div>
           <div class="field"><label for="plantSize">Pflanzengröße</label><select id="plantSize"><option value="small">Klein</option><option value="medium" selected>Mittel</option><option value="large">Groß</option></select></div>
@@ -167,7 +167,7 @@
           <div class="field full"><label for="plantNotes">Notizen</label><textarea id="plantNotes" placeholder="Besonderheiten, Sorte, Pflanzjahr …"></textarea></div>
         </div>
       </details>
-      <div class="actions" style="margin-top:14px"><button class="btn" id="saveAndPlaceBtn" type="button">Fertig + auf Karte platzieren</button><button class="btn secondary" type="submit">Fertig</button><button class="btn secondary hidden" id="removePlantMapBtn" type="button">Von Karte entfernen</button><button class="btn danger hidden" id="deletePlantBtn" type="button">Pflanze löschen</button></div>
+      <div class="actions jgw-mt-14"><button class="btn" id="saveAndPlaceBtn" type="button">Fertig + auf Karte platzieren</button><button class="btn secondary" type="submit">Fertig</button><button class="btn secondary hidden" id="removePlantMapBtn" type="button">Von Karte entfernen</button><button class="btn danger hidden" id="deletePlantBtn" type="button">Pflanze löschen</button></div>
     </form>
   </div>
   <div id="plantCollectionWrap">
@@ -194,7 +194,7 @@
           <div class="field full"><label for="habitatNotes">Notizen</label><textarea id="habitatNotes" placeholder="Was ist hier besonders? Was möchtest du noch verbessern?"></textarea></div>
         </div>
         <div class="eco-form-preview" id="habitatImpactPreview"></div>
-        <div class="actions" style="margin-top:14px"><button class="btn" type="submit">Speichern</button><button class="btn secondary" id="saveHabitatAndPlaceBtn" type="button">Speichern & auf Karte setzen</button><button class="btn secondary hidden" id="removeHabitatMapBtn" type="button">Von Karte entfernen</button><button class="btn danger hidden" id="deleteHabitatBtn" type="button">Lebensraum löschen</button></div>
+        <div class="actions jgw-mt-14"><button class="btn" type="submit">Speichern</button><button class="btn secondary" id="saveHabitatAndPlaceBtn" type="button">Speichern & auf Karte setzen</button><button class="btn secondary hidden" id="removeHabitatMapBtn" type="button">Von Karte entfernen</button><button class="btn danger hidden" id="deleteHabitatBtn" type="button">Lebensraum löschen</button></div>
       </form>
     </div>
     <div class="library-grid" id="habitatList"></div>
@@ -218,7 +218,7 @@
           <div class="field"><label for="animalLinkedHabitat">Beobachtet am Lebensraum</label><select id="animalLinkedHabitat"><option value="">– keiner / unbekannt –</option></select></div>
           <div class="field full"><label for="animalNotes">Notizen</label><textarea id="animalNotes" placeholder="z. B. mehrere Tiere, Verhalten, Besonderheiten …"></textarea></div>
         </div>
-        <div class="actions" style="margin-top:14px"><button class="btn" type="submit">Beobachtung speichern</button><button class="btn secondary" id="saveAnimalAndPlaceBtn" type="button">Speichern & auf Karte setzen</button><button class="btn secondary hidden" id="removeAnimalMapBtn" type="button">Von Karte entfernen</button><button class="btn danger hidden" id="deleteAnimalBtn" type="button">Beobachtung löschen</button></div>
+        <div class="actions jgw-mt-14"><button class="btn" type="submit">Beobachtung speichern</button><button class="btn secondary" id="saveAnimalAndPlaceBtn" type="button">Speichern & auf Karte setzen</button><button class="btn secondary hidden" id="removeAnimalMapBtn" type="button">Von Karte entfernen</button><button class="btn danger hidden" id="deleteAnimalBtn" type="button">Beobachtung löschen</button></div>
       </form>
     </div>
     <div class="library-grid" id="animalList"></div>
@@ -241,11 +241,11 @@
   <div class="box">
     <div class="topline"><div><h2>Pflegekalender</h2><div class="muted">Saisonale Pflege nach Tätigkeit und Pflanzengruppe. Gieß- und Wetteraufgaben stehen direkt darüber.</div></div></div>
     <div class="calendar calendar-now" id="calendarGrid"></div>
-    <div class="actions" style="margin-top:12px"><button class="btn secondary small" id="calendarToggle" type="button">Ganzes Pflegejahr anzeigen</button></div>
+    <div class="actions jgw-mt-12"><button class="btn secondary small" id="calendarToggle" type="button">Ganzes Pflegejahr anzeigen</button></div>
     <details class="calendar-tools">
       <summary>Kalender verbinden / exportieren</summary>
-      <div style="margin-top:11px"><div class="label">Saison als Kalenderdatei</div><div class="actions" id="seasonExports" style="margin-top:8px"></div></div>
-      <div style="margin-top:11px"><button class="btn secondary small" id="exportCareYear" type="button">Nächste 12 Monate als .ics</button></div>
+      <div class="jgw-mt-11"><div class="label">Saison als Kalenderdatei</div><div class="actions jgw-mt-8" id="seasonExports"></div></div>
+      <div class="jgw-mt-11"><button class="btn secondary small" id="exportCareYear" type="button">Nächste 12 Monate als .ics</button></div>
     </details>
   </div>
 </section>
@@ -253,8 +253,8 @@
 <section class="view" id="view-weather">
   <div class="box">
     <div class="topline"><div><h2 id="weatherPlace">Wetter</h2><div class="muted" id="weatherPlace2">Noch kein Standort eingerichtet.</div></div></div>
-    <div class="actions" id="periods" style="margin-top:13px"><button class="btn secondary small period" data-days="7">7 Tage</button><button class="btn secondary small period" data-days="14">14 Tage</button><button class="btn small period" data-days="30">30 Tage</button><button class="btn secondary small period" data-days="60">60 Tage</button><button class="btn secondary small period" data-days="90">90 Tage</button></div>
-    <div class="grid" style="margin-top:13px">
+    <div class="actions jgw-mt-13" id="periods"><button class="btn secondary small period" data-days="7">7 Tage</button><button class="btn secondary small period" data-days="14">14 Tage</button><button class="btn small period" data-days="30">30 Tage</button><button class="btn secondary small period" data-days="60">60 Tage</button><button class="btn secondary small period" data-days="90">90 Tage</button></div>
+    <div class="grid jgw-mt-13">
       <div class="metric"><div class="label">Niederschlag</div><div class="value" id="wTotal">–</div><div class="small" id="wAvg"></div></div>
       <div class="metric"><div class="label">Verdunstung ET₀</div><div class="value" id="wEt0">–</div><div class="small">Referenz-Evapotranspiration</div></div>
       <div class="metric"><div class="label">Wasserbilanz</div><div class="value" id="wBalance">–</div><div class="small">Regen minus ET₀</div></div>
@@ -263,8 +263,8 @@
       <div class="metric"><div class="label">Nächste 7 Tage</div><div class="value" id="wFuture">–</div><div class="small">Regenprognose</div></div>
     </div>
   </div>
-  <div class="box"><strong id="chartTitle">Niederschlag</strong><div id="chart" class="chart"></div><div class="axis"><span id="chartFrom"></span><span id="chartTo"></span></div><details><summary>Tageswerte anzeigen</summary><div style="overflow:auto"><table><thead><tr><th>Datum</th><th>Regen</th><th>ET₀</th></tr></thead><tbody id="weatherTbody"></tbody></table></div></details></div>
-  <div class="box"><strong>Ausblick 7 Tage</strong><div id="weatherForecast" class="weathergrid" style="margin-top:12px"></div></div>
+  <div class="box"><strong id="chartTitle">Niederschlag</strong><div id="chart" class="chart"></div><div class="axis"><span id="chartFrom"></span><span id="chartTo"></span></div><details><summary>Tageswerte anzeigen</summary><div class="jgw-overflow-auto"><table><thead><tr><th>Datum</th><th>Regen</th><th>ET₀</th></tr></thead><tbody id="weatherTbody"></tbody></table></div></details></div>
+  <div class="box"><strong>Ausblick 7 Tage</strong><div id="weatherForecast" class="weathergrid jgw-mt-12"></div></div>
 </section>
 
 <section class="view" id="view-more">
@@ -286,13 +286,13 @@
     <section class="settings-section" id="settingsLocation">
       <h3>Standort</h3>
       <div class="muted">Für Wetter und Gießempfehlungen genügt die Postleitzahl. Die genaue Wetterposition ergibt sich automatisch aus dem gespeicherten Gartenausschnitt.</div>
-      <form id="locationForm" style="margin-top:11px"><div class="field"><label for="plz">Postleitzahl</label><input id="plz" maxlength="5" inputmode="numeric" pattern="[0-9]{5}" placeholder="z. B. 72144" required></div><div class="actions" style="margin-top:8px"><button class="btn small" type="submit">Standort laden</button><button class="btn ghost small" id="openMapEditor" type="button">Gartenausschnitt ändern</button></div></form>
-      <div class="muted" id="locationStatus" style="margin-top:8px"></div>
+      <form id="locationForm" class="jgw-mt-11"><div class="field"><label for="plz">Postleitzahl</label><input id="plz" maxlength="5" inputmode="numeric" pattern="[0-9]{5}" placeholder="z. B. 72144" required></div><div class="actions jgw-mt-8"><button class="btn small" type="submit">Standort laden</button><button class="btn ghost small" id="openMapEditor" type="button">Gartenausschnitt ändern</button></div></form>
+      <div class="muted jgw-mt-8" id="locationStatus"></div>
     </section>
 
     <details class="settings-section" id="settingsAreas">
       <summary>Gartenbereiche <span class="area-settings-count" id="areaSettingsCount">· 0</span></summary>
-      <div class="muted" style="margin-top:8px">Zentrale Liste für Pflanzen, Lebensräume und Tierbeobachtungen. Bestehende Freitexte werden automatisch übernommen und zusammengeführt.</div>
+      <div class="muted jgw-mt-8">Zentrale Liste für Pflanzen, Lebensräume und Tierbeobachtungen. Bestehende Freitexte werden automatisch übernommen und zusammengeführt.</div>
       <div class="area-manager-add"><input id="areaNewName" autocomplete="off" placeholder="z. B. Vorgarten"><button class="btn secondary small" id="areaAddBtn" type="button">Hinzufügen</button></div>
       <div class="area-master-list" id="areaMasterList"></div>
     </details>
@@ -301,19 +301,19 @@
       <h3>Geräte & Synchronisation</h3>
       <div class="muted">Damit iPhone, iPad und PC denselben Garten verwenden.</div>
       <div id="syncStatus" class="sync-status warn"><b>Nicht eingerichtet</b><small>Die App funktioniert weiterhin lokal.</small></div>
-      <div class="actions" style="margin-top:9px"><a class="btn small" href="./setup.html">Neues Gerät hinzufügen</a><div id="syncActiveActions"><button class="btn secondary small" id="syncNow" type="button">Jetzt synchronisieren</button></div></div>
-      <div id="syncConflict" class="sync-conflict hidden"><b>Änderungskonflikt</b><div class="muted">Auf einem anderen Gerät wurde der Garten geändert, während dieses Gerät noch nicht synchronisiert war.</div><div class="actions" style="margin-top:8px"><button class="btn small" id="useCloudVersion" type="button">Cloud-Stand laden</button><button class="btn danger small" id="useLocalVersion" type="button">Dieses Gerät übernehmen</button></div></div>
+      <div class="actions jgw-mt-9"><a class="btn small" href="./setup.html">Neues Gerät hinzufügen</a><div id="syncActiveActions"><button class="btn secondary small" id="syncNow" type="button">Jetzt synchronisieren</button></div></div>
+      <div id="syncConflict" class="sync-conflict hidden"><b>Änderungskonflikt</b><div class="muted">Auf einem anderen Gerät wurde der Garten geändert, während dieses Gerät noch nicht synchronisiert war.</div><div class="actions jgw-mt-8"><button class="btn small" id="useCloudVersion" type="button">Cloud-Stand laden</button><button class="btn danger small" id="useLocalVersion" type="button">Dieses Gerät übernehmen</button></div></div>
       <details>
         <summary>Technische Verbindungsdaten</summary>
-        <div class="muted" style="margin-top:7px">Normalerweise nur bei der Ersteinrichtung oder Fehlersuche notwendig.</div>
+        <div class="muted jgw-mt-7">Normalerweise nur bei der Ersteinrichtung oder Fehlersuche notwendig.</div>
         <div class="sync-fields">
           <div class="field full"><label for="syncUrl">Supabase Project URL</label><input id="syncUrl" inputmode="url" autocomplete="off" placeholder="https://…supabase.co"></div>
           <div class="field full"><label for="syncKey">Supabase Publishable Key</label><input id="syncKey" type="password" autocomplete="off" placeholder="sb_publishable_…"></div>
           <div class="field"><label for="syncGardenId">Garten-ID</label><input id="syncGardenId" autocomplete="off" spellcheck="false" placeholder="z. B. JOHANNA-AB12CD"></div>
-          <div class="field"><label for="syncPin">Garten-PIN / Passwort</label><input id="syncPin" type="password" autocomplete="new-password" minlength="6" placeholder="mind. 6 Zeichen"><div class="muted" style="margin-top:5px">Die PIN wird nur zur Ableitung eines abgeleiteten Zugriffsschlüssels verwendet und danach nicht gespeichert.</div></div>
+          <div class="field"><label for="syncPin">Garten-PIN / Passwort</label><input id="syncPin" type="password" autocomplete="new-password" minlength="6" placeholder="mind. 6 Zeichen"><div class="muted jgw-mt-5">Die PIN wird nur zur Ableitung eines abgeleiteten Zugriffsschlüssels verwendet und danach nicht gespeichert.</div></div>
         </div>
-        <div class="actions" style="margin-top:9px"><button class="btn secondary small" id="generateGardenId" type="button">Garten-ID erzeugen</button><button class="btn secondary small" id="saveSyncConfig" type="button">Zugang speichern</button></div>
-        <div class="actions" style="margin-top:8px"><button class="btn small" id="createCloudGarden" type="button">Diesen Garten freigeben</button><button class="btn secondary small" id="joinCloudGarden" type="button">Gemeinsamen Garten verbinden</button><button class="btn ghost small" id="disconnectSync" type="button">Sync trennen</button></div>
+        <div class="actions jgw-mt-9"><button class="btn secondary small" id="generateGardenId" type="button">Garten-ID erzeugen</button><button class="btn secondary small" id="saveSyncConfig" type="button">Zugang speichern</button></div>
+        <div class="actions jgw-mt-8"><button class="btn small" id="createCloudGarden" type="button">Diesen Garten freigeben</button><button class="btn secondary small" id="joinCloudGarden" type="button">Gemeinsamen Garten verbinden</button><button class="btn ghost small" id="disconnectSync" type="button">Sync trennen</button></div>
       </details>
     </section>
 
@@ -322,7 +322,7 @@
       <div class="muted">Die Gartenwelt passt ihre Farben automatisch an die Jahreszeit an. Die Bedienung bleibt immer gleich.</div>
       <div class="appearance-row"><label for="seasonMode"><b>Jahreszeit</b></label><select id="seasonMode"><option value="auto">Automatisch</option><option value="spring">Frühling</option><option value="summer">Sommer</option><option value="autumn">Herbst</option><option value="winter">Winter</option></select></div>
       <label class="toggle-row"><input id="animationToggle" type="checkbox" checked><span>Kleine Animation nach erledigten Aufgaben</span></label>
-      <div class="muted" id="seasonStatus" style="margin-top:8px"></div>
+      <div class="muted jgw-mt-8" id="seasonStatus"></div>
     </section>
 
     <section class="settings-section" id="settingsPlantnet">
@@ -331,14 +331,14 @@
       <div class="section-status" id="plantnetStatus">Status wird geprüft</div>
       <details>
         <summary>API-Schlüssel ändern</summary>
-        <div class="field" style="margin-top:9px"><label for="plantnetKey">PlantNet API-Key</label><input id="plantnetKey" type="password" autocomplete="off" placeholder="API-Key"></div>
-        <div class="actions" style="margin-top:8px"><button class="btn secondary small" id="saveApiKey" type="button">Schlüssel speichern</button></div>
-        <div class="muted" style="margin-top:8px">Die App funktioniert auch ohne Pflanzenerkennung.</div>
+        <div class="field jgw-mt-9"><label for="plantnetKey">PlantNet API-Key</label><input id="plantnetKey" type="password" autocomplete="off" placeholder="API-Key"></div>
+        <div class="actions jgw-mt-8"><button class="btn secondary small" id="saveApiKey" type="button">Schlüssel speichern</button></div>
+        <div class="muted jgw-mt-8">Die App funktioniert auch ohne Pflanzenerkennung.</div>
       </details>
-      <details style="margin-top:10px">
+      <details class="jgw-mt-10">
         <summary>Zusätzliche Pflanzendaten</summary>
-        <div class="muted" style="margin-top:8px">Trefle wird geschützt über Supabase abgefragt. Der API-Token liegt ausschließlich als Supabase-Secret und wird weder im Browser noch in einem Backup gespeichert.</div>
-        <div class="section-status" id="plantDataApiStatus" style="margin-top:8px">Trefle-Status wird geprüft.</div>
+        <div class="muted jgw-mt-8">Trefle wird geschützt über Supabase abgefragt. Der API-Token liegt ausschließlich als Supabase-Secret und wird weder im Browser noch in einem Backup gespeichert.</div>
+        <div class="section-status jgw-mt-8" id="plantDataApiStatus">Trefle-Status wird geprüft.</div>
       </details>
     </section>
 
@@ -360,27 +360,27 @@
     <section class="settings-section">
       <h3>Datensicherung</h3>
       <div class="muted">Zusätzliche lokale Sicherung von Pflanzen, Fotos, Gartenbereichen, Zonen und Pflegehistorie.</div>
-      <div class="actions" style="margin-top:10px"><button class="btn secondary small" id="exportBtn" type="button">Backup exportieren</button><label class="btn ghost small" for="importFile" style="display:inline-block">Backup importieren</label><input class="hidden" id="importFile" type="file" accept="application/json,.json"></div>
+      <div class="actions jgw-mt-10"><button class="btn secondary small" id="exportBtn" type="button">Backup exportieren</button><label class="btn ghost small jgw-inline-block" for="importFile">Backup importieren</label><input class="hidden" id="importFile" type="file" accept="application/json,.json"></div>
     </section>
 
     <details class="settings-section" id="settingsInfo">
       <summary>Info & Datenquellen</summary>
-      <div class="muted" style="margin-top:8px">Gießempfehlungen sind Modellschätzungen aus Regen, ET₀, Pflanzart, Wasserbedarf, Pflanzengröße, Anwachsphase und markierten Standortzonen. Bodenfeuchte vor dem Gießen prüfen.</div>
-      <div class="muted" style="margin-top:8px"><b>Datenquellen:</b> Luftbild LGL Baden-Württemberg DOP20 Open Data · Wetter Open-Meteo · Pflanzenerkennung und Namenssuche optional Pl@ntNet · Tier-Namenssuche iNaturalist (kostenlos, ohne API-Key).</div><div class="muted" style="margin-top:8px"><b>Insektenwert:</b> ein nachvollziehbarer Orientierungswert aus internen Artprofilen bzw. Schätzregeln zu Nektar/Pollen, Wirtspflanzenfunktion, Herkunft, Blühzeit und Blütenzugang. Er ist kein wissenschaftliches Ranking und kann Sortenunterschiede nicht vollständig abbilden.</div><div class="muted" style="margin-top:8px"><b>Naturgarten-Score:</b> Orientierungswert aus Pflanzen & Nahrung (30), Jahresversorgung (15), Lebensräumen (25), naturnaher Pflege (15) sowie Vielfalt & Regionalität (15). Tierbeobachtungen werden separat als Wirkungsnachweis gezeigt und geben keine Punkte.</div>
+      <div class="muted jgw-mt-8">Gießempfehlungen sind Modellschätzungen aus Regen, ET₀, Pflanzart, Wasserbedarf, Pflanzengröße, Anwachsphase und markierten Standortzonen. Bodenfeuchte vor dem Gießen prüfen.</div>
+      <div class="muted jgw-mt-8"><b>Datenquellen:</b> Luftbild LGL Baden-Württemberg DOP20 Open Data · Wetter Open-Meteo · Pflanzenerkennung und Namenssuche optional Pl@ntNet · Tier-Namenssuche iNaturalist (kostenlos, ohne API-Key).</div><div class="muted jgw-mt-8"><b>Insektenwert:</b> ein nachvollziehbarer Orientierungswert aus internen Artprofilen bzw. Schätzregeln zu Nektar/Pollen, Wirtspflanzenfunktion, Herkunft, Blühzeit und Blütenzugang. Er ist kein wissenschaftliches Ranking und kann Sortenunterschiede nicht vollständig abbilden.</div><div class="muted jgw-mt-8"><b>Naturgarten-Score:</b> Orientierungswert aus Pflanzen & Nahrung (30), Jahresversorgung (15), Lebensräumen (25), naturnaher Pflege (15) sowie Vielfalt & Regionalität (15). Tierbeobachtungen werden separat als Wirkungsnachweis gezeigt und geben keine Punkte.</div>
     </details>
 
     <details class="settings-section settings-danger">
       <summary>Erweiterte Einstellungen</summary>
-      <div class="muted" style="margin-top:8px">Diese Funktionen werden im normalen Betrieb selten benötigt.</div>
-      <div style="margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fffdf9">
-        <b style="color:var(--forest-dark)">Fotospeicher</b>
-        <div class="muted" style="margin-top:5px">Lagert vorhandene Fotos in den kostenlosen Supabase-Fotospeicher aus und entlastet den lokalen iPhone-Speicher der Gartenwelt.</div>
-        <div class="actions" style="margin-top:10px"><button class="btn secondary small" id="optimizePhotoStorageBtn" type="button">Speicher optimieren</button></div>
-        <div class="muted" id="photoStorageStatus" style="margin-top:7px">Verbindung zum Fotospeicher wird geprüft …</div>
+      <div class="muted jgw-mt-8">Diese Funktionen werden im normalen Betrieb selten benötigt.</div>
+      <div class="jgw-soft-panel">
+        <b class="jgw-forest-text">Fotospeicher</b>
+        <div class="muted jgw-mt-5">Lagert vorhandene Fotos in den kostenlosen Supabase-Fotospeicher aus und entlastet den lokalen iPhone-Speicher der Gartenwelt.</div>
+        <div class="actions jgw-mt-10"><button class="btn secondary small" id="optimizePhotoStorageBtn" type="button">Speicher optimieren</button></div>
+        <div class="muted jgw-mt-7" id="photoStorageStatus">Verbindung zum Fotospeicher wird geprüft …</div>
       </div>
-      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line)">
+      <div class="jgw-section-divider">
         <div class="muted">Nur verwenden, wenn alle lokalen Daten auf diesem Gerät entfernt werden sollen.</div>
-        <div class="actions" style="margin-top:10px"><button class="btn danger small" id="clearBtn" type="button">Lokale Gartendaten löschen</button></div>
+        <div class="actions jgw-mt-10"><button class="btn danger small" id="clearBtn" type="button">Lokale Gartendaten löschen</button></div>
       </div>
     </details>
   </aside>
