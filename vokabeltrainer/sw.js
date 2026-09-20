@@ -1,5 +1,5 @@
 const CACHE='vokabeltrainer-v0.9.1-lean';
-const ASSETS=['./','./index.html','./css/app.css','./js/core.js','./js/storage.js','./js/model.js','./js/learning.js','./js/io.js','./js/ui.js','./js/app.js','./manifest.webmanifest','../app-icon-180.png','../app-icon.svg'];
+const ASSETS=['./','./index.html','./css/app.css','./js/core.js','./js/storage.js','./js/model.js','./js/learning.js','./js/io.js','./js/ui.js','./js/app.js','./manifest.webmanifest','./assets/icons/icon-180.png','./assets/icons/icon-192.png','./assets/icons/icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
   const requests=ASSETS.map(path=>new Request(new URL(path,self.location).href,{cache:'reload'}));
