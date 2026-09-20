@@ -1,6 +1,6 @@
 # Vokabeltrainer – Sense-/Bedeutungsmodell
 
-Stand: 20.09.2026 · Modellversion 1 · App v0.9.13
+Stand: 20.09.2026 · Modellversion 1 · App v0.9.14
 
 Dieses Dokument konkretisiert Prinzip 10 der `PRODUCT_DNA.md`. Es ist die verbindliche fachliche und technische Definition für Lexem, Bedeutung, Schulbuchform und Lernstand.
 
@@ -26,7 +26,7 @@ Ein **Lexem** wird pro Fremdsprache global einmal gespeichert. Ein Lexem besitzt
 3. **Kein Mastery-Transfer zwischen Senses.** Ein gemeisterter Sense macht einen neu hinzugefügten Sense nicht automatisch stabil oder gemeistert.
 4. **Schulbuchform bleibt lokal.** Eine abweichende Formulierung eines Lehrwerks wird als Override am Lernset/Lehrwerk gespeichert und verändert nicht automatisch die globale Sense-Definition.
 5. **Globale Synonyme sind bewusst.** Nur als echte Synonyme bestätigte Varianten werden in `sense.translations[]` übernommen.
-6. **Mehrdeutiger Abruf braucht einen Cue.** Wenn das Fremdwort mehrere Senses besitzt, zählt Fremdsprache → Bedeutung im adaptiven Lernen nur mit disambiguierendem Kontext/Wortart. Fehlt ein Cue, wechselt die App auf die eindeutige Richtung Bedeutung → Fremdwort.
+6. **Mehrdeutiger Abruf braucht einen Cue.** Wenn das Fremdwort mehrere Senses besitzt, zählt Fremdsprache → Bedeutung im adaptiven Lernen nur mit disambiguierendem Kontext/Wortart. Fehlt ein Cue, wechselt die App auf die eindeutige Richtung Bedeutung → Fremdwort. Im nicht-bewertenden Testcheck werden bei unvermeidbar kontextlosen Quellwort-Fragen alle bekannten Bedeutungen akzeptiert; der Wortblitz dreht die Richtung um.
 7. **Sense-Identität erhält Diakritika.** Die interne Bedeutungsnormalisierung entfernt keine Umlaute/Akzente; `schön` und `schon` sind nicht identisch.
 8. **ISBN/Unit referenzieren dieselben Senses.** Lehrwerke kopieren keine fachlichen Bedeutungen, sondern verknüpfen sie mit Buchabschnitt, Reihenfolge und Overrides.
 
