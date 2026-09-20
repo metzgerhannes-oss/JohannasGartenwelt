@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = '0.9.2';
+const VERSION = '0.9.3';
 const STORAGE_KEY = 'vokabeltrainer_v07';
 const DB_NAME = 'vokabeltrainer-db';
 const DB_STORE = 'app-state';
@@ -58,3 +58,4 @@ let scanImportState = {imageUrl:null, rows:[], titleHint:'', nativeOcr:false};
 let libraryRenderLimit = 200;
 let toastTimer = null;
 const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
