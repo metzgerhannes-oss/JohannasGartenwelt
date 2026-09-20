@@ -40,6 +40,8 @@ const result=vm.runInContext(`
 
   assert(ambiguousSenseWord(a.word)===true,'ambiguity detected');
   assert(meaningRecallHasCue(a.word)===false,'ambiguous recall without cue rejected');
+  session={practiceContext:{testFormat:'source'},index:0};const pd=practiceDirection(a.word);
+  assert(pd.ambiguity===true&&pd.targets.some(x=>meaningKey(x)===meaningKey('Bank'))&&pd.targets.some(x=>meaningKey(x)===meaningKey('Ufer')),'practice test accepts all valid meanings when context is missing');
   a.sense.examples=['I put my money in the bank.'];
   assert(meaningRecallHasCue(a.word)===true,'context disambiguates sense');
 
