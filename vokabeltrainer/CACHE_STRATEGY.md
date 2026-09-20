@@ -60,3 +60,5 @@ Tesseract.js besitzt zusätzlich einen eigenen IndexedDB-Cache für `.traineddat
 3. gecachte OCR-Dateien funktionieren ohne Netzwerk.
 4. ein neu geladenes Wörterbuch-Shard wird beim zweiten Zugriff aus dem langlebigen Cache bedient.
 5. die frühere globale Cache-Löschlogik darf nicht zurückkehren.
+
+Zusätzlich prüft `scripts/vokabeltrainer-webkit-smoke.mjs` im echten WebKit/iPhone-Kontext, dass der verschachtelte Vokabeltrainer-Service-Worker aktiv wird, einen Wikidict-Shard offline wieder ausliefert und einen fremden `jgw-*`-Cache unangetastet lässt.

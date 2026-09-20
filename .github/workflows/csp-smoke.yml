@@ -55,6 +55,7 @@ jobs:
           node --check scripts/vokabeltrainer-sense-smoke.mjs
           node --check scripts/vokabeltrainer-subject-smoke.mjs
           node --check scripts/vokabeltrainer-cache-smoke.mjs
+          node --check scripts/vokabeltrainer-webkit-smoke.mjs
           node --check vendor/leaflet/leaflet-1.9.4.js
           node --check vendor/leaflet-draw/leaflet.draw-1.0.4.js
           node --check vendor/qrcode/qrcode-1.0.0.min.js
@@ -82,3 +83,6 @@ jobs:
 
       - name: WebKit iPhone smoke test
         run: JGW_BASE=http://127.0.0.1:4173 node scripts/csp-webkit-smoke.mjs
+
+      - name: WebKit iPhone Vokabeltrainer cache smoke
+        run: JGW_BASE=http://127.0.0.1:4173 node scripts/vokabeltrainer-webkit-smoke.mjs
