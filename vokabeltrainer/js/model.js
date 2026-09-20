@@ -7,9 +7,9 @@ function gradeScaleText(scale=gradeScaleFor()){return `1 ab ${scale.n1}% · 2 ab
 function actualGradeForPractice(practiceId){return state.grades.find(g=>g.learnerId===state.activeLearnerId&&g.practiceTestId===practiceId)||null;}
 function mySets(subject=state.activeSubject){ return state.sets.filter(s=>s.learnerId===state.activeLearnerId && s.subject===subject); }
 function schoolYearSets(subject=state.activeSubject,schoolYear=currentSchoolYear()){ return mySets(subject).filter(s=>s.schoolYear===schoolYear); }
-function myWords(subject=state.activeSubject){ const ids=new Set(mySets(subject).map(s=>s.id)); return state.words.filter(w=>ids.has(w.setId)); }
-function schoolYearWords(subject=state.activeSubject,schoolYear=currentSchoolYear()){ const ids=new Set(schoolYearSets(subject,schoolYear).map(s=>s.id)); return state.words.filter(w=>ids.has(w.setId)); }
-function setWords(setId){ return state.words.filter(w=>w.setId===setId); }
+function myWords(subject=state.activeSubject){const ids=new Set(mySets(subject).map(s=>s.id));return uniqueWords(state.words.filter(w=>ids.has(w.setId)));}
+function schoolYearWords(subject=state.activeSubject,schoolYear=currentSchoolYear()){const ids=new Set(schoolYearSets(subject,schoolYear).map(s=>s.id));return uniqueWords(state.words.filter(w=>ids.has(w.setId)));}
+function setWords(setId){return (state.setVocabulary||[]).filter(x=>x.setId===setId).sort((a,b)=>(a.position||0)-(b.position||0)).map(x=>wordViewForLink(x)).filter(Boolean);}
 function fortressWins(subject=state.activeSubject,schoolYear=currentSchoolYear()){const l=learner(),key=`${subject}:${schoolYear}`;l.fortressWinsByYear=l.fortressWinsByYear||{};return l.fortressWinsByYear[key]||(l.fortressWinsByYear[key]=[]);}
 
 function normalize(s){return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[.,;:!?()[\]{}"']/g,'').replace(/\s+/g,' ')}
@@ -123,7 +123,7 @@ function dailyPlanSignature(ctx,subject,sessionSize){
 function uniqueWords(list){const seen=new Set();return list.filter(w=>w&&!seen.has(w.id)&&seen.add(w.id))}
 function buildDailyPlan(subject=state.activeSubject){
   const l=learner(); l.dailyPlans=l.dailyPlans||{}; const sessionSize=l.lrsMode?6:10; const ctx=upcomingTestContext(subject); const key=`${today()}:${subject}`; const signature=dailyPlanSignature(ctx,subject,sessionSize);
-  const existing=l.dailyPlans[key]; if(existing&&existing.signature===signature&&existing.wordIds.every(id=>state.words.some(w=>w.id===id)))return existing;
+  const existing=l.dailyPlans[key];if(existing&&existing.signature===signature){const refs=Array.isArray(existing.wordRefs)&&existing.wordRefs.length?existing.wordRefs:existing.wordIds.map(id=>({wordId:id}));if(refs.every(r=>r.setLinkId?!!wordByLinkId(r.setLinkId):!!wordById(r.wordId)))return existing;}
   const pool=ctx?ctx.words:schoolYearWords(subject); let selected=[],urgent=false,plannedNeed=0,phase='general',maintenanceCount=0;
   if(ctx&&pool.length){
     const due=pool.filter(w=>(w.repetitions||0)>0&&(!w.dueDate||w.dueDate<=today())).sort((a,b)=>testReadinessScore(a)-testReadinessScore(b));
@@ -156,16 +156,16 @@ function buildDailyPlan(subject=state.activeSubject){
   }else{
     const due=dueWords(subject),weak=schoolYearWords(subject).filter(w=>!isMastered(w)).sort((a,b)=>masteryScore(a)-masteryScore(b)); plannedNeed=due.length?Math.min(sessionSize,due.length):Math.min(learner().lrsMode?4:5,weak.length); selected=uniqueWords([...due,...weak]).slice(0,plannedNeed);
   }
-  const plan={date:today(),subject,signature,source:ctx?(ctx.source||'test'):'general',testDate:ctx?.date||'',setIds:ctx?.sets.map(s=>s.id)||[],setTitle:ctx?.scopeText||ctx?.sets.map(s=>s.title).join(' + ')||'',wordIds:selected.map(w=>w.id),sessionSize,urgent,phase,maintenanceCount,createdAt:new Date().toISOString()};
+  const plan={date:today(),subject,signature,source:ctx?(ctx.source||'test'):'general',testDate:ctx?.date||'',setIds:ctx?.sets.map(s=>s.id)||[],setTitle:ctx?.scopeText||ctx?.sets.map(s=>s.title).join(' + ')||'',wordIds:selected.map(w=>w.id),wordRefs:selected.map(w=>({wordId:w.id,setLinkId:w.setLinkId||''})),sessionSize,urgent,phase,maintenanceCount,createdAt:new Date().toISOString()};
   l.dailyPlans[key]=plan; Object.keys(l.dailyPlans).filter(k=>k<`${datePlusDays(-21)}:`).forEach(k=>delete l.dailyPlans[k]); persistOnly(); return plan;
 }
 function wordPracticedToday(w){return !!(w?.activePracticeDays||[]).includes(today())}
 function dailyPlanStatus(plan=buildDailyPlan()){
-  const words=plan.wordIds.map(id=>state.words.find(w=>w.id===id)).filter(Boolean),done=words.filter(wordPracticedToday),remaining=words.filter(w=>!wordPracticedToday(w));
-  return {total:words.length,done:done.length,remaining:remaining.length,remainingIds:remaining.map(w=>w.id),units:remaining.length?Math.ceil(remaining.length/plan.sessionSize):0};
+  const refs=Array.isArray(plan.wordRefs)&&plan.wordRefs.length?plan.wordRefs:plan.wordIds.map(id=>({wordId:id,setLinkId:''}));const pairs=refs.map(r=>({ref:r,word:r.setLinkId?wordByLinkId(r.setLinkId):wordById(r.wordId)})).filter(x=>x.word);const done=pairs.filter(x=>wordPracticedToday(x.word)),remaining=pairs.filter(x=>!wordPracticedToday(x.word));
+  return {total:pairs.length,done:done.length,remaining:remaining.length,remainingIds:remaining.map(x=>x.word.id),remainingRefs:remaining.map(x=>x.ref),units:remaining.length?Math.ceil(remaining.length/plan.sessionSize):0};
 }
 function startDailyTodo(){
   const pending=seriesScopePending(),ctx=upcomingTestContext(); if(pending&&(!ctx||pending.date<=ctx.date)){openTestDatePlanner();return}
   const plan=buildDailyPlan(),status=dailyPlanStatus(plan); if(!myWords().length){if(!mySets().length)openSetEditor();else openFirstWordsChooser();return} if(!status.remaining){toast('Tagesziel erledigt. Weitere Übungen sind optional.','good');return}
-  startSession('adaptive',null,status.remainingIds.slice(0,plan.sessionSize),true);
+  startSession('adaptive',null,(status.remainingRefs||status.remainingIds).slice(0,plan.sessionSize),true);
 }
