@@ -49,8 +49,8 @@ check("index script-src-attr none", /script-src-attr\s+'none'/.test(indexCsp), i
 check("setup script-src-attr none", /script-src-attr\s+'none'/.test(setupCsp), setupCsp);
 check("index style elements hardened", /style-src-elem/.test(indexCsp) && !/style-src-elem[^;]*'unsafe-inline'/.test(indexCsp), indexCsp);
 check("setup style elements hardened", /style-src-elem/.test(setupCsp) && !/style-src-elem[^;]*'unsafe-inline'/.test(setupCsp), setupCsp);
-check("index executable sources are self-only", /script-src\\s+'self';/.test(indexCsp) && /style-src\\s+'self';/.test(indexCsp) && /style-src-elem\\s+'self';/.test(indexCsp), indexCsp);
-check("setup executable sources are self-only", /script-src\\s+'self';/.test(setupCsp), setupCsp);
+check("index executable sources are self-only", indexCsp.includes("script-src 'self';") && indexCsp.includes("style-src 'self';") && indexCsp.includes("style-src-elem 'self';"), indexCsp);
+check("setup executable sources are self-only", setupCsp.includes("script-src 'self';"), setupCsp);
 check("main app has no CDN script/style loader", !/cdn\\.jsdelivr\\.net|cdnjs\\.cloudflare\\.com/.test(appJs), "");
 check("setup has no external script tag", !/<script[^>]+src=["']https?:[/][/]/i.test(setup), "");
 
