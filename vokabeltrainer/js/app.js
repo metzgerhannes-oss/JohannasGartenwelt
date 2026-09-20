@@ -3,7 +3,7 @@
 (async function bootstrap(){
   state = await loadState();
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('./sw.js?v=0.9.5')
+    navigator.serviceWorker.register('./sw.js?v=0.9.6')
       .then(reg=>reg.update().catch(()=>{}))
       .catch(console.warn);
   }
