@@ -1,5 +1,5 @@
-const CACHE='vokabeltrainer-v0.9.11-profile-books';
-const ASSETS=['./','./index.html','./css/app.css?v=0.9.11','./js/core.js?v=0.9.11','./js/storage.js?v=0.9.11','./js/model.js?v=0.9.11','./js/learning.js?v=0.9.11','./js/translation.js?v=0.9.11','./js/io.js?v=0.9.11','./js/ui.js?v=0.9.11','./js/app.js?v=0.9.11','./manifest.webmanifest','./assets/icons/icon-180.png','./assets/icons/icon-192.png','./assets/icons/icon-512.png'];
+const CACHE='vokabeltrainer-v0.9.12-sense-model';
+const ASSETS=['./','./index.html','./css/app.css?v=0.9.12','./js/core.js?v=0.9.12','./js/storage.js?v=0.9.12','./js/model.js?v=0.9.12','./js/learning.js?v=0.9.12','./js/translation.js?v=0.9.12','./js/io.js?v=0.9.12','./js/ui.js?v=0.9.12','./js/app.js?v=0.9.12','./manifest.webmanifest','./assets/icons/icon-180.png','./assets/icons/icon-192.png','./assets/icons/icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
   const requests=ASSETS.map(path=>new Request(new URL(path,self.location).href,{cache:'reload'}));
