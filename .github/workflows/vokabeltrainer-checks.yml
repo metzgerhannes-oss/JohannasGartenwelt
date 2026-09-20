@@ -1,0 +1,74 @@
+name: Vokabeltrainer checks
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/vokabeltrainer-checks.yml'
+      - 'vokabeltrainer/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/vokabeltrainer-checks.yml'
+      - 'vokabeltrainer/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vokabeltrainer-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: JavaScript syntax check
+        run: |
+          node --check vokabeltrainer/js/core.js
+          node --check vokabeltrainer/js/storage.js
+          node --check vokabeltrainer/js/model.js
+          node --check vokabeltrainer/js/learning.js
+          node --check vokabeltrainer/js/translation.js
+          node --check vokabeltrainer/js/io.js
+          node --check vokabeltrainer/js/ui.js
+          node --check vokabeltrainer/js/app.js
+          node --check vokabeltrainer/sw.js
+          node --check vokabeltrainer/scripts/sense-smoke.mjs
+          node --check vokabeltrainer/scripts/subject-smoke.mjs
+          node --check vokabeltrainer/scripts/cache-smoke.mjs
+          node --check vokabeltrainer/scripts/sw-browser-smoke.mjs
+
+      - name: Sense model smoke
+        run: node vokabeltrainer/scripts/sense-smoke.mjs
+
+      - name: Subject system smoke
+        run: node vokabeltrainer/scripts/subject-smoke.mjs
+
+      - name: Cache persistence smoke
+        run: node vokabeltrainer/scripts/cache-smoke.mjs
+
+      - name: Install Playwright Chromium
+        run: |
+          npm init -y
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+
+      - name: Start local server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/vokabeltrainer-http.log 2>&1 &
+          echo $! > /tmp/vokabeltrainer-http.pid
+          sleep 2
+
+      - name: Service-worker cache browser smoke
+        run: JGW_BASE=http://127.0.0.1:4173 node vokabeltrainer/scripts/sw-browser-smoke.mjs
