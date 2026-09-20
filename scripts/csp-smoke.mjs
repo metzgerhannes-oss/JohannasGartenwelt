@@ -33,10 +33,10 @@ async function inspectPage(browser, scope, url, contextOptions = {}) {
     });
   });
 
-  const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+  const response = await page.goto(url, { waitUntil: "commit", timeout: 30000 });
   record(scope, "HTTP/Navigation", !!response && response.ok(), response ? String(response.status()) : "no response");
-
-  await page.waitForTimeout(2500);
+  await page.waitForSelector("body", { state: "attached", timeout: 15000 });
+  await page.waitForTimeout(3000);
   try {
     const list = await page.evaluate(() => window.__cspViolations || []);
     cspViolations.push(...list);
@@ -132,8 +132,9 @@ async function inspectPage(browser, scope, url, contextOptions = {}) {
         window.__cspViolations.push({ directive:e.effectiveDirective, blockedURI:e.blockedURI });
       });
     });
-    const resp = await page.goto(base + "/setup.html", { waitUntil:"domcontentloaded", timeout:30000 });
-    await page.waitForTimeout(2500);
+    const resp = await page.goto(base + "/setup.html", { waitUntil:"commit", timeout:30000 });
+    await page.waitForSelector("body", { state:"attached", timeout:15000 });
+    await page.waitForTimeout(3000);
     record("setup", "HTTP/Navigation", !!resp && resp.ok(), resp ? String(resp.status()) : "no response");
     record("setup", "generator visible", await page.locator("#generatorBox:not(.hidden)").count() === 1);
     record("setup", "QR library loaded", await page.evaluate(() => typeof QRCode !== "undefined"));
