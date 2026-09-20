@@ -113,3 +113,5 @@ html[data-letter-space="0"]{--letter-space:0px}html[data-letter-space="0.25"]{--
 .scan-check{background:#fff7ed;color:#9a3412;border-color:#fed7aa}
 .scan-row-auto{border-color:#c7d2fe;background:#fafaff}
 .scan-source{margin-top:8px;color:#6366f1}
+
+.scan-existing{background:#e0f2fe;color:#075985;border-color:#bae6fd}.global-usage-list{border:1px solid var(--line);border-radius:14px;padding:0 12px;margin:8px 0 16px}.global-usage-list .profile-row:last-child{border-bottom:0}
