@@ -22,21 +22,19 @@ function parseCsv(text){
   return rows.slice(0,20000).map(values=>{const o={};header.forEach((k,i)=>{if(k)o[k]=values[i]??''});return o});
 }
 function importCsv(text){
-  const rows=parseCsv(text); if(!rows.length){toast('CSV enthält keine Daten.','warn');return}
-  const keys=new Set(Object.keys(rows[0]||{})); if(!keys.has('term')||!keys.has('translation')){toast('CSV benötigt die Spalten „term“ und „translation“.','bad');return}
-  let count=0,duplicates=0,skipped=0;
+  const rows=parseCsv(text);if(!rows.length){toast('CSV enthält keine Daten.','warn');return}
+  const keys=new Set(Object.keys(rows[0]||{}));if(!keys.has('term')||!keys.has('translation')){toast('CSV benötigt die Spalten „term“ und „translation“.','bad');return}
+  let linked=0,existingGlobal=0,newGlobal=0,duplicates=0,skipped=0;
   const setIndex=new Map(mySets().map(s=>[`${s.subject}\u0000${s.schoolYear}\u0000${s.title}`,s]));
-  const dupeIndex=new Map();
-  for(const set of mySets()){const keys=new Set();for(const w of setWords(set.id))keys.add(`${normalize(w.term)}\u0000${normalize(w.translation)}`);dupeIndex.set(set.id,keys)}
   rows.forEach(r=>{
-    const subj=(r.subject||state.activeSubject).toLowerCase().startsWith('la')?'latin':'english'; if(subj!==state.activeSubject){skipped++;return}
+    const subj=(r.subject||state.activeSubject).toLowerCase().startsWith('la')?'latin':'english';if(subj!==state.activeSubject){skipped++;return}
     const term=safeText(r.term,300).trim(),translation=safeText(r.translation,700).trim();if(!term||!translation){skipped++;return}
     const importYear=safeText(r.schoolyear||currentSchoolYear(),24),title=safeText(r.set||'Import',200)||'Import',setKey=`${subj}\u0000${importYear}\u0000${title}`;let set=setIndex.get(setKey);
-    if(!set){set={id:uid('set'),learnerId:learner().id,subject:subj,title,schoolYear:importYear,testDate:'',testScopeMode:'set',testFrom:1,testTo:0,testFormat:'target',from:'',to:''};state.sets.push(set);setIndex.set(setKey,set);dupeIndex.set(set.id,new Set())}
-    const dupeKey=`${normalize(term)}\u0000${normalize(translation)}`,seen=dupeIndex.get(set.id);if(seen.has(dupeKey)){duplicates++;return}seen.add(dupeKey);
-    state.words.push(makeWord(set.id,term,translation,{extra:safeText(r.extra,700),example:safeText(r.example,2000),mnemonic:safeText(r.mnemonic,1200),chunks:safeText(r.chunks,3000).split('|').slice(0,30).map(x=>safeText(x.trim(),120)).filter(Boolean)}));count++
+    if(!set){set={id:uid('set'),learnerId:learner().id,subject:subj,title,schoolYear:importYear,testDate:'',testScopeMode:'set',testFrom:1,testTo:0,testFormat:'target',from:'',to:''};state.sets.push(set);setIndex.set(setKey,set);rebuildWordIndexes();}
+    const result=attachVocabularyToSet(set.id,{term,translation,extra:safeText(r.extra,700),example:safeText(r.example,2000),mnemonic:safeText(r.mnemonic,1200),chunks:safeText(r.chunks,3000).split('|').slice(0,30).map(x=>safeText(x.trim(),120)).filter(Boolean),source:'csv-import',verified:true});
+    if(result.alreadyLinked){duplicates++;return}linked++;if(result.newVocabulary)newGlobal++;else existingGlobal++;
   });
-  save(); toast(`${count} Vokabeln importiert${duplicates?` · ${duplicates} Dubletten übersprungen`:''}${skipped?` · ${skipped} Zeilen ausgelassen`:''}.`,count?'good':'warn')
+  save();toast(`${linked} Zuordnung${linked===1?'':'en'} importiert · ${newGlobal} neue globale Vokabel${newGlobal===1?'':'n'}${existingGlobal?` · ${existingGlobal} aus Bibliothek`:''}${duplicates?` · ${duplicates} bereits im Lernset`:''}${skipped?` · ${skipped} ausgelassen`:''}.`,linked?'good':'warn');
 }
 
 
@@ -141,14 +139,16 @@ function scanOcrProgress(progress=0,label=''){
 function scanReviewHtml(){
   if(!scanImportState.rows.length)return '<p class="notice subtle">Noch keine Vokabelpaare erkannt. Foto aufnehmen oder Text einfügen und analysieren.</p>';
   const badge=r=>{
+    if(r.libraryMatchStatus==='existing')return '<span class="pill scan-existing">bereits vorhanden</span>';
+    if(r.libraryMatchStatus==='new-meaning')return '<span class="pill scan-existing">vorhanden · neue Bedeutung</span>';
     if(r.confidence==='good')return '<span class="pill scan-good">erkannt</span>';
     if(r.confidence==='auto'){
-      const source={memory:'aus deinen Vokabeln',school:'automatisch ergänzt',wikidict:'Wörterbuch',repair:'OCR korrigiert'}[r.origin]||'automatisch ergänzt';
+      const source={memory:'aus globaler Bibliothek',school:'automatisch ergänzt',wikidict:'Wörterbuch',repair:'OCR korrigiert'}[r.origin]||'automatisch ergänzt';
       return `<span class="pill scan-auto" title="${esc(source)}">ergänzt · prüfen</span>`;
     }
     return '<span class="pill scan-check">prüfen</span>';
   };
-  return scanImportState.rows.map((r,i)=>`<article class="scan-row ${r.confidence==='auto'?'scan-row-auto':''}"><div class="row spread align-center"><label class="scan-include"><input type="checkbox" id="scanUse_${i}" ${r.include?'checked':''}> übernehmen</label>${badge(r)}<button type="button" class="ghost" data-scan-remove="${i}">×</button></div><div class="scan-grid"><label>${state.activeSubject==='latin'?'Latein':'Englisch'}<input id="scanTerm_${i}" value="${esc(r.term)}"></label><label>Deutsch<input id="scanTrans_${i}" value="${esc(r.translation)}"></label><label>Zusatzform<input id="scanExtra_${i}" value="${esc(r.extra)}"></label><label>Beispielsatz / Phrase<input id="scanExample_${i}" value="${esc(r.example)}"></label></div>${r.confidence==='auto'?`<div class="microcopy scan-source">${r.origin==='repair'?'OCR-Erkennung anhand der deutschen Bedeutung korrigiert':'Automatisch ergänzt'+(r.origin==='memory'?' aus bereits bekannten Vokabeln':r.origin==='wikidict'?' aus lokalem Wörterbuch':'')}. Bitte kurz prüfen.</div>`:''}</article>`).join('');
+  return scanImportState.rows.map((r,i)=>`<article class="scan-row ${r.confidence==='auto'?'scan-row-auto':''}"><div class="row spread align-center"><label class="scan-include"><input type="checkbox" id="scanUse_${i}" ${r.include?'checked':''}> übernehmen</label>${badge(r)}<button type="button" class="ghost" data-scan-remove="${i}">×</button></div><div class="scan-grid"><label>${state.activeSubject==='latin'?'Latein':'Englisch'}<input id="scanTerm_${i}" value="${esc(r.term)}"></label><label>Deutsch<input id="scanTrans_${i}" value="${esc(r.translation)}"></label><label>Zusatzform<input id="scanExtra_${i}" value="${esc(r.extra)}"></label><label>Beispielsatz / Phrase<input id="scanExample_${i}" value="${esc(r.example)}"></label></div>${r.libraryMatchStatus==='existing'?'<div class="microcopy scan-source">Globale Bibliothek: bereits vorhanden. Beim Import wird nur die Zuordnung zum Lernset angelegt.</div>':r.libraryMatchStatus==='new-meaning'?'<div class="microcopy scan-source">Globale Bibliothek: Wort bereits vorhanden. Diese Bedeutung wird als Variante ergänzt.</div>':r.confidence==='auto'?`<div class="microcopy scan-source">${r.origin==='repair'?'OCR-Erkennung anhand der deutschen Bedeutung korrigiert':'Automatisch ergänzt'+(r.origin==='memory'?' aus der globalen Bibliothek':r.origin==='wikidict'?' aus lokalem Wörterbuch':'')}. Bitte kurz prüfen.</div>`:''}</article>`).join('');
 }
 function renderScanReview(){
   const el=$('#scanReview'); if(!el)return; el.innerHTML=scanReviewHtml();
@@ -402,33 +402,22 @@ async function handleScanPhoto(file){
   await runTesseractOcr(file);
 }
 function importScannedRows(){
-  const rows=scanImportState.rows.map((r,i)=>({
-    include:$(`#scanUse_${i}`)?.checked!==false,
-    term:$(`#scanTerm_${i}`)?.value.trim()||'', translation:$(`#scanTrans_${i}`)?.value.trim()||'',
-    extra:$(`#scanExtra_${i}`)?.value.trim()||'', example:$(`#scanExample_${i}`)?.value.trim()||''
-  })).filter(r=>r.include&&r.term&&r.translation);
+  const rows=scanImportState.rows.map((r,i)=>({include:$(`#scanUse_${i}`)?.checked!==false,term:$(`#scanTerm_${i}`)?.value.trim()||'',translation:$(`#scanTrans_${i}`)?.value.trim()||'',extra:$(`#scanExtra_${i}`)?.value.trim()||'',example:$(`#scanExample_${i}`)?.value.trim()||'',confidence:r.confidence||'check'})).filter(r=>r.include&&r.term&&r.translation);
   if(!rows.length){scanStatus('Es gibt noch keine vollständige Vokabelzeile zum Importieren.','warn');return;}
   let setId=$('#scanSetSelect').value;
-  if(setId==='__new__'){
-    const title=$('#scanNewTitle').value.trim()||scanImportState.titleHint||'Foto-Import'; const schoolYear=$('#scanNewYear').value.trim()||currentSchoolYear();
-    const set={id:uid('set'),learnerId:learner().id,subject:state.activeSubject,title,schoolYear,testDate:'',testScopeMode:'set',testFrom:1,testTo:0,testFormat:'target',from:'',to:''};state.sets.push(set);setId=set.id;
-  }
-  const existing=setWords(setId); let added=0,duplicates=0;
-  rows.forEach(r=>{
-    const dupe=existing.some(w=>normalize(w.term)===normalize(r.term)&&normalize(w.translation)===normalize(r.translation));
-    if(dupe){duplicates++;return;}
-    const w=makeWord(setId,r.term,r.translation,{extra:r.extra,example:r.example,chunks:autoChunks(r.term)}); w.source='photo-text-import'; state.words.push(w);existing.push(w);added++;
-  });
-  closeModal(); if(scanImportState.imageUrl){URL.revokeObjectURL(scanImportState.imageUrl);scanImportState.imageUrl=null;} save();
-  toast(`${added} Vokabeln importiert${duplicates?` · ${duplicates} Dublette${duplicates===1?'':'n'} übersprungen`:''}.`,'good');
+  if(setId==='__new__'){const title=$('#scanNewTitle').value.trim()||scanImportState.titleHint||'Foto-Import',schoolYear=$('#scanNewYear').value.trim()||currentSchoolYear();const set={id:uid('set'),learnerId:learner().id,subject:state.activeSubject,title,schoolYear,testDate:'',testScopeMode:'set',testFrom:1,testTo:0,testFormat:'target',from:'',to:''};state.sets.push(set);setId=set.id;rebuildWordIndexes();}
+  let linked=0,alreadyLinked=0,newGlobal=0,fromLibrary=0,newMeanings=0;
+  rows.forEach(r=>{const result=attachVocabularyToSet(setId,{term:r.term,translation:r.translation,extra:r.extra,example:r.example,chunks:autoChunks(r.term),source:'photo-text-import',verified:true});if(result.alreadyLinked){alreadyLinked++;return}linked++;if(result.newVocabulary)newGlobal++;else fromLibrary++;if(result.translationAdded)newMeanings++;});
+  closeModal();if(scanImportState.imageUrl){URL.revokeObjectURL(scanImportState.imageUrl);scanImportState.imageUrl=null;}save();
+  toast(`${linked} Zuordnung${linked===1?'':'en'} gespeichert · ${newGlobal} neue globale Vokabel${newGlobal===1?'':'n'}${fromLibrary?` · ${fromLibrary} aus Bibliothek`:''}${newMeanings?` · ${newMeanings} neue Bedeutungsvariante${newMeanings===1?'':'n'}`:''}${alreadyLinked?` · ${alreadyLinked} bereits im Lernset`:''}.`,'good');
 }
 
 function backup(){const payload={...deepClone(state),backupMeta:{appVersion:VERSION,exportedAt:new Date().toISOString()}};download(`vokabeltrainer_backup_${today()}.json`,JSON.stringify(payload,null,2),'application/json')}
-function backupSummary(x){return {profiles:Array.isArray(x.learners)?x.learners.length:0,sets:Array.isArray(x.sets)?x.sets.length:0,words:Array.isArray(x.words)?x.words.length:0,grades:Array.isArray(x.grades)?x.grades.length:0}}
+function backupSummary(x){return {profiles:Array.isArray(x?.learners)?x.learners.length:0,sets:Array.isArray(x?.sets)?x.sets.length:0,words:Array.isArray(x?.vocabulary)?x.vocabulary.length:(Array.isArray(x?.words)?x.words.length:0),links:Array.isArray(x?.setVocabulary)?x.setVocabulary.length:(Array.isArray(x?.words)?x.words.length:0),grades:Array.isArray(x?.grades)?x.grades.length:0}}
 function restore(text){
   try{
     const x=JSON.parse(text),issue=inspectBackup(x); if(issue)throw new Error(issue); const b=backupSummary(x),current=backupSummary(state);
-    modal(`<div class="eyebrow">Backup einspielen</div><h2>Aktuelle Daten ersetzen?</h2><p>Das Backup enthält <strong>${b.profiles} Profil${b.profiles===1?'':'e'}, ${b.sets} Lernsets und ${b.words} Vokabeln</strong>.</p><div class="notice warn">Aktuell auf diesem Gerät: ${current.profiles} Profil${current.profiles===1?'':'e'}, ${current.sets} Lernsets, ${current.words} Vokabeln. Diese Daten werden ersetzt.</div><p class="microcopy">Empfehlung: Vorher ein aktuelles Backup herunterladen.</p><div class="modal-actions wrap"><button value="cancel" class="ghost">Abbrechen</button><button type="button" id="backupBeforeRestore" class="secondary">Vorher sichern</button><button type="button" id="confirmRestore" class="primary">Backup einspielen</button></div>`);
+    modal(`<div class="eyebrow">Backup einspielen</div><h2>Aktuelle Daten ersetzen?</h2><p>Das Backup enthält <strong>${b.profiles} Profil${b.profiles===1?'':'e'}, ${b.sets} Lernsets und ${b.words} globale Vokabeln</strong>.</p><div class="notice warn">Aktuell auf diesem Gerät: ${current.profiles} Profil${current.profiles===1?'':'e'}, ${current.sets} Lernsets, ${current.words} globale Vokabeln. Diese Daten werden ersetzt.</div><p class="microcopy">Empfehlung: Vorher ein aktuelles Backup herunterladen.</p><div class="modal-actions wrap"><button value="cancel" class="ghost">Abbrechen</button><button type="button" id="backupBeforeRestore" class="secondary">Vorher sichern</button><button type="button" id="confirmRestore" class="primary">Backup einspielen</button></div>`);
     $('#backupBeforeRestore').onclick=backup;
     $('#confirmRestore').onclick=async()=>{const btn=$('#confirmRestore');btn.disabled=true;btn.textContent='Wird gespeichert …';const previous=state;state=migrate(x);const ok=await persistState();let verified=ok;if(ok&&persistenceMode==='indexeddb'){try{const check=await idbGet();verified=!!check&&backupSummary(check).words===backupSummary(state).words&&backupSummary(check).sets===backupSummary(state).sets}catch(e){verified=false}}if(!verified){state=previous;await persistState();btn.disabled=false;btn.textContent='Backup einspielen';toast('Backup konnte nicht sicher gespeichert werden. Aktuelle Daten wurden beibehalten.','bad');return}closeModal();renderAll();toast('Backup vollständig geprüft und eingespielt.','good')};
   }catch(e){console.warn(e);toast(e?.message||'Backup ist ungültig oder konnte nicht gelesen werden.','bad')}
