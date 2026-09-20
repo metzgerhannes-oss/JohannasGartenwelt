@@ -45,7 +45,7 @@ function chooseAdaptiveMode(w){
   return w.example&&(w.errorProfile?.context||0)>0&&s.context<2?'context':(s.retrieval<=s.spelling?'recall':'spelling');
 }
 function buildQueue(mode,setId=null,wordIds=null){
-  const chosen=Array.isArray(wordIds)?wordIds.map(id=>state.words.find(w=>w.id===id)).filter(Boolean):null; const pool=chosen||(setId?setWords(setId):schoolYearWords()); if(chosen)return pool; if(mode==='shower'||mode==='flash') return pool.filter(Boolean);
+  const chosen=Array.isArray(wordIds)?wordIds.map(ref=>{if(ref&&typeof ref==='object')return ref.setLinkId?wordByLinkId(ref.setLinkId):wordById(ref.wordId,setId||'');return wordById(ref,setId||'')}).filter(Boolean):null; const pool=chosen||(setId?setWords(setId):schoolYearWords()); if(chosen)return pool; if(mode==='shower'||mode==='flash') return pool.filter(Boolean);
   if(mode==='latinGrammar'){const all=pool.filter(latinGrammarEligible),need=all.filter(w=>!grammarReady(w)),src=need.length?need:all;return src.sort((a,b)=>(a.grammarSuccessDays||[]).length-(b.grammarSuccessDays||[]).length||Math.min(...grammarKeys(a).map(k=>(a.grammarSkills||{})[k]||0))-Math.min(...grammarKeys(b).map(k=>(b.grammarSkills||{})[k]||0))).slice(0,learner().lrsMode?6:10);}
   if(mode==='handwriting'){const src=[...pool].filter(Boolean).sort((a,b)=>((b.errorProfile?.spelling||0)-(a.errorProfile?.spelling||0))||((a.skills?.spelling||0)-(b.skills?.spelling||0))||masteryScore(a)-masteryScore(b));return src.slice(0,learner().lrsMode?4:6);}
   let q=pool.filter(w=>!isMastered(w)); if(!q.length)q=pool; const due=q.filter(w=>!w.dueDate||w.dueDate<=today()); const src=due.length?due:q;
@@ -60,7 +60,7 @@ function openPracticeTestChooser(){
 function startPracticeTest(full=false){
   const ctx=upcomingTestContext(); if(!ctx||!ctx.words.length){toast('Kein Testumfang festgelegt.','warn');return}
   const pool=full?[...ctx.words]:testReadinessForContext(ctx).weak.slice(0,Math.min(10,ctx.words.length));
-  session={mode:'practiceTest',setId:null,queue:pool.map(w=>w.id),index:0,correct:0,answered:0,currentSubmode:'practiceTest',locked:false,retryCounts:{},followupCounts:{},hintUsed:false,isDaily:false,testAnswers:[],practiceContext:{date:ctx.date,scopeText:ctx.scopeText||ctx.sets.map(s=>s.title).join(' + '),source:ctx.source,testFormat:ctx.testFormat||'target'},practiceFull:full};
+  session={mode:'practiceTest',setId:null,queue:pool.map(w=>w.setLinkId||w.id),index:0,correct:0,answered:0,currentSubmode:'practiceTest',locked:false,retryCounts:{},followupCounts:{},hintUsed:false,isDaily:false,testAnswers:[],practiceContext:{date:ctx.date,scopeText:ctx.scopeText||ctx.sets.map(s=>s.title).join(' + '),source:ctx.source,testFormat:ctx.testFormat||'target'},practiceFull:full};
   showView('learnView'); $('#modePill').textContent=full?'Prüfung · komplett':'Prüfung · Kurzcheck'; renderStudy();
 }
 function practiceDirection(w){const f=session?.practiceContext?.testFormat||'target';if(f==='source')return {prompt:w.term,target:w.translation,label:'Deutsch'};if(f==='dictation')return {prompt:'🔊 Diktat',target:w.term,label:state.activeSubject==='latin'?'Latein':'Englisch',audio:true};if(f==='mixed'){const flip=(session.index%2)===1;return flip?{prompt:w.term,target:w.translation,label:'Deutsch'}:{prompt:w.translation,target:w.term,label:state.activeSubject==='latin'?'Latein':'Englisch'};}return {prompt:w.translation,target:w.term,label:state.activeSubject==='latin'?'Latein':'Englisch'};}
@@ -81,10 +81,10 @@ function finishPracticeTest(){
 
 function startSession(mode='adaptive',setId=null,wordIds=null,isDaily=false){
   const queue=buildQueue(mode,setId,wordIds); if(!queue.length){toast('Noch keine Vokabeln vorhanden.','warn');return}
-  session={mode,setId,queue:queue.map(w=>w.id),index:0,correct:0,answered:0,currentSubmode:null,locked:false,retryCounts:{},followupCounts:{},hintUsed:false,isDaily,scaffoldedWords:{},activeAttemptedWords:{},grammarIntroShown:false}; showView('learnView'); $('#modePill').textContent=modeLabel(mode); renderStudy();
+  session={mode,setId,queue:queue.map(w=>w.setLinkId||w.id),index:0,correct:0,answered:0,currentSubmode:null,locked:false,retryCounts:{},followupCounts:{},hintUsed:false,isDaily,scaffoldedWords:{},activeAttemptedWords:{},grammarIntroShown:false}; showView('learnView'); $('#modePill').textContent=modeLabel(mode); renderStudy();
 }
 function modeLabel(m){return ({adaptive:'Adaptiv',flash:'Wortblitz',shower:'Vokabeldusche',chunks:'Wortbausteine',handwriting:'Handschrift',recognition:'Erkennen',recall:'Abrufen',reverseRecall:'Bedeutung abrufen',spelling:'Schreiben',listening:'Hören',context:'Kontext',latinGrammar:'Latein Formen',practiceTest:'Prüfung'})[m]||m}
-function currentWord(){return state.words.find(w=>w.id===session.queue[session.index])}
+function currentWord(){const token=session?.queue?.[session.index];return wordByLinkId(token)||wordById(token,session?.setId||'')}
 function renderStudy(){
   if(!session||session.index>=session.queue.length){finishSession();return}
   const w=currentWord(); if(!w){session.index++;renderStudy();return}
@@ -196,7 +196,7 @@ function renderFlash(w){
   setTimeout(()=>{$('#flashWord').textContent=w.term;setTimeout(()=>{$('#flashWord').textContent='';const pool=schoolYearWords().filter(x=>x.id!==w.id);const opts=uniqueOptions(w.translation,shuffle(pool).map(x=>x.translation));$('#flashOptions').innerHTML=opts.map(o=>`<button class="answer-option" data-answer="${esc(o)}">${esc(o)}</button>`).join('');$('#flashAnswer').classList.remove('hidden');$$('#flashOptions [data-answer]').forEach(b=>b.onclick=()=>gradeChoice(b,w,b.dataset.answer,w.translation,'reading',true));},speed)},500);
 }
 function renderShower(w){
-  const all=session.queue.map(id=>state.words.find(x=>x.id===id)).filter(Boolean); $('#studyArea').innerHTML=`<div class="study-card"><div class="eyebrow">Vokabeldusche</div><h2>Anhören und mitlesen</h2><div class="learning-card">${all.map((x,i)=>`<div class="row spread align-center"><span><strong>${esc(x.term)}</strong><br><small>${esc(x.translation)}</small></span><button class="ghost" data-shower="${i}">🔊</button></div>`).join('')}</div><div class="row gap center-actions wrap"><button id="playActiveBtn" class="primary">Aktiv: Bedeutung → Denkpause → Wort</button><button id="playAllBtn" class="secondary">Passiv nacheinander</button><button id="finishShowerBtn" class="ghost">Fertig</button></div><p class="study-sub">Aktiv: Erst Bedeutung hören und im Kopf erinnern; nach kurzer Denkpause folgt die Lösung. Beide Varianten verändern Mastery und Wiederholungsabstände nicht.</p></div>`;
+  const all=session.queue.map(token=>wordByLinkId(token)||wordById(token,session?.setId||'')).filter(Boolean); $('#studyArea').innerHTML=`<div class="study-card"><div class="eyebrow">Vokabeldusche</div><h2>Anhören und mitlesen</h2><div class="learning-card">${all.map((x,i)=>`<div class="row spread align-center"><span><strong>${esc(x.term)}</strong><br><small>${esc(x.translation)}</small></span><button class="ghost" data-shower="${i}">🔊</button></div>`).join('')}</div><div class="row gap center-actions wrap"><button id="playActiveBtn" class="primary">Aktiv: Bedeutung → Denkpause → Wort</button><button id="playAllBtn" class="secondary">Passiv nacheinander</button><button id="finishShowerBtn" class="ghost">Fertig</button></div><p class="study-sub">Aktiv: Erst Bedeutung hören und im Kopf erinnern; nach kurzer Denkpause folgt die Lösung. Beide Varianten verändern Mastery und Wiederholungsabstände nicht.</p></div>`;
   $$('[data-shower]').forEach(b=>b.onclick=()=>speak(all[+b.dataset.shower].term)); $('#playAllBtn').onclick=()=>speakSequence(all.map(x=>x.term)); $('#playActiveBtn').onclick=()=>speakActiveShower(all); $('#finishShowerBtn').onclick=()=>{recordActivity('shower',{count:all.length});session.index=session.queue.length;renderStudy()};
 }
 function speechLang(foreign=true){return foreign?(state.activeSubject==='latin'?'la':'en-GB'):'de-DE'}
@@ -238,8 +238,8 @@ function recordResult(w,ok,skill,errorType){
 function scheduleRetry(targetSession,wordId){const n=targetSession.retryCounts[wordId]||0;if(n>=1)return false;targetSession.retryCounts[wordId]=n+1;const pos=Math.min(targetSession.index+3,targetSession.queue.length);targetSession.queue.splice(pos,0,wordId);return true;}
 function scheduleScaffoldFollowup(targetSession,wordId){targetSession.followupCounts=targetSession.followupCounts||{};const n=targetSession.followupCounts[wordId]||0;if(n>=2)return false;targetSession.followupCounts[wordId]=n+1;const pos=Math.min(targetSession.index+3,targetSession.queue.length);targetSession.queue.splice(pos,0,wordId);return true;}
 function nextStudy(ok,w){
-  if(!ok && w && !['flash','shower'].includes(session.mode))scheduleRetry(session,w.id);
-  if(ok&&w&&session.mode==='adaptive'&&['recognition','listening','chunks'].includes(session.currentSubmode))scheduleScaffoldFollowup(session,w.id);
+  if(!ok && w && !['flash','shower'].includes(session.mode))scheduleRetry(session,w.setLinkId||w.id);
+  if(ok&&w&&session.mode==='adaptive'&&['recognition','listening','chunks'].includes(session.currentSubmode))scheduleScaffoldFollowup(session,w.setLinkId||w.id);
   session.index++;renderStudy();
 }
 function finishSession(){
