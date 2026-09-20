@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = '0.9.15';
+const VERSION = '0.9.16';
 const STORAGE_KEY = 'vokabeltrainer_v07';
 const DB_NAME = 'vokabeltrainer-db';
 const DB_STORE = 'app-state';
@@ -36,7 +36,7 @@ const knownSubjectIds=()=>Object.keys(SUBJECT_META);
 const availableSubjectIds=()=>Object.values(SUBJECT_META).filter(x=>x.available).map(x=>x.id);
 const subjectMeta=id=>SUBJECT_META[id]||null;
 const isKnownSubject=id=>!!SUBJECT_META[id];
-const normalizeSubjectId=(id,fallback='english')=>isKnownSubject(String(id||''))?String(id):(isKnownSubject(fallback)?fallback:'english');
+const normalizeSubjectId=(id,fallback='english')=>{const raw=String(id||'');if(isKnownSubject(raw))return raw;if(fallback==='')return '';return isKnownSubject(fallback)?fallback:'english'};
 const subjectLabel=id=>subjectMeta(id)?.label||String(id||'');
 const subjectShort=id=>subjectMeta(id)?.short||String(id||'').slice(0,2).toUpperCase();
 const subjectSpeechLang=id=>subjectMeta(id)?.speechLang||'';
@@ -52,7 +52,7 @@ const defaultSubjectArrays=()=>subjectMap(()=>[]);
 function subjectFromExternal(value,fallback=state?.activeSubject||'english'){
   const raw=String(value||'').trim().toLowerCase();if(!raw)return normalizeSubjectId(fallback);
   const hit=Object.values(SUBJECT_META).find(meta=>meta.id===raw||meta.label.toLowerCase()===raw||meta.short.toLowerCase()===raw||(meta.aliases||[]).some(x=>String(x).toLowerCase()===raw));
-  return hit?.id||normalizeSubjectId(fallback);
+  return hit?.id||'';
 }
 function normalizeLearnerSubjects(l,hints=[]){
   const allowed=new Set(availableSubjectIds());

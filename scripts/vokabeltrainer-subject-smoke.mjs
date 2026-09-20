@@ -16,6 +16,8 @@ const result=vm.runInContext(`
   assert(knownSubjectIds().join(',')==='english,latin,french','all subjects come from metadata');
   assert(availableSubjectIds().join(',')==='english,latin','French remains gated until OCR resource exists');
   assert(subjectFromExternal('FR')==='french'&&subjectFromExternal('Französisch')==='french','external subject aliases resolve');
+  assert(subjectFromExternal('Spanisch')===''&&normalizeSubjectId('unknown','')==='','unknown subjects are rejected instead of silently becoming English');
+  assert(normalizeLearnerSubjects({activeSubjects:['unknown','latin']}).join(',')==='latin','invalid profile subjects are dropped');
   assert(subjectSpeechLang('french')==='fr-FR','French speech locale configured');
   assert(subjectOcrLang('french')==='fra','French OCR code configured');
   assert(subjectHasCapability('latin','latinGrammar')&&!subjectHasCapability('french','latinGrammar'),'capabilities are metadata driven');
@@ -35,7 +37,11 @@ for(const forbidden of ["subject==='latin'?'latin':'english'","['english','latin
   if(all.includes(forbidden))throw new Error('Subject smoke failed: hardcoded subject pattern remains: '+forbidden);
 }
 if(!fs.readFileSync('vokabeltrainer/js/io.js','utf8').includes('subjectOcrLang(state.activeSubject)'))throw new Error('Subject smoke failed: OCR language is not metadata driven');
-if(!fs.readFileSync('vokabeltrainer/js/ui.js','utf8').includes('data-profile-subject'))throw new Error('Subject smoke failed: profile subjects are not metadata driven');
+const uiSource=fs.readFileSync('vokabeltrainer/js/ui.js','utf8');
+if(!uiSource.includes('data-profile-subject'))throw new Error('Subject smoke failed: profile subjects are not metadata driven');
+if(uiSource.includes('Latein: Genitiv + Genus / Stammformen · sonst Zusatzform'))throw new Error('Subject smoke failed: non-generic extra-field label remains');
+const ioSource=fs.readFileSync('vokabeltrainer/js/io.js','utf8');
+if(ioSource.includes('fehlende Englisch-/Deutsch-Seiten'))throw new Error('Subject smoke failed: English-only OCR copy remains');
 if(!fs.readFileSync('vokabeltrainer/js/translation.js','utf8').includes("subjectHasCapability(state?.activeSubject,'hybridDictionary')"))throw new Error('Subject smoke failed: translation capability is not metadata driven');
 
 console.log('Vokabeltrainer subject smoke: '+result.length+' runtime checks passed');

@@ -1,6 +1,6 @@
 # Vokabeltrainer – generisches Fachsystem
 
-Stand: 20.09.2026 · App v0.9.15
+Stand: 20.09.2026 · App v0.9.16
 
 Punkt 2 des Pre-v1-Fahrplans macht Fremdsprachen zu Konfiguration statt Sonderlogik.
 
@@ -34,6 +34,8 @@ Für Französisch sind bereits konfiguriert:
 - Lehrwerk/ISBN, Tests, Notenskala, Bibliothek und Lernstände über dasselbe generische Datenmodell
 
 Nach Bereitstellung der OCR-Ressource darf die Freischaltung nur noch eine Konfigurationsänderung sein: `available:true`.
+
+Explizit unbekannte Fachwerte aus Importen werden verworfen statt still zu Englisch umgedeutet. Fehlende Fachangaben dürfen weiterhin auf das aktuell gewählte Fach zurückfallen.
 
 ## Capabilities statt Fachabfragen
 
