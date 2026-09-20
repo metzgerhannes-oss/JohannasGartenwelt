@@ -1,4 +1,4 @@
-const CACHE='vokabeltrainer-v0.9.1-lean';
+const CACHE='vokabeltrainer-v0.9.2-handwriting';
 const ASSETS=['./','./index.html','./css/app.css','./js/core.js','./js/storage.js','./js/model.js','./js/learning.js','./js/io.js','./js/ui.js','./js/app.js','./manifest.webmanifest','./assets/icons/icon-180.png','./assets/icons/icon-192.png','./assets/icons/icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
