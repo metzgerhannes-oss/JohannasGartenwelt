@@ -101,3 +101,8 @@ html[data-letter-space="0"]{--letter-space:0px}html[data-letter-space="0.25"]{--
   .add-vocab-grid{grid-template-columns:1fr}
   .add-vocab-option{min-height:72px;display:grid;grid-template-columns:38px 1fr;grid-template-areas:'icon title' 'icon sub';align-items:center;column-gap:10px}.add-vocab-option>span{grid-area:icon}.add-vocab-option strong{grid-area:title}.add-vocab-option small{grid-area:sub}
 }
+
+/* OCR */
+.ocr-progress{display:grid;gap:6px;margin:10px 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc}
+.ocr-progress progress{width:100%;height:10px;accent-color:var(--accent)}
+.ocr-progress span{font-size:.82rem;color:var(--muted);font-weight:700}
