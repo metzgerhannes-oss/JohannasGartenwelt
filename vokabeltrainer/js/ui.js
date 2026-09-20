@@ -53,6 +53,8 @@ function renderRecommendations(){
   recs.push({icon:'⚡',title:'Wortblitz',sub:l.lrsMode?'ruhiges Tempo · Audio zuerst':'Leseflüssigkeit ohne Wertungsdruck',mode:'flash'});
   recs.push({icon:'🔊',title:'Vokabeldusche',sub:'aktiv mit Denkpause oder passiv anhören',mode:'shower'});
   recs.push({icon:'🧩',title:'Wortbausteine',sub:weak.length?'Schreibmuster gezielt festigen':'Bausteine zusammensetzen',mode:'chunks'});
+  const spellingWeak=weak.filter(w=>(w.errorProfile?.spelling||0)>0||(w.skills?.spelling||0)<2);
+  if(l.lrsMode||spellingWeak.length)recs.push({icon:'✍️',title:'Handschrift',sub:'nachfahren · abdecken · aus dem Gedächtnis schreiben',mode:'handwriting'});
   if(state.activeSubject==='latin')recs.push({icon:'Ⅳ',title:'Latein Formen',sub:'Genitiv · Genus · Stammformen · Anwendung',mode:'latinGrammar'});
   $('#recommendations').innerHTML=recs.map(r=>`<button class="recommend" data-mode="${r.mode}"><span class="icon">${r.icon}</span><strong>${r.title}</strong><small>${r.sub}</small></button>`).join('');
   $$('#recommendations [data-mode]').forEach(b=>b.onclick=()=>startSession(b.dataset.mode));
