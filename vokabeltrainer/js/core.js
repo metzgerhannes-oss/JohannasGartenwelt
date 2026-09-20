@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = '0.9.4';
+const VERSION = '0.9.5';
 const STORAGE_KEY = 'vokabeltrainer_v07';
 const DB_NAME = 'vokabeltrainer-db';
 const DB_STORE = 'app-state';
@@ -54,7 +54,7 @@ function makeWord(setId, term, translation, opts={}) {
 let state = null;
 let session = null;
 let installPrompt = null;
-let scanImportState = {imageUrl:null, rows:[], titleHint:'', nativeOcr:false};
+let scanImportState = {imageUrl:null, rows:[], titleHint:'', nativeOcr:false, ocrBusy:false, lastFile:null};
 let libraryRenderLimit = 200;
 let toastTimer = null;
 const $ = s => document.querySelector(s);
