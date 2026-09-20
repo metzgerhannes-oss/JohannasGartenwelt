@@ -240,19 +240,25 @@ body{padding-bottom:calc(78px + env(safe-area-inset-bottom) + var(--jgw-browser-
 @media(max-width:700px){
   .state-item{min-width:0!important}
   .state-item .state-label{white-space:normal!important;overflow-wrap:anywhere!important;line-height:1.08!important}
-  #naturePlantsPane>.box:first-child .topline>.actions{
+  #naturePlantsPane>.box:first-child .topline>.actions,
+  #natureHabitatsPane>.box:first-child .library-toolbar>.actions,
+  #natureAnimalsPane>.box:first-child .library-toolbar>.actions{
     display:grid!important;
     grid-template-columns:minmax(0,1fr) 44px!important;
     gap:8px!important;
     align-items:center!important;
     width:100%!important;
   }
-  #naturePlantsPane #plantSearch{
+  #naturePlantsPane #plantSearch,
+  #natureHabitatsPane #habitatSearch,
+  #natureAnimalsPane #animalCollectionSearch{
     grid-column:1!important;
     width:100%!important;
     min-width:0!important;
   }
-  #naturePlantsPane #newPlantBtn{
+  #naturePlantsPane #newPlantBtn,
+  #natureHabitatsPane #newHabitatBtn,
+  #natureAnimalsPane #newAnimalBtn{
     display:grid!important;
     place-items:center!important;
     grid-column:2!important;
@@ -264,7 +270,9 @@ body{padding-bottom:calc(78px + env(safe-area-inset-bottom) + var(--jgw-browser-
     border-radius:50%!important;
     font-size:0!important;
   }
-  #naturePlantsPane #newPlantBtn::before{
+  #naturePlantsPane #newPlantBtn::before,
+  #natureHabitatsPane #newHabitatBtn::before,
+  #natureAnimalsPane #newAnimalBtn::before{
     content:"+";
     font-size:24px!important;
     line-height:1!important;
