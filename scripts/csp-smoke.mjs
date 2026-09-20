@@ -1,6 +1,6 @@
 import { chromium, devices } from "playwright";
 
-const base = "http://127.0.0.1:4173";
+const base = process.env.JGW_BASE || "http://127.0.0.1:4173";
 const results = [];
 let failed = false;
 
