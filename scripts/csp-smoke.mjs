@@ -1,4 +1,5 @@
-import { chromium, devices } from "playwright";\nimport fs from "node:fs";
+import { chromium, devices } from "playwright";
+import fs from "node:fs";
 
 const base = "http://127.0.0.1:4173";
 const results = [];
