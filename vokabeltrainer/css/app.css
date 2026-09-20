@@ -115,3 +115,8 @@ html[data-letter-space="0"]{--letter-space:0px}html[data-letter-space="0.25"]{--
 .scan-source{margin-top:8px;color:#6366f1}
 
 .scan-existing{background:#e0f2fe;color:#075985;border-color:#bae6fd}.global-usage-list{border:1px solid var(--line);border-radius:14px;padding:0 12px;margin:8px 0 16px}.global-usage-list .profile-row:last-child{border-bottom:0}
+
+/* v0.9.11 Profile & Lehrwerke */
+.profile-row-rich{align-items:flex-start;gap:14px}.profile-main{display:grid;gap:3px;min-width:0}.profile-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.profile-books{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}.profile-book-chip{display:inline-flex;align-items:center;border:1px solid var(--line);background:#f8fafc;border-radius:999px;padding:3px 8px;font-size:.75rem;color:var(--muted)}
+.subject-fieldset{border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin:14px 0}.subject-fieldset legend{font-weight:800;padding:0 6px}.disabled-row{opacity:.58}.book-manager-list{display:grid;gap:10px;margin:14px 0}.book-manager-item{display:flex;justify-content:space-between;align-items:center;gap:14px;border:1px solid var(--line);border-radius:14px;padding:12px}.book-manager-item>div{display:grid;gap:2px}.book-manager-item span{color:var(--ink)}.book-manager-item small{color:var(--muted)}.isbn-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.isbn-row button{margin-bottom:15px}
+@media(max-width:620px){.profile-row-rich{display:grid}.profile-actions{justify-content:flex-start}.profile-actions .ghost{padding:7px 9px}.book-manager-item{align-items:flex-start}.isbn-row{grid-template-columns:1fr}.isbn-row button{margin-bottom:0}.subject-fieldset .switch-row{gap:12px}}
