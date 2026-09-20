@@ -47,6 +47,7 @@ function chooseAdaptiveMode(w){
 function buildQueue(mode,setId=null,wordIds=null){
   const chosen=Array.isArray(wordIds)?wordIds.map(id=>state.words.find(w=>w.id===id)).filter(Boolean):null; const pool=chosen||(setId?setWords(setId):schoolYearWords()); if(chosen)return pool; if(mode==='shower'||mode==='flash') return pool.filter(Boolean);
   if(mode==='latinGrammar'){const all=pool.filter(latinGrammarEligible),need=all.filter(w=>!grammarReady(w)),src=need.length?need:all;return src.sort((a,b)=>(a.grammarSuccessDays||[]).length-(b.grammarSuccessDays||[]).length||Math.min(...grammarKeys(a).map(k=>(a.grammarSkills||{})[k]||0))-Math.min(...grammarKeys(b).map(k=>(b.grammarSkills||{})[k]||0))).slice(0,learner().lrsMode?6:10);}
+  if(mode==='handwriting'){const src=[...pool].filter(Boolean).sort((a,b)=>((b.errorProfile?.spelling||0)-(a.errorProfile?.spelling||0))||((a.skills?.spelling||0)-(b.skills?.spelling||0))||masteryScore(a)-masteryScore(b));return src.slice(0,learner().lrsMode?4:6);}
   let q=pool.filter(w=>!isMastered(w)); if(!q.length)q=pool; const due=q.filter(w=>!w.dueDate||w.dueDate<=today()); const src=due.length?due:q;
   return src.sort((a,b)=>masteryScore(a)-masteryScore(b)).slice(0,learner().lrsMode?6:10);
 }
@@ -82,7 +83,7 @@ function startSession(mode='adaptive',setId=null,wordIds=null,isDaily=false){
   const queue=buildQueue(mode,setId,wordIds); if(!queue.length){toast('Noch keine Vokabeln vorhanden.','warn');return}
   session={mode,setId,queue:queue.map(w=>w.id),index:0,correct:0,answered:0,currentSubmode:null,locked:false,retryCounts:{},followupCounts:{},hintUsed:false,isDaily,scaffoldedWords:{},activeAttemptedWords:{},grammarIntroShown:false}; showView('learnView'); $('#modePill').textContent=modeLabel(mode); renderStudy();
 }
-function modeLabel(m){return ({adaptive:'Adaptiv',flash:'Wortblitz',shower:'Vokabeldusche',chunks:'Wortbausteine',recognition:'Erkennen',recall:'Abrufen',reverseRecall:'Bedeutung abrufen',spelling:'Schreiben',listening:'Hören',context:'Kontext',latinGrammar:'Latein Formen',practiceTest:'Prüfung'})[m]||m}
+function modeLabel(m){return ({adaptive:'Adaptiv',flash:'Wortblitz',shower:'Vokabeldusche',chunks:'Wortbausteine',handwriting:'Handschrift',recognition:'Erkennen',recall:'Abrufen',reverseRecall:'Bedeutung abrufen',spelling:'Schreiben',listening:'Hören',context:'Kontext',latinGrammar:'Latein Formen',practiceTest:'Prüfung'})[m]||m}
 function currentWord(){return state.words.find(w=>w.id===session.queue[session.index])}
 function renderStudy(){
   if(!session||session.index>=session.queue.length){finishSession();return}
@@ -94,6 +95,7 @@ function renderStudy(){
   if(session.mode==='shower') return renderShower(w);
   if(session.mode==='flash') return renderFlash(w);
   if(session.mode==='chunks') return renderChunks(w);
+  if(session.mode==='handwriting') return renderHandwriting(w);
   const sub=session.mode==='adaptive'?chooseAdaptiveMode(w):session.mode; session.currentSubmode=sub; $('#modePill').textContent=session.mode==='adaptive'?`Adaptiv · ${modeLabel(sub)}`:modeLabel(sub);
   if(sub==='recognition')renderRecognition(w); else if(sub==='listening')renderListening(w); else if(sub==='chunks')renderChunks(w); else if(sub==='reverseRecall')renderReverseRecall(w); else if(sub==='spelling')renderSpelling(w); else if(sub==='context')renderContext(w); else renderRecall(w);
 }
@@ -130,6 +132,48 @@ function renderReverseRecall(w){
 function renderSpelling(w){
   $('#studyArea').innerHTML=`<div class="study-card"><div class="eyebrow">Schreiben</div><button id="speakBtn" class="secondary">🔊 Anhören</button><div class="study-prompt">${esc(w.translation)}</div><div class="study-sub">Hören → erinnern → vollständig schreiben.</div><input id="answerField" class="answer-input" autocomplete="off" autocapitalize="none"><div class="top-space"><button id="answerBtn" class="primary">Prüfen</button></div>${wordLearningCard(w,true)}${cardExtras(w)}</div>`;
   $('#speakBtn').onclick=()=>speak(w.term); $('#answerBtn').onclick=()=>gradeText(w,$('#answerField').value,w.term,'spelling','spelling'); $('#answerField').onkeydown=e=>{if(e.key==='Enter')$('#answerBtn').click()}; setTimeout(()=>speak(w.term),120);
+}
+
+function renderHandwriting(w){
+  session.currentSubmode='handwriting';
+  session.handwritingPhase=session.handwritingPhase||'trace';
+  const trace=session.handwritingPhase==='trace';
+  $('#modePill').textContent='Handschrift';
+  $('#studyArea').innerHTML=`<div class="study-card handwriting-card"><div class="eyebrow">Handschrift · ${trace?'Einprägen':'Aus dem Gedächtnis'}</div><div class="study-prompt compact-prompt">${esc(trace?w.term:w.translation)}</div><div class="study-sub">${trace?'Sprich die Buchstaben leise mit und fahre das Wort mit dem Finger nach.':'Das Wort ist abgedeckt. Schreibe es jetzt aus dem Gedächtnis.'}</div><div class="handwriting-wrap ${trace?'trace-phase':''}"><canvas id="handwritingCanvas" class="handwriting-canvas" aria-label="Handschrift-Schreibfeld"></canvas>${trace?`<div class="trace-word" aria-hidden="true">${esc(w.term)}</div>`:''}</div><div class="row gap center-actions wrap top-space"><button id="undoStrokeBtn" class="ghost">↶ Rückgängig</button><button id="clearHandwritingBtn" class="ghost">Leeren</button><button id="speakHandwritingBtn" class="secondary">🔊 Anhören</button>${trace?'<button id="memoryWriteBtn" class="primary">Abdecken & schreiben</button>':'<button id="compareHandwritingBtn" class="primary">Lösung vergleichen</button>'}</div><p class="study-sub handwriting-note">Ohne Zeitdruck. Handschrift unterstützt die Einprägung; Mastery wird erst durch einen anschließend geprüften Abruf bestimmt.</p></div>`;
+  const canvas=$('#handwritingCanvas'),ctx=setupHandwritingCanvas(canvas),strokes=[];
+  let current=null,drawing=false;
+  const redraw=()=>{ctx.clearRect(0,0,canvas.width,canvas.height);ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#172033';ctx.lineWidth=Math.max(4,canvas.width/120);for(const stroke of strokes){if(stroke.length<2)continue;ctx.beginPath();ctx.moveTo(stroke[0].x,stroke[0].y);for(const pt of stroke.slice(1))ctx.lineTo(pt.x,pt.y);ctx.stroke()}};
+  const point=e=>{const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}};
+  canvas.onpointerdown=e=>{drawing=true;current=[point(e)];strokes.push(current);canvas.setPointerCapture?.(e.pointerId);e.preventDefault()};
+  canvas.onpointermove=e=>{if(!drawing)return;current.push(point(e));redraw();e.preventDefault()};
+  const stop=e=>{drawing=false;current=null;try{canvas.releasePointerCapture?.(e.pointerId)}catch{}};
+  canvas.onpointerup=stop;canvas.onpointercancel=stop;canvas.onpointerleave=e=>{if(e.buttons===0)stop(e)};
+  $('#undoStrokeBtn').onclick=()=>{strokes.pop();redraw()};
+  $('#clearHandwritingBtn').onclick=()=>{strokes.length=0;redraw()};
+  $('#speakHandwritingBtn').onclick=()=>speak(w.term);
+  if(trace){
+    $('#memoryWriteBtn').onclick=()=>{session.handwritingPhase='memory';renderHandwriting(w)};
+  }else{
+    $('#compareHandwritingBtn').onclick=()=>showHandwritingCompare(w,strokes.length>0);
+  }
+}
+function setupHandwritingCanvas(canvas){
+  const ratio=Math.max(1,window.devicePixelRatio||1),rect=canvas.getBoundingClientRect(),w=Math.max(280,Math.round(rect.width)),h=Math.max(220,Math.round(rect.height));
+  canvas.width=Math.round(w*ratio);canvas.height=Math.round(h*ratio);
+  return canvas.getContext('2d');
+}
+function showHandwritingCompare(w,hasInk){
+  if(!hasInk){toast('Schreibe das Wort zuerst einmal aus dem Gedächtnis.','warn');return}
+  const card=$('#studyArea .study-card');card.insertAdjacentHTML('beforeend',`<div class="feedback notice subtle handwriting-compare"><strong>Lösung: ${esc(w.term)}</strong><br><small>Vergleiche Buchstabenfolge und Endung mit deiner Handschrift.</small><div class="row gap center-actions wrap top-space"><button id="handwritingAgainBtn" class="secondary">Nochmal</button><button id="handwritingMatchesBtn" class="primary">Passt</button></div></div>`);
+  $('#compareHandwritingBtn').disabled=true;
+  $('#handwritingAgainBtn').onclick=()=>{recordHandwriting(w,false);session.handwritingPhase='trace';nextStudy(false,w)};
+  $('#handwritingMatchesBtn').onclick=()=>{recordHandwriting(w,true);session.handwritingPhase='trace';nextStudy(true,w)};
+}
+function recordHandwriting(w,matched){
+  w.modesSeen=[...new Set([...(w.modesSeen||[]),'handwriting'])];
+  recordActivity('handwriting',{wordId:w.id,selfChecked:!!matched});
+  session.answered++;if(matched)session.correct++;
+  persistOnly();
 }
 function renderListening(w){
   const pool=schoolYearWords().filter(x=>x.id!==w.id); const opts=uniqueOptions(w.term,shuffle(pool).map(x=>x.term));
