@@ -1,5 +1,5 @@
-const CACHE='vokabeltrainer-v0.9.4-ux';
-const ASSETS=['./','./index.html','./css/app.css?v=0.9.4','./js/core.js?v=0.9.4','./js/storage.js?v=0.9.4','./js/model.js?v=0.9.4','./js/learning.js?v=0.9.4','./js/io.js?v=0.9.4','./js/ui.js?v=0.9.4','./js/app.js?v=0.9.4','./manifest.webmanifest','./assets/icons/icon-180.png','./assets/icons/icon-192.png','./assets/icons/icon-512.png'];
+const CACHE='vokabeltrainer-v0.9.5-ocr';
+const ASSETS=['./','./index.html','./css/app.css?v=0.9.5','./js/core.js?v=0.9.5','./js/storage.js?v=0.9.5','./js/model.js?v=0.9.5','./js/learning.js?v=0.9.5','./js/io.js?v=0.9.5','./js/ui.js?v=0.9.5','./js/app.js?v=0.9.5','./manifest.webmanifest','./assets/icons/icon-180.png','./assets/icons/icon-192.png','./assets/icons/icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
   const requests=ASSETS.map(path=>new Request(new URL(path,self.location).href,{cache:'reload'}));
