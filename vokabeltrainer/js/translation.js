@@ -71,9 +71,7 @@ function hybridShardKey(value){
   return `${first}${bucket}`;
 }
 function hybridExistingWords(){
-  const learnerId=state?.activeLearnerId, subject=state?.activeSubject;
-  const setIds=new Set((state?.sets||[]).filter(s=>s.learnerId===learnerId&&s.subject===subject).map(s=>s.id));
-  return (state?.words||[]).filter(w=>setIds.has(w.setId));
+  return globalVocabulary(state?.activeSubject).map(v=>({term:v.term,translation:v.translation,termVariants:v.termVariants||[],translations:v.translations||[]}));
 }
 function hybridMemoryLookup(value,direction,scanRows=[]){
   const q=hybridNormalize(value); if(!q)return '';
@@ -84,8 +82,8 @@ function hybridMemoryLookup(value,direction,scanRows=[]){
     if(direction==='en-de' && hybridNormalize(r.term)===q)candidates.push(r.translation);
   }
   for(const w of hybridExistingWords()){
-    if(direction==='de-en' && hybridNormalize(w.translation)===q)candidates.push(w.term);
-    if(direction==='en-de' && hybridNormalize(w.term)===q)candidates.push(w.translation);
+    if(direction==='de-en' && [w.translation,...(w.translations||[])].some(x=>hybridNormalize(x)===q))candidates.push(w.term);
+    if(direction==='en-de' && [w.term,...(w.termVariants||[])].some(x=>hybridNormalize(x)===q))candidates.push(w.translation);
   }
   return candidates.find(Boolean)||'';
 }
@@ -152,14 +150,25 @@ async function repairSuspiciousCompletePair(row){
   return true;
 }
 
+
+function annotateGlobalLibraryMatch(row){
+  if(!row?.term||!row?.translation)return row;
+  const v=vocabularyMatch(state?.activeSubject||'english',row.term,row.extra||'',row.translation);
+  if(!v){delete row.libraryMatchId;delete row.libraryMatchStatus;return row;}
+  row.libraryMatchId=v.id;
+  const wanted=hybridNormalize(row.translation),known=[v.translation,...(v.translations||[])].some(x=>hybridNormalize(x)===wanted);
+  row.libraryMatchStatus=known?'existing':'new-meaning';
+  return row;
+}
 async function enrichHybridRows(rows){
   if(!Array.isArray(rows)||!rows.length)return rows||[];
   // Existing complete rows act as translation memory for the same scan, unless the left side is an obvious OCR spillover.
   for(const row of rows){
     if(row.term&&row.translation){
-      if(await repairSuspiciousCompletePair(row))continue;
+      if(await repairSuspiciousCompletePair(row)){annotateGlobalLibraryMatch(row);continue;}
       row.origin=row.origin||'ocr';
       row.confidence=row.confidence==='check'?'check':'good';
+      annotateGlobalLibraryMatch(row);
       continue;
     }
     if(state?.activeSubject==='english'){
@@ -186,7 +195,7 @@ async function enrichHybridRows(rows){
     }
     if(!(row.term&&row.translation)){
       row.confidence='check'; row.origin=row.origin||'open';
-    }
+    }else annotateGlobalLibraryMatch(row);
   }
   return rows;
 }
