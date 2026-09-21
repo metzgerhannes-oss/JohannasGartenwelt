@@ -59,7 +59,7 @@ jobs:
           deno-version: v2.9.7
       - name: Edge Function type checks
         run: |
-          deno check supabase/functions/jgw-photo/index.ts
+          deno check --config supabase/functions/jgw-photo/deno.json supabase/functions/jgw-photo/index.ts
           deno check supabase/functions/trefle-enrich/index.ts
           deno check supabase/functions/jgw-calendar/index.ts
           deno check supabase/functions/muell-moessingen/index.ts
