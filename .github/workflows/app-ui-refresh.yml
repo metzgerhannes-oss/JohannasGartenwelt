@@ -19,6 +19,10 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+
       - name: Static syntax and asset checks
         shell: bash
         run: |
@@ -55,35 +59,20 @@ jobs:
           deno check supabase/functions/jgw-photo/index.ts
           deno check supabase/functions/trefle-enrich/index.ts
           deno check supabase/functions/jgw-calendar/index.ts
-      - name: Install browser test dependency
-        id: selenium
-        run: python -m pip install --disable-pip-version-check selenium==4.49.0
+      - name: Install Playwright Chromium
+        run: |
+          npm init -y
+          npm install --no-save --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
 
-      - name: Core browser smoke test
-        if: ${{ !cancelled() && steps.selenium.outcome == 'success' }}
-        timeout-minutes: 3
-        run: python tools/core_runtime_smoke.py
+      - name: Start local server for Chromium
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/jgw-http-chromium.log 2>&1 &
+          echo $! > /tmp/jgw-http-chromium.pid
+          sleep 2
 
-      - name: Runtime efficiency audit
-        if: ${{ !cancelled() && steps.selenium.outcome == 'success' }}
-        timeout-minutes: 3
-        run: python tools/runtime_efficiency_audit.py
-
-      - name: UX browser audit
-        if: ${{ !cancelled() && steps.selenium.outcome == 'success' }}
-        timeout-minutes: 3
-        run: python tools/ux_v4_audit.py
-
-      - name: Upload audit screenshots and report
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: johannas-gartenwelt-runtime-audit
-          path: |
-            audit_runtime
-            audit_artifacts_v4
-          if-no-files-found: warn
-          retention-days: 14
+      - name: Chromium iPhone functional smoke
+        run: JGW_BROWSER=chromium JGW_BASE=http://127.0.0.1:4173 node scripts/csp-webkit-smoke.mjs
 
   webkit:
     runs-on: ubuntu-latest
