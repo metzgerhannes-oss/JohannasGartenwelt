@@ -34,6 +34,20 @@ function normalized(values) {
 async function testMain(browser) {
   const context = await browser.newContext(devices["iPhone 13"]);
   const page = await context.newPage();
+  await page.addInitScript(() => {
+    window.__jgwCspViolations = [];
+    document.addEventListener("securitypolicyviolation", event => {
+      window.__jgwCspViolations.push({
+        violatedDirective: event.violatedDirective || "",
+        effectiveDirective: event.effectiveDirective || "",
+        blockedURI: event.blockedURI || "",
+        sourceFile: event.sourceFile || "",
+        lineNumber: event.lineNumber || 0,
+        columnNumber: event.columnNumber || 0,
+        sample: event.sample || ""
+      });
+    });
+  });
   page.setDefaultTimeout(7000);
   page.setDefaultNavigationTimeout(12000);
 
@@ -123,6 +137,13 @@ async function testMain(browser) {
     record("settings flow", false, String(e.message || e));
   }
 
+  let cspViolations = [];
+  try {
+    cspViolations = await page.evaluate(() => Array.isArray(window.__jgwCspViolations) ? window.__jgwCspViolations : []);
+    console.log("CSP_VIOLATIONS " + browserName + " " + JSON.stringify(cspViolations));
+  } catch (e) {
+    console.log("CSP_VIOLATIONS_READ_FAILED " + browserName + " " + String(e.message || e));
+  }
   const cspConsole = consoleErrors.filter(x => /Content Security Policy|Refused to (execute|apply)|violates the following Content Security Policy/i.test(x));
   const jsConsole = consoleErrors.filter(x => /Uncaught|SyntaxError|ReferenceError|TypeError/i.test(x));
   record("main no CSP console errors", cspConsole.length === 0, cspConsole.join(" | "));
