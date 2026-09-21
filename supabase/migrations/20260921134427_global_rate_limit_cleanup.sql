@@ -1,5 +1,3 @@
--- Mirrors Supabase migration 20260921134427 (global_rate_limit_cleanup).
--- Keep rate-limit history bounded even when requests come from many one-off IP addresses.
 
 create index if not exists jgw_rate_limits_requested_at_idx
   on private.jgw_rate_limits (requested_at);
