@@ -52,12 +52,13 @@ async function testMain(browser) {
     record("main HTTP 200", false, String(e.message || e));
   }
 
-  await new Promise(r => setTimeout(r, 800));
+  await new Promise(r => setTimeout(r, 1800));
+
   try {
-    await page.locator(".tabs .tab").first().waitFor({ state: "attached", timeout: 10000 });
-    await page.locator("#view-today").waitFor({ state: "attached", timeout: 10000 });
+    const shot = await limit("main screenshot", page.screenshot({ type: "png" }), 8000);
+    record("main renders pixels", !!shot && shot.length > 10000, shot ? String(shot.length) : "0", false);
   } catch (e) {
-    record("main shell becomes ready", false, String(e.message || e));
+    record("main renders pixels", false, String(e.message || e), false);
   }
 
   try {
@@ -65,56 +66,49 @@ async function testMain(browser) {
     record("main content contains Johanna", /Johanna/.test(html), "chars=" + html.length);
     record("main settings UI in DOM", /settingsOverlay/.test(html));
   } catch (e) {
-    record("main DOM readable", false, String(e.message || e), false);
+    record("main DOM readable", false, String(e.message || e));
   }
 
   try {
-    const labels = normalized(await page.locator(".tabs .tab").allTextContents());
+    const labels = normalized(await limit("main navigation labels", page.locator(".tabs .tab").allTextContents(), 7000));
     const expected = ["Heute", "Mein Garten", "Aufgaben", "Bibliothek", "Mehr"];
     record("main navigation labels", JSON.stringify(labels) === JSON.stringify(expected), labels.join(" | "));
-    record("today view visible", await page.locator("#view-today").isVisible());
+    record("today view visible", await limit("today visible", page.locator("#view-today").isVisible(), 7000));
   } catch (e) {
     record("main navigation functional", false, String(e.message || e));
   }
 
   try {
     const fab = page.locator(".jgw-fab");
-    record("add button visible", await fab.isVisible());
-    await fab.click();
-    record("add sheet visible", await page.locator(".jgw-add-sheet").isVisible());
-    const options = normalized(await page.locator(".jgw-add-option b").allTextContents());
+    record("add button visible", await limit("fab visible", fab.isVisible(), 7000));
+    await limit("fab click", fab.click(), 7000);
+    record("add sheet visible", await limit("add sheet visible", page.locator(".jgw-add-sheet").isVisible(), 7000));
+    const options = normalized(await limit("add options", page.locator(".jgw-add-option b").allTextContents(), 7000));
     record("add options current", JSON.stringify(options) === JSON.stringify(["Pflanze", "Lebensraum", "Tierbeobachtung"]), options.join(" | "));
 
-    await page.locator('.jgw-add-option[data-kind="plants"]').click();
-    await page.locator("#plantEditor").waitFor({ state: "visible", timeout: 7000 });
+    await limit("open plant editor", page.locator('.jgw-add-option[data-kind="plants"]').click(), 7000);
+    await limit("wait plant editor", page.locator("#plantEditor").waitFor({ state: "visible", timeout: 7000 }), 8000);
     record("plant editor opens", await page.locator("#plantEditor").isVisible());
 
     const pick = String(await page.locator("#plantEditor .jgw-pick").textContent() || "").trim();
     const camera = String(await page.locator("#plantEditor .jgw-camera").textContent() || "").trim();
     const capture = await page.locator("#plantPhoto").getAttribute("capture");
     record("photo picker separated from camera", pick === "Foto auswählen" && camera === "Kamera öffnen" && capture === null, [pick, camera, "capture=" + capture].join(" | "));
+
+    await limit("close plant editor", page.locator("#closePlantEditor").click(), 7000);
   } catch (e) {
     record("add and plant editor flow", false, String(e.message || e));
   }
 
   try {
-    await page.goto(base + "/index.html?settings-smoke=1", { waitUntil: "commit", timeout: 12000 });
-    await new Promise(r => setTimeout(r, 1000));
-    await page.locator('.tabs .tab[data-view="more"]').click();
-    await page.locator("#moreSettingsBtn").click();
-    await page.locator("#settingsOverlay").waitFor({ state: "visible", timeout: 7000 });
+    await limit("open more", page.locator('.tabs .tab[data-view="more"]').click(), 7000);
+    await limit("open settings", page.locator("#moreSettingsBtn").click(), 7000);
+    await limit("wait settings", page.locator("#settingsOverlay").waitFor({ state: "visible", timeout: 7000 }), 8000);
     const sections = await page.locator("#settingsOverlay .settings-section").count();
     record("settings opens", await page.locator("#settingsOverlay").isVisible());
     record("settings sections current", sections === 7, String(sections));
   } catch (e) {
     record("settings flow", false, String(e.message || e));
-  }
-
-  try {
-    const shot = await limit("main screenshot", page.screenshot({ type: "png" }), 8000);
-    record("main renders pixels", !!shot && shot.length > 10000, shot ? String(shot.length) : "0", false);
-  } catch (e) {
-    record("main renders pixels", false, String(e.message || e), false);
   }
 
   const cspConsole = consoleErrors.filter(x => /Content Security Policy|Refused to (execute|apply)|violates the following Content Security Policy/i.test(x));
