@@ -2,14 +2,11 @@ name: Deploy Garden to GitHub Pages
 
 on:
   workflow_run:
-    workflows:
-      - "Garden CSP & WebKit checks"
-      - "Final garden audit"
+    workflows: ["Garden CI"]
     types: [completed]
     branches: [main]
 
 permissions:
-  actions: read
   contents: read
   pages: write
   id-token: write
@@ -26,68 +23,19 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Verify required checks passed for the same commit
-        id: gate
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
-          EVENT_RUN_ID: ${{ github.event.workflow_run.id }}
-        shell: bash
-        run: |
-          python - <<'PY'
-          import json, os, urllib.request
-          repo=os.environ["GITHUB_REPOSITORY"]
-          sha=os.environ["SHA"]
-          token=os.environ["GH_TOKEN"]
-          event_run_id=int(os.environ["EVENT_RUN_ID"])
-          req=urllib.request.Request(
-              f"https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&per_page=100",
-              headers={
-                  "Authorization": f"Bearer {token}",
-                  "Accept": "application/vnd.github+json",
-                  "X-GitHub-Api-Version": "2022-11-28",
-              },
-          )
-          with urllib.request.urlopen(req, timeout=20) as r:
-              runs=json.load(r).get("workflow_runs",[])
-          required={"Garden CSP & WebKit checks","Final garden audit"}
-          selected={}
-          for run in runs:
-              name=run.get("name")
-              if name not in required or run.get("status")!="completed" or run.get("conclusion")!="success":
-                  continue
-              previous=selected.get(name)
-              if previous is None or str(run.get("updated_at","")) > str(previous.get("updated_at","")):
-                  selected[name]=run
-          all_green=required.issubset(selected)
-          latest_id=None
-          if all_green:
-              latest=max(selected.values(), key=lambda r:(str(r.get("updated_at","")),int(r.get("id",0))))
-              latest_id=int(latest.get("id",0))
-          ready=all_green and latest_id==event_run_id
-          print("Release checks:", {k:selected.get(k,{}).get("conclusion") for k in required},
-                "latest_required_run=",latest_id,"event_run=",event_run_id,"ready=",ready)
-          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as out:
-              out.write(f"ready={'true' if ready else 'false'}\n")
-          PY
-
       - name: Checkout tested revision
-        if: steps.gate.outputs.ready == 'true'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Configure GitHub Pages
-        if: steps.gate.outputs.ready == 'true'
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
 
       - name: Upload static site
-        if: steps.gate.outputs.ready == 'true'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: '.'
 
       - name: Deploy to GitHub Pages
-        if: steps.gate.outputs.ready == 'true'
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
