@@ -46,13 +46,19 @@ async function testMain(browser) {
   page.on("requestfailed", req => failedRequests.push(req.url() + " :: " + (req.failure()?.errorText || "failed")));
 
   try {
-    const response = await limit("main navigation", page.goto(base + "/index.html", { waitUntil: "domcontentloaded", timeout: 12000 }), 14000);
+    const response = await limit("main navigation", page.goto(base + "/index.html", { waitUntil: "commit", timeout: 12000 }), 14000);
     record("main HTTP 200", !!response && response.ok(), response ? String(response.status()) : "no response");
   } catch (e) {
     record("main HTTP 200", false, String(e.message || e));
   }
 
-  await new Promise(r => setTimeout(r, 1500));
+  await new Promise(r => setTimeout(r, 800));
+  try {
+    await page.locator(".tabs .tab").first().waitFor({ state: "attached", timeout: 10000 });
+    await page.locator("#view-today").waitFor({ state: "attached", timeout: 10000 });
+  } catch (e) {
+    record("main shell becomes ready", false, String(e.message || e));
+  }
 
   try {
     const html = await limit("main content", page.content(), 8000);
@@ -92,7 +98,7 @@ async function testMain(browser) {
   }
 
   try {
-    await page.goto(base + "/index.html?settings-smoke=1", { waitUntil: "domcontentloaded", timeout: 12000 });
+    await page.goto(base + "/index.html?settings-smoke=1", { waitUntil: "commit", timeout: 12000 });
     await new Promise(r => setTimeout(r, 1000));
     await page.locator('.tabs .tab[data-view="more"]').click();
     await page.locator("#moreSettingsBtn").click();
@@ -146,7 +152,7 @@ async function testSetup(browser) {
   page.on("pageerror", err => pageErrors.push(String(err && err.message || err)));
 
   try {
-    const response = await limit("setup navigation", page.goto(base + "/setup.html", { waitUntil: "domcontentloaded", timeout: 12000 }), 14000);
+    const response = await limit("setup navigation", page.goto(base + "/setup.html", { waitUntil: "commit", timeout: 12000 }), 14000);
     record("setup HTTP 200", !!response && response.ok(), response ? String(response.status()) : "no response");
   } catch (e) {
     record("setup HTTP 200", false, String(e.message || e));
