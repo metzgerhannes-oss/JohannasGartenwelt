@@ -65,8 +65,9 @@ jobs:
           deno check supabase/functions/muell-moessingen/index.ts
       - name: Install Playwright Chromium
         run: |
-          npm init -y
-          npm install --no-save --ignore-scripts playwright@1.56.1
+          cp .github/browser-ci/package.json package.json
+          cp .github/browser-ci/package-lock.json package-lock.json
+          npm ci --ignore-scripts
           npx playwright install --with-deps chromium
 
       - name: Start local server for Chromium
@@ -116,8 +117,9 @@ jobs:
 
       - name: Install Playwright WebKit
         run: |
-          npm init -y
-          npm install --no-save --ignore-scripts playwright@1.56.1
+          cp .github/browser-ci/package.json package.json
+          cp .github/browser-ci/package-lock.json package-lock.json
+          npm ci --ignore-scripts
           npx playwright install --with-deps webkit
 
       - name: Start local server
