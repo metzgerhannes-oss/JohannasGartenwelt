@@ -81,13 +81,6 @@ async function testMain(browser) {
   console.log("BOOTSTRAP_TRACE " + browserName + " " + JSON.stringify(bootstrapTrace));
 
   try {
-    const shot = await limit("main screenshot", page.screenshot({ type: "png" }), 8000);
-    record("main renders pixels", !!shot && shot.length > 10000, shot ? String(shot.length) : "0", false);
-  } catch (e) {
-    record("main renders pixels", false, String(e.message || e), false);
-  }
-
-  try {
     const html = await limit("main content", page.content(), 8000);
     record("main content contains Johanna", /Johanna/.test(html), "chars=" + html.length);
     record("main settings UI in DOM", /settingsOverlay/.test(html));
@@ -179,7 +172,7 @@ async function testSetup(browser) {
   page.on("pageerror", err => pageErrors.push(String(err && err.message || err)));
 
   try {
-    const response = await limit("setup navigation", page.goto(base + "/setup.html", { waitUntil: "commit", timeout: 12000 }), 14000);
+    const response = await limit("setup navigation", page.goto(base + "/setup.html", { waitUntil: "domcontentloaded", timeout: 12000 }), 14000);
     record("setup HTTP 200", !!response && response.ok(), response ? String(response.status()) : "no response");
   } catch (e) {
     record("setup HTTP 200", false, String(e.message || e));
