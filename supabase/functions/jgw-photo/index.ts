@@ -1,5 +1,5 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import "jsr:@supabase/functions-js@2.116.0/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.116.0";
 
 const BUCKET = "jgw-photos";
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
