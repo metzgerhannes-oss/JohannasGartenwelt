@@ -72,6 +72,7 @@ jobs:
           sleep 2
 
       - name: Chromium iPhone functional smoke
+        timeout-minutes: 2
         run: JGW_BROWSER=chromium JGW_BASE=http://127.0.0.1:4173 node scripts/csp-webkit-smoke.mjs
 
   webkit:
@@ -122,4 +123,5 @@ jobs:
           sleep 2
 
       - name: WebKit iPhone smoke test
-        run: JGW_BASE=http://127.0.0.1:4173 node scripts/csp-webkit-smoke.mjs
+        timeout-minutes: 2
+        run: JGW_BROWSER=webkit JGW_BASE=http://127.0.0.1:4173 node scripts/csp-webkit-smoke.mjs
