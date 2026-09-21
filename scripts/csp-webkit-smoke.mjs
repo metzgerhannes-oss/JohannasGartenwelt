@@ -116,9 +116,9 @@ async function testMain(browser) {
     await limit("open more", page.locator('.tabs .tab[data-view="more"]').click(), 7000);
     await limit("open settings", page.locator("#moreSettingsBtn").click(), 7000);
     await limit("wait settings", page.locator("#settingsOverlay").waitFor({ state: "visible", timeout: 7000 }), 8000);
-    const sections = await page.locator("#settingsOverlay .settings-section").count();
+    const groups = await page.locator("#settingsOverlay .jgw-settings-group").count();
     record("settings opens", await page.locator("#settingsOverlay").isVisible());
-    record("settings sections current", sections === 7, String(sections));
+    record("settings groups current", groups === 4, String(groups));
   } catch (e) {
     record("settings flow", false, String(e.message || e));
   }
