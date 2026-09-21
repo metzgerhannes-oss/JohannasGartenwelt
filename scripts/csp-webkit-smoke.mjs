@@ -1,12 +1,15 @@
-import { webkit, devices } from "playwright";
+import { chromium, webkit, devices } from "playwright";
 
 const base = process.env.JGW_BASE || "http://127.0.0.1:4173";
+const requestedBrowser = String(process.env.JGW_BROWSER || "webkit").toLowerCase();
+const browserType = requestedBrowser === "chromium" ? chromium : webkit;
+const browserName = requestedBrowser === "chromium" ? "Chromium" : "WebKit";
 const results = [];
 let failed = false;
 
 function record(name, ok, detail = "", fatal = true) {
   results.push({ name, ok, detail, fatal });
-  console.log(JSON.stringify({ name, ok, detail, fatal }));
+  console.log(JSON.stringify({ browser: browserName, name, ok, detail, fatal }));
   if (!ok && fatal) failed = true;
 }
 
@@ -24,11 +27,14 @@ async function limit(label, promise, ms = 8000) {
   }
 }
 
+function normalized(values) {
+  return values.map(x => String(x || "").replace(/\s+/g, " ").trim()).filter(Boolean);
+}
+
 async function testMain(browser) {
-  const iphone = devices["iPhone 13"];
-  const context = await browser.newContext(iphone);
+  const context = await browser.newContext(devices["iPhone 13"]);
   const page = await context.newPage();
-  page.setDefaultTimeout(6000);
+  page.setDefaultTimeout(7000);
   page.setDefaultNavigationTimeout(12000);
 
   const consoleErrors = [];
@@ -39,30 +45,70 @@ async function testMain(browser) {
   page.on("pageerror", err => pageErrors.push(String(err && err.message || err)));
   page.on("requestfailed", req => failedRequests.push(req.url() + " :: " + (req.failure()?.errorText || "failed")));
 
-  let response;
   try {
-    response = await limit("main navigation", page.goto(base + "/index.html", { waitUntil: "commit", timeout: 12000 }), 14000);
+    const response = await limit("main navigation", page.goto(base + "/index.html", { waitUntil: "domcontentloaded", timeout: 12000 }), 14000);
     record("main HTTP 200", !!response && response.ok(), response ? String(response.status()) : "no response");
   } catch (e) {
     record("main HTTP 200", false, String(e.message || e));
   }
 
-  await new Promise(r => setTimeout(r, 1800));
+  await new Promise(r => setTimeout(r, 1500));
+
+  try {
+    const html = await limit("main content", page.content(), 8000);
+    record("main content contains Johanna", /Johanna/.test(html), "chars=" + html.length);
+    record("main settings UI in DOM", /settingsOverlay/.test(html));
+  } catch (e) {
+    record("main DOM readable", false, String(e.message || e), false);
+  }
+
+  try {
+    const labels = normalized(await page.locator(".tabs .tab").allTextContents());
+    const expected = ["Heute", "Mein Garten", "Aufgaben", "Bibliothek", "Mehr"];
+    record("main navigation labels", JSON.stringify(labels) === JSON.stringify(expected), labels.join(" | "));
+    record("today view visible", await page.locator("#view-today").isVisible());
+  } catch (e) {
+    record("main navigation functional", false, String(e.message || e));
+  }
+
+  try {
+    const fab = page.locator(".jgw-fab");
+    record("add button visible", await fab.isVisible());
+    await fab.click();
+    record("add sheet visible", await page.locator(".jgw-add-sheet").isVisible());
+    const options = normalized(await page.locator(".jgw-add-option b").allTextContents());
+    record("add options current", JSON.stringify(options) === JSON.stringify(["Pflanze", "Lebensraum", "Tierbeobachtung"]), options.join(" | "));
+
+    await page.locator('.jgw-add-option[data-kind="plants"]').click();
+    await page.locator("#plantEditor").waitFor({ state: "visible", timeout: 7000 });
+    record("plant editor opens", await page.locator("#plantEditor").isVisible());
+
+    const pick = String(await page.locator("#plantEditor .jgw-pick").textContent() || "").trim();
+    const camera = String(await page.locator("#plantEditor .jgw-camera").textContent() || "").trim();
+    const capture = await page.locator("#plantPhoto").getAttribute("capture");
+    record("photo picker separated from camera", pick === "Foto auswählen" && camera === "Kamera öffnen" && capture === null, [pick, camera, "capture=" + capture].join(" | "));
+  } catch (e) {
+    record("add and plant editor flow", false, String(e.message || e));
+  }
+
+  try {
+    await page.goto(base + "/index.html?settings-smoke=1", { waitUntil: "domcontentloaded", timeout: 12000 });
+    await new Promise(r => setTimeout(r, 1000));
+    await page.locator('.tabs .tab[data-view="more"]').click();
+    await page.locator("#moreSettingsBtn").click();
+    await page.locator("#settingsOverlay").waitFor({ state: "visible", timeout: 7000 });
+    const sections = await page.locator("#settingsOverlay .settings-section").count();
+    record("settings opens", await page.locator("#settingsOverlay").isVisible());
+    record("settings sections current", sections === 7, String(sections));
+  } catch (e) {
+    record("settings flow", false, String(e.message || e));
+  }
 
   try {
     const shot = await limit("main screenshot", page.screenshot({ type: "png" }), 8000);
     record("main renders pixels", !!shot && shot.length > 10000, shot ? String(shot.length) : "0", false);
   } catch (e) {
     record("main renders pixels", false, String(e.message || e), false);
-  }
-
-  try {
-    const html = await limit("main content", page.content(), 8000);
-    record("main content contains Johanna", /Johanna/.test(html), "chars=" + html.length);
-    record("main tabs in DOM", (html.match(/class=["'][^"']*\btab\b/g) || []).length >= 3);
-    record("main settings UI in DOM", /settings/i.test(html));
-  } catch (e) {
-    record("main DOM readable", false, String(e.message || e), false);
   }
 
   const cspConsole = consoleErrors.filter(x => /Content Security Policy|Refused to (execute|apply)|violates the following Content Security Policy/i.test(x));
@@ -93,7 +139,7 @@ async function testSetup(browser) {
   });
 
   const page = await context.newPage();
-  page.setDefaultTimeout(6000);
+  page.setDefaultTimeout(7000);
   const consoleErrors = [];
   const pageErrors = [];
   page.on("console", msg => { if (msg.type() === "error") consoleErrors.push(msg.text()); });
@@ -123,14 +169,14 @@ async function testSetup(browser) {
 }
 
 (async () => {
-  const browser = await webkit.launch({ headless: true });
+  const browser = await browserType.launch({ headless: true });
   await testMain(browser);
   await testSetup(browser);
   await browser.close();
 
-  console.log("FINAL_WEBKIT " + JSON.stringify({ ok: !failed, results }));
+  console.log("FINAL_BROWSER " + JSON.stringify({ browser: browserName, ok: !failed, results }));
   if (failed) process.exit(1);
 })().catch(err => {
-  console.error("FATAL_WEBKIT", err);
+  console.error("FATAL_BROWSER", browserName, err);
   process.exit(1);
 });
