@@ -2,45 +2,10 @@ name: Garden CSP & WebKit checks
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/csp-smoke.yml'
-      - 'index.html'
-      - 'setup.html'
-      - 'setup.js'
-      - 'setup.css'
-      - 'manifest.webmanifest'
-      - 'setup.webmanifest'
-      - 'sw.js'
-      - 'jgw-*.js'
-      - 'jgw-*.css'
-      - 'garten-tipps.js'
-      - 'vendor/**'
-      - 'scripts/csp-*.mjs'
-      - 'supabase/**'
-      - 'supabase_setup.sql'
+    branches: [main]
   pull_request:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/csp-smoke.yml'
-      - 'index.html'
-      - 'setup.html'
-      - 'setup.js'
-      - 'setup.css'
-      - 'manifest.webmanifest'
-      - 'setup.webmanifest'
-      - 'sw.js'
-      - 'jgw-*.js'
-      - 'jgw-*.css'
-      - 'garten-tipps.js'
-      - 'vendor/**'
-      - 'scripts/csp-*.mjs'
-      - 'supabase/**'
-      - 'supabase_setup.sql'
+    branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
 
