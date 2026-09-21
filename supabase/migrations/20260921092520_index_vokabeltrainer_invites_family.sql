@@ -1,0 +1,1 @@
+create index if not exists vt_invites_family_idx on private.vt_invites(family_id);

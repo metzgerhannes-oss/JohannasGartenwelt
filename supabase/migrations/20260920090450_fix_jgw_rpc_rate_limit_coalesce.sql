@@ -1,16 +1,10 @@
 
-create index if not exists jgw_rate_limits_requested_at_idx
-  on private.jgw_rate_limits (requested_at);
-
-delete from private.jgw_rate_limits
-where requested_at < pg_catalog.now() - interval '24 hours';
-
 create or replace function private.jgw_pre_request()
 returns void
 language plpgsql
 security definer
-set search_path to ''
-as $function$
+set search_path = ''
+as $$
 declare
   v_method text := pg_catalog.current_setting('request.method', true);
   v_path text := pg_catalog.current_setting('request.path', true);
@@ -21,7 +15,6 @@ declare
   v_limit integer;
   v_window interval;
   v_count integer;
-  v_error_code text := 'api_rate_limit';
 begin
   if v_method is null or v_method not in ('POST','PUT','PATCH','DELETE') then
     return;
@@ -30,10 +23,9 @@ begin
   v_path := pg_catalog.regexp_replace(coalesce(v_path,''), '^/', '');
 
   if v_path = 'rpc/jgw_create_garden' then
-    v_scope := 'jgw_create';
+    v_scope := 'create';
     v_limit := 10;
     v_window := interval '1 hour';
-    v_error_code := 'jgw_rate_limit';
   elsif v_path in (
     'rpc/jgw_status_garden',
     'rpc/jgw_pull_garden',
@@ -42,43 +34,9 @@ begin
     'rpc/jgw_get_calendar_token',
     'rpc/jgw_rotate_calendar_token'
   ) then
-    v_scope := 'jgw_sync_auth';
+    v_scope := 'sync_auth';
     v_limit := 60;
     v_window := interval '5 minutes';
-    v_error_code := 'jgw_rate_limit';
-  elsif v_path = 'rpc/vt_create_family' then
-    v_scope := 'vt_create_family';
-    v_limit := 10;
-    v_window := interval '1 hour';
-    v_error_code := 'vt_rate_limit';
-  elsif v_path = 'rpc/vt_join_parent' then
-    v_scope := 'vt_join_parent';
-    v_limit := 12;
-    v_window := interval '15 minutes';
-    v_error_code := 'vt_rate_limit';
-  elsif v_path = 'rpc/vt_claim_child_invite' then
-    v_scope := 'vt_claim_child';
-    v_limit := 30;
-    v_window := interval '15 minutes';
-    v_error_code := 'vt_rate_limit';
-  elsif v_path in (
-    'rpc/vt_create_child_invite',
-    'rpc/vt_list_devices',
-    'rpc/vt_revoke_device'
-  ) then
-    v_scope := 'vt_device_admin';
-    v_limit := 60;
-    v_window := interval '5 minutes';
-    v_error_code := 'vt_rate_limit';
-  elsif v_path in (
-    'rpc/vt_pull_documents',
-    'rpc/vt_push_document',
-    'rpc/vt_status_documents'
-  ) then
-    v_scope := 'vt_sync';
-    v_limit := 180;
-    v_window := interval '5 minutes';
-    v_error_code := 'vt_rate_limit';
   else
     return;
   end if;
@@ -98,7 +56,9 @@ begin
   end;
 
   delete from private.jgw_rate_limits
-   where requested_at < pg_catalog.now() - interval '24 hours';
+   where scope = v_scope
+     and ip = v_ip
+     and requested_at < pg_catalog.now() - interval '24 hours';
 
   select pg_catalog.count(*)::integer
     into v_count
@@ -110,7 +70,7 @@ begin
   if v_count >= v_limit then
     raise sqlstate 'PGRST'
       using message = jsonb_build_object(
-        'code',v_error_code,
+        'code','jgw_rate_limit',
         'message','Zu viele Anfragen. Bitte kurz warten und erneut versuchen.'
       )::text,
       detail = jsonb_build_object(
@@ -122,4 +82,6 @@ begin
   insert into private.jgw_rate_limits(ip, scope, requested_at)
   values (v_ip, v_scope, pg_catalog.now());
 end;
-$function$;
+$$;
+
+notify pgrst, 'reload config';
