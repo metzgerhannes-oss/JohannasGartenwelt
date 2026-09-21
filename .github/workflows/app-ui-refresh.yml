@@ -59,6 +59,7 @@ jobs:
           deno check supabase/functions/jgw-photo/index.ts
           deno check supabase/functions/trefle-enrich/index.ts
           deno check supabase/functions/jgw-calendar/index.ts
+          deno check supabase/functions/muell-moessingen/index.ts
       - name: Install Playwright Chromium
         run: |
           npm init -y
