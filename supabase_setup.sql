@@ -1867,6 +1867,9 @@ alter table private.jgw_rate_limits enable row level security;
 create index if not exists jgw_rate_limits_scope_ip_requested_at_idx
   on private.jgw_rate_limits(scope, ip, requested_at desc);
 
+create index if not exists jgw_rate_limits_requested_at_idx
+  on private.jgw_rate_limits(requested_at);
+
 revoke all on table private.jgw_rate_limits from public, anon, authenticated, service_role;
 
 create or replace function private.jgw_pre_request()
@@ -1962,9 +1965,7 @@ begin
   end;
 
   delete from private.jgw_rate_limits
-   where scope = v_scope
-     and ip = v_ip
-     and requested_at < pg_catalog.now() - interval '24 hours';
+   where requested_at < pg_catalog.now() - interval '24 hours';
 
   select pg_catalog.count(*)::integer
     into v_count
