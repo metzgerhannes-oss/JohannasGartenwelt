@@ -77,12 +77,12 @@ def click(d, css):
 def main():
     report = {"ok": False, "checks": [], "diagnostics": {}}
     make_copy()
-    server = None
+    server, base = serve()
     d = chrome()
     start = time.perf_counter()
     try:
         print("CORE SMOKE: loading local app", flush=True)
-        target = TMP.resolve().as_uri() + "?smoke=" + str(int(time.time()))
+        target = base + TMP.name + "?smoke=" + str(int(time.time()))
         d.execute_cdp_cmd("Page.navigate", {"url": target})
         w = WebDriverWait(d, 15)
         w.until(EC.presence_of_element_located((By.CSS_SELECTOR, "body")))
