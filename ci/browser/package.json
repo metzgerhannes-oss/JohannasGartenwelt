@@ -1,0 +1,8 @@
+{
+  "name": "jgw-browser-ci-deps",
+  "private": true,
+  "version": "1.0.0",
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
