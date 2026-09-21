@@ -31,6 +31,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.event.workflow_run.head_sha }}
+          EVENT_RUN_ID: ${{ github.event.workflow_run.id }}
         shell: bash
         run: |
           python - <<'PY'
@@ -38,6 +39,7 @@ jobs:
           repo=os.environ["GITHUB_REPOSITORY"]
           sha=os.environ["SHA"]
           token=os.environ["GH_TOKEN"]
+          event_run_id=int(os.environ["EVENT_RUN_ID"])
           req=urllib.request.Request(
               f"https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&per_page=100",
               headers={
@@ -49,13 +51,22 @@ jobs:
           with urllib.request.urlopen(req, timeout=20) as r:
               runs=json.load(r).get("workflow_runs",[])
           required={"Garden CSP & WebKit checks","Final garden audit"}
-          good={name:False for name in required}
+          selected={}
           for run in runs:
               name=run.get("name")
-              if name in good and run.get("status")=="completed" and run.get("conclusion")=="success":
-                  good[name]=True
-          ready=all(good.values())
-          print("Release checks:", good, "ready=", ready)
+              if name not in required or run.get("status")!="completed" or run.get("conclusion")!="success":
+                  continue
+              previous=selected.get(name)
+              if previous is None or str(run.get("updated_at","")) > str(previous.get("updated_at","")):
+                  selected[name]=run
+          all_green=required.issubset(selected)
+          latest_id=None
+          if all_green:
+              latest=max(selected.values(), key=lambda r:(str(r.get("updated_at","")),int(r.get("id",0))))
+              latest_id=int(latest.get("id",0))
+          ready=all_green and latest_id==event_run_id
+          print("Release checks:", {k:selected.get(k,{}).get("conclusion") for k in required},
+                "latest_required_run=",latest_id,"event_run=",event_run_id,"ready=",ready)
           with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as out:
               out.write(f"ready={'true' if ready else 'false'}\n")
           PY
