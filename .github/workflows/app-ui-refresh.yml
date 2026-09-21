@@ -59,12 +59,13 @@ jobs:
           deno-version: v2.9.7
       - name: Edge Function type checks
         run: |
-          deno check --config supabase/functions/jgw-photo/deno.json supabase/functions/jgw-photo/index.ts
+          deno check supabase/functions/jgw-photo/index.ts
           deno check supabase/functions/trefle-enrich/index.ts
           deno check supabase/functions/jgw-calendar/index.ts
           deno check supabase/functions/muell-moessingen/index.ts
       - name: Install Playwright Chromium
         run: |
+          cp .github/browser-ci/package.json package.json
           npm install --package-lock-only --ignore-scripts
           echo "JGW_LOCK_B64=$(base64 -w0 package-lock.json)"
           npm ci --ignore-scripts
@@ -117,6 +118,7 @@ jobs:
 
       - name: Install Playwright WebKit
         run: |
+          cp .github/browser-ci/package.json package.json
           npm install --package-lock-only --ignore-scripts
           npm ci --ignore-scripts
           npx playwright install --with-deps webkit
