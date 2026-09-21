@@ -1,4 +1,4 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import "jsr:@supabase/functions-js@2.116.0/edge-runtime.d.ts";
 
 const ALLOWED_ORIGINS = new Set([
   "https://metzgerhannes-oss.github.io",
