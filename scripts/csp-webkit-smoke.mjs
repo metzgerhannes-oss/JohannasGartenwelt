@@ -42,7 +42,7 @@ async function testMain(browser) {
   const failedRequests = [];
   const bootstrapTrace = [];
 
-  page.on("console", msg => { if (msg.type() === "error") consoleErrors.push(msg.text()); });
+  page.on("console", msg => { if (msg.type() === "error") { const loc=msg.location(); consoleErrors.push(msg.text()+" @ "+(loc.url||"")+":"+String(loc.lineNumber||0)+":"+String(loc.columnNumber||0)); } });
   page.on("pageerror", err => pageErrors.push(String(err && err.message || err)));
   page.on("request", req => {
     if (req.url().includes("127.0.0.1:4173")) bootstrapTrace.push({ event: "request", type: req.resourceType(), url: req.url() });
@@ -154,7 +154,7 @@ async function testSetup(browser) {
   page.setDefaultTimeout(7000);
   const consoleErrors = [];
   const pageErrors = [];
-  page.on("console", msg => { if (msg.type() === "error") consoleErrors.push(msg.text()); });
+  page.on("console", msg => { if (msg.type() === "error") { const loc=msg.location(); consoleErrors.push(msg.text()+" @ "+(loc.url||"")+":"+String(loc.lineNumber||0)+":"+String(loc.columnNumber||0)); } });
   page.on("pageerror", err => pageErrors.push(String(err && err.message || err)));
 
   try {
