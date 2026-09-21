@@ -66,8 +66,7 @@ jobs:
       - name: Install Playwright Chromium
         run: |
           cp .github/browser-ci/package.json package.json
-          npm install --package-lock-only --ignore-scripts
-          echo "JGW_LOCK_B64=$(base64 -w0 package-lock.json)"
+          cp .github/browser-ci/package-lock.json package-lock.json
           npm ci --ignore-scripts
           npx playwright install --with-deps chromium
 
@@ -119,7 +118,7 @@ jobs:
       - name: Install Playwright WebKit
         run: |
           cp .github/browser-ci/package.json package.json
-          npm install --package-lock-only --ignore-scripts
+          cp .github/browser-ci/package-lock.json package-lock.json
           npm ci --ignore-scripts
           npx playwright install --with-deps webkit
 
