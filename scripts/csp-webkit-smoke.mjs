@@ -40,10 +40,21 @@ async function testMain(browser) {
   const consoleErrors = [];
   const pageErrors = [];
   const failedRequests = [];
+  const bootstrapTrace = [];
 
   page.on("console", msg => { if (msg.type() === "error") consoleErrors.push(msg.text()); });
   page.on("pageerror", err => pageErrors.push(String(err && err.message || err)));
-  page.on("requestfailed", req => failedRequests.push(req.url() + " :: " + (req.failure()?.errorText || "failed")));
+  page.on("request", req => {
+    if (req.url().includes("127.0.0.1:4173")) bootstrapTrace.push({ event: "request", type: req.resourceType(), url: req.url() });
+  });
+  page.on("response", res => {
+    if (res.url().includes("127.0.0.1:4173")) bootstrapTrace.push({ event: "response", status: res.status(), url: res.url() });
+  });
+  page.on("requestfailed", req => {
+    const detail = req.url() + " :: " + (req.failure()?.errorText || "failed");
+    failedRequests.push(detail);
+    if (req.url().includes("127.0.0.1:4173")) bootstrapTrace.push({ event: "failed", detail });
+  });
 
   try {
     const response = await limit("main navigation", page.goto(base + "/index.html", { waitUntil: "commit", timeout: 12000 }), 14000);
@@ -53,6 +64,7 @@ async function testMain(browser) {
   }
 
   await new Promise(r => setTimeout(r, 1800));
+  console.log("BOOTSTRAP_TRACE " + browserName + " " + JSON.stringify(bootstrapTrace));
 
   try {
     const shot = await limit("main screenshot", page.screenshot({ type: "png" }), 8000);
