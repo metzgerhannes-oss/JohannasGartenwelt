@@ -60,17 +60,17 @@ jobs:
         run: python -m pip install --disable-pip-version-check selenium==4.49.0
 
       - name: Core browser smoke test
-        if: ${{ always() && steps.selenium.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.selenium.outcome == 'success' }}
         timeout-minutes: 3
         run: python tools/core_runtime_smoke.py
 
       - name: Runtime efficiency audit
-        if: ${{ always() && steps.selenium.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.selenium.outcome == 'success' }}
         timeout-minutes: 3
         run: python tools/runtime_efficiency_audit.py
 
       - name: UX browser audit
-        if: ${{ always() && steps.selenium.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.selenium.outcome == 'success' }}
         timeout-minutes: 3
         run: python tools/ux_v4_audit.py
 
