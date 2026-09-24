@@ -72,10 +72,22 @@ const requiredBootstrapMarkers = [
   "image/webp",
   "image/png",
   "alter role authenticator set pgrst.db_pre_request = 'private.jgw_pre_request'",
-  "grant execute on function public.jgw_status_garden(text,text) to service_role"
+  "revoke execute on function public.jgw_status_garden(text,text) from service_role"
 ];
 for (const marker of requiredBootstrapMarkers) {
   if (!bootstrap.includes(marker)) fail("Bootstrap-Marker fehlt: " + marker);
+}
+
+const forbiddenBootstrapMarkers = [
+  "grant execute on function public.jgw_status_garden(text,text) to service_role",
+  "grant execute on function public.jgw_pull_garden(text,text) to service_role",
+  "grant execute on function public.jgw_force_push_garden(text,text,jsonb) to service_role",
+  "grant execute on function private.jgw_status_garden_impl(text,text) to service_role",
+  "grant execute on function private.jgw_pull_garden_impl(text,text) to service_role",
+  "grant execute on function private.jgw_force_push_garden_impl(text,text,jsonb) to service_role"
+];
+for (const marker of forbiddenBootstrapMarkers) {
+  if (bootstrap.includes(marker)) fail("Bootstrap enthält veraltetes service_role-RPC-Recht: " + marker);
 }
 
 const edgeFunctions = ["jgw-photo", "trefle-enrich", "jgw-calendar", "muell-moessingen"];
