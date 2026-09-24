@@ -17,6 +17,7 @@ Die historische Kette beginnt erst nach der ursprünglichen Gartenwelt-Einrichtu
    - private Tabellen: `jgw_gardens`, `jgw_rate_limits`, `vt_families`, `vt_devices`, `vt_documents`, `vt_invites`
    - RLS auf allen privaten Tabellen aktiv
    - keine direkten `anon`/`authenticated`-Tabellenrechte
+   - Default-Privileges für neue `public`-Tabellen/Funktionen/Sequenzen sind geschlossen; benötigte Data-API-Rechte werden explizit pro Migration vergeben
    - `pgrst.db_pre_request = private.jgw_pre_request`
    - privater Storage-Bucket `jgw-photos`, 5 MB, nur JPEG/WebP/PNG
 4. Die vier Edge Functions aus `supabase/functions/` deployen:
@@ -31,6 +32,7 @@ Die historische Kette beginnt erst nach der ursprünglichen Gartenwelt-Einrichtu
 ## Regeln
 
 - Keine dauerhafte DDL-Änderung nur im Dashboard/SQL-Editor belassen: jede produktive Änderung muss als Migration im Repository landen.
+- Jede Migration, die ein Data-API-Objekt anlegt, muss die minimal nötigen `GRANT`s im selben Skript explizit setzen. Keine Abhängigkeit von automatischen Default-Grants.
 - Edge-Function-Produktionscode muss bytegleich zur jeweiligen Datei unter `supabase/functions/<name>/index.ts` sein.
 - `service_role`, Trefle-Token oder andere Secrets dürfen nie in GitHub landen.
 - `supabase_setup.sql` bleibt die lesbare Gartenwelt-/Shared-Baseline. Der vollständige Recovery-Einstiegspunkt ist ausschließlich `supabase/bootstrap_current.sql`.
