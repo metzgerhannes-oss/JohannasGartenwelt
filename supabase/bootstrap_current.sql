@@ -1,6 +1,6 @@
 -- Johanna's Gartenwelt + Vokabeltrainer
 -- Current-state bootstrap for a NEW Supabase project.
--- Generated from the verified production schema on 2026-09-21.
+-- Generated from the verified production schema on 2026-09-24.
 --
 -- Purpose:
 --   Recreate the current backend schema/security state without replaying the
@@ -18,6 +18,21 @@ begin;
 
 create schema if not exists extensions;
 create extension if not exists pgcrypto with schema extensions;
+
+-- Secure-by-default Data API boundary.
+-- New public objects are not reachable by anon/authenticated/service_role unless
+-- the migration that creates them grants the minimum required privileges explicitly.
+alter default privileges for role postgres in schema public
+  revoke select, insert, update, delete on tables from anon, authenticated, service_role;
+
+alter default privileges for role postgres in schema public
+  revoke execute on functions from anon, authenticated, service_role;
+
+alter default privileges for role postgres in schema public
+  revoke usage, select on sequences from anon, authenticated, service_role;
+
+alter default privileges for role postgres in schema public
+  revoke execute on functions from public;
 
 -- Defense in depth: automatically enable RLS for newly created public tables.
 CREATE OR REPLACE FUNCTION public.rls_auto_enable()

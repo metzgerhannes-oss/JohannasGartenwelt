@@ -17,7 +17,8 @@ const expectedMigrations = [
   "20260921092520_index_vokabeltrainer_invites_family.sql",
   "20260921094351_enable_rls_jgw_rate_limits.sql",
   "20260921100151_harden_vt_rate_limits.sql",
-  "20260921134427_global_rate_limit_cleanup.sql"
+  "20260921134427_global_rate_limit_cleanup.sql",
+  "20260924070028_harden_data_api_default_privileges.sql"
 ];
 
 const actualMigrations = fs.readdirSync("supabase/migrations")
@@ -52,6 +53,9 @@ if (!bootstrap.includes(vtBaseline)) fail("VT-Family-Sync-Baseline fehlt im Boot
 
 const requiredBootstrapMarkers = [
   "create extension if not exists pgcrypto with schema extensions",
+  "alter default privileges for role postgres in schema public",
+  "revoke select, insert, update, delete on tables from anon, authenticated, service_role",
+  "revoke execute on functions from public",
   "CREATE OR REPLACE FUNCTION public.rls_auto_enable()",
   "create event trigger ensure_rls",
   "private.jgw_gardens",
