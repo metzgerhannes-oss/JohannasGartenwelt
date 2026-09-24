@@ -22,7 +22,7 @@ alter table private.jgw_gardens drop constraint if exists jgw_secret_hash_len;
 update private.jgw_gardens
 set secret_hash = extensions.crypt(lower(secret_hash), extensions.gen_salt('bf', 12))
 where length(secret_hash) = 64
-  and secret_hash ~ '^[0-9a-fA-F]{64}
+  and secret_hash ~ '^[0-9a-fA-F]{64}$';
 
 -- Interne Funktionen: SECURITY DEFINER, aber im nicht exponierten private-Schema.
 create or replace function private.jgw_create_garden_impl(
@@ -42,7 +42,9 @@ begin
   if length(v_id) < 6 or length(v_id) > 80 then
     return jsonb_build_object('ok', false, 'error', 'invalid_garden_id');
   end if;
-  if length(coalesce(p_secret_hash, '')) <> 64 or p_secret_hash !~ '^[0-9a-fA-F]{64}
+  if length(coalesce(p_secret_hash, '')) <> 64 or p_secret_hash !~ '^[0-9a-fA-F]{64}$' then
+    return jsonb_build_object('ok', false, 'error', 'invalid_secret');
+  end if;
   if pg_column_size(coalesce(p_payload, '{}'::jsonb)) > 8388608 then
     return jsonb_build_object('ok', false, 'error', 'payload_too_large');
   end if;

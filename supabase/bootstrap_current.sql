@@ -98,7 +98,7 @@ alter table private.jgw_gardens drop constraint if exists jgw_secret_hash_len;
 update private.jgw_gardens
 set secret_hash = extensions.crypt(lower(secret_hash), extensions.gen_salt('bf', 12))
 where length(secret_hash) = 64
-  and secret_hash ~ '^[0-9a-fA-F]{64}
+  and secret_hash ~ '^[0-9a-fA-F]{64}$';
 
 -- Interne Funktionen: SECURITY DEFINER, aber im nicht exponierten private-Schema.
 create or replace function private.jgw_create_garden_impl(
@@ -118,7 +118,9 @@ begin
   if length(v_id) < 6 or length(v_id) > 80 then
     return jsonb_build_object('ok', false, 'error', 'invalid_garden_id');
   end if;
-  if length(coalesce(p_secret_hash, '')) <> 64 or p_secret_hash !~ '^[0-9a-fA-F]{64}
+  if length(coalesce(p_secret_hash, '')) <> 64 or p_secret_hash !~ '^[0-9a-fA-F]{64}$' then
+    return jsonb_build_object('ok', false, 'error', 'invalid_secret');
+  end if;
   if pg_column_size(coalesce(p_payload, '{}'::jsonb)) > 8388608 then
     return jsonb_build_object('ok', false, 'error', 'payload_too_large');
   end if;
@@ -2597,15 +2599,16 @@ on conflict (id) do update set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
--- The photo Edge Function authenticates the garden itself and therefore needs
--- service-role access to these intentionally private RPC boundaries.
+-- The photo Edge Function authenticates the garden through the anon RPC and
+-- uses service_role only for Storage. Keep private-schema USAGE for the global
+-- pre-request hook, but do not grant service_role application-RPC execution.
 grant usage on schema private to service_role;
-grant execute on function public.jgw_status_garden(text,text) to service_role;
-grant execute on function public.jgw_pull_garden(text,text) to service_role;
-grant execute on function public.jgw_force_push_garden(text,text,jsonb) to service_role;
-grant execute on function private.jgw_status_garden_impl(text,text) to service_role;
-grant execute on function private.jgw_pull_garden_impl(text,text) to service_role;
-grant execute on function private.jgw_force_push_garden_impl(text,text,jsonb) to service_role;
+revoke execute on function public.jgw_status_garden(text,text) from service_role;
+revoke execute on function public.jgw_pull_garden(text,text) from service_role;
+revoke execute on function public.jgw_force_push_garden(text,text,jsonb) from service_role;
+revoke execute on function private.jgw_status_garden_impl(text,text) from service_role;
+revoke execute on function private.jgw_pull_garden_impl(text,text) from service_role;
+revoke execute on function private.jgw_force_push_garden_impl(text,text,jsonb) from service_role;
 
 -- Reassert private-table boundary after all objects exist.
 revoke all on table private.jgw_gardens from public, anon, authenticated, service_role;

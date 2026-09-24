@@ -51,6 +51,28 @@ const vtBaseline = fs.readFileSync(
 if (!bootstrap.includes(gardenBaseline)) fail("Gartenwelt-Baseline fehlt im Bootstrap");
 if (!bootstrap.includes(vtBaseline)) fail("VT-Family-Sync-Baseline fehlt im Bootstrap");
 
+function assertNoOddSqlQuotes(name, content) {
+  for (const [index, line] of content.split(/\r?\n/).entries()) {
+    const code = line.replace(/--.*$/, "");
+    const quoteCount = (code.match(/'/g) || []).length;
+    if (quoteCount % 2 === 1) {
+      fail(name + " enthält eine ungerade Zahl einfacher Anführungszeichen in Zeile " + (index + 1) + ": " + line);
+    }
+  }
+}
+assertNoOddSqlQuotes("Gartenwelt-Baseline", gardenBaseline);
+assertNoOddSqlQuotes("Bootstrap", bootstrap);
+
+const recoverySyntaxMarkers = [
+  "and secret_hash ~ '^[0-9a-fA-F]{64}$';",
+  "if length(coalesce(p_secret_hash, '')) <> 64 or p_secret_hash !~ '^[0-9a-fA-F]{64}$' then",
+  "return jsonb_build_object('ok', false, 'error', 'invalid_secret');"
+];
+for (const marker of recoverySyntaxMarkers) {
+  if (!gardenBaseline.includes(marker)) fail("Gartenwelt-Baseline enthält beschädigte Secret-Validierung: " + marker);
+  if (!bootstrap.includes(marker)) fail("Bootstrap enthält beschädigte Secret-Validierung: " + marker);
+}
+
 const requiredBootstrapMarkers = [
   "create extension if not exists pgcrypto with schema extensions",
   "alter default privileges for role postgres in schema public",
@@ -72,10 +94,22 @@ const requiredBootstrapMarkers = [
   "image/webp",
   "image/png",
   "alter role authenticator set pgrst.db_pre_request = 'private.jgw_pre_request'",
-  "grant execute on function public.jgw_status_garden(text,text) to service_role"
+  "revoke execute on function public.jgw_status_garden(text,text) from service_role"
 ];
 for (const marker of requiredBootstrapMarkers) {
   if (!bootstrap.includes(marker)) fail("Bootstrap-Marker fehlt: " + marker);
+}
+
+const forbiddenBootstrapMarkers = [
+  "grant execute on function public.jgw_status_garden(text,text) to service_role",
+  "grant execute on function public.jgw_pull_garden(text,text) to service_role",
+  "grant execute on function public.jgw_force_push_garden(text,text,jsonb) to service_role",
+  "grant execute on function private.jgw_status_garden_impl(text,text) to service_role",
+  "grant execute on function private.jgw_pull_garden_impl(text,text) to service_role",
+  "grant execute on function private.jgw_force_push_garden_impl(text,text,jsonb) to service_role"
+];
+for (const marker of forbiddenBootstrapMarkers) {
+  if (bootstrap.includes(marker)) fail("Bootstrap enthält veraltetes service_role-RPC-Recht: " + marker);
 }
 
 const edgeFunctions = ["jgw-photo", "trefle-enrich", "jgw-calendar", "muell-moessingen"];
