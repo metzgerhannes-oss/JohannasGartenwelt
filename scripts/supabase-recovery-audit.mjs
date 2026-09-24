@@ -79,10 +79,15 @@ for (const marker of requiredBootstrapMarkers) {
 }
 
 const edgeFunctions = ["jgw-photo", "trefle-enrich", "jgw-calendar", "muell-moessingen"];
+const supabaseConfig = fs.readFileSync("supabase/config.toml", "utf8");
 for (const name of edgeFunctions) {
   const file = path.join("supabase/functions", name, "index.ts");
   if (!fs.existsSync(file) || !fs.readFileSync(file, "utf8").trim()) {
     fail("Edge Function Source fehlt: " + file);
+  }
+  const configMarker = `[functions.${name}]\nverify_jwt = false`;
+  if (!supabaseConfig.includes(configMarker)) {
+    fail("Edge Function Gateway-Konfiguration fehlt oder weicht ab: " + name);
   }
 }
 
@@ -95,6 +100,7 @@ const forbiddenSecretPatterns = [
 const sourceFiles = [
   "supabase/bootstrap_current.sql",
   "supabase_setup.sql",
+  "supabase/config.toml",
   ...edgeFunctions.map(name => path.join("supabase/functions", name, "index.ts"))
 ];
 for (const file of sourceFiles) {

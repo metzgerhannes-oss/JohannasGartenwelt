@@ -25,7 +25,7 @@ Die historische Kette beginnt erst nach der ursprünglichen Gartenwelt-Einrichtu
    - `trefle-enrich`
    - `jgw-calendar`
    - `muell-moessingen`
-5. Bei allen vier Funktionen den bestehenden öffentlichen Gateway-Modus `verify_jwt=false` beibehalten. Die geschützten Funktionen authentisieren innerhalb der Function bzw. über nicht erratbare Tokens; `muell-moessingen` ist bewusst ein öffentlicher Read-only-Proxy.
+5. Bei allen vier Funktionen den bestehenden öffentlichen Gateway-Modus `verify_jwt=false` beibehalten. Dieser Zustand ist zusätzlich in `supabase/config.toml` festgeschrieben und wird vom Recovery-CI geprüft. Die geschützten Funktionen authentisieren innerhalb der Function bzw. über nicht erratbare Tokens; `muell-moessingen` ist bewusst ein öffentlicher Read-only-Proxy.
 6. Das externe Secret `TREFLE_TOKEN` im neuen Projekt setzen. Supabase-eigene Function-Umgebungswerte wie Projekt-URL und Service-Role werden nicht in GitHub gespeichert.
 7. Danach Security- und Performance-Advisors prüfen sowie die App-/Sync-Smokes ausführen.
 
