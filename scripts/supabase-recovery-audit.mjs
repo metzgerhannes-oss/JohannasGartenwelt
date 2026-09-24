@@ -43,6 +43,181 @@ for (const name of expectedMigrations) {
 
 const bootstrap = fs.readFileSync("supabase/bootstrap_current.sql", "utf8");
 const gardenBaseline = fs.readFileSync("supabase_setup.sql", "utf8").trim();
+const recoverySyntaxMarkers = [
+  "and secret_hash ~ '^[0-9a-fA-F]{64}const vtBaseline = fs.readFileSync(
+  "supabase/migrations/20260921092507_create_vokabeltrainer_family_sync_v1.sql",
+  "utf8"
+).trim();
+
+if (!bootstrap.includes(gardenBaseline)) fail("Gartenwelt-Baseline fehlt im Bootstrap");
+if (!bootstrap.includes(vtBaseline)) fail("VT-Family-Sync-Baseline fehlt im Bootstrap");
+
+const requiredBootstrapMarkers = [
+  "create extension if not exists pgcrypto with schema extensions",
+  "alter default privileges for role postgres in schema public",
+  "revoke select, insert, update, delete on tables from anon, authenticated, service_role",
+  "revoke execute on functions from public",
+  "CREATE OR REPLACE FUNCTION public.rls_auto_enable()",
+  "create event trigger ensure_rls",
+  "private.jgw_gardens",
+  "private.jgw_rate_limits",
+  "private.vt_families",
+  "private.vt_devices",
+  "private.vt_documents",
+  "private.vt_invites",
+  "jgw_rate_limits_requested_at_idx",
+  "where requested_at < pg_catalog.now() - interval '24 hours'",
+  "'jgw-photos'",
+  "5242880",
+  "image/jpeg",
+  "image/webp",
+  "image/png",
+  "alter role authenticator set pgrst.db_pre_request = 'private.jgw_pre_request'",
+  "revoke execute on function public.jgw_status_garden(text,text) from service_role"
+];
+for (const marker of requiredBootstrapMarkers) {
+  if (!bootstrap.includes(marker)) fail("Bootstrap-Marker fehlt: " + marker);
+}
+
+const forbiddenBootstrapMarkers = [
+  "grant execute on function public.jgw_status_garden(text,text) to service_role",
+  "grant execute on function public.jgw_pull_garden(text,text) to service_role",
+  "grant execute on function public.jgw_force_push_garden(text,text,jsonb) to service_role",
+  "grant execute on function private.jgw_status_garden_impl(text,text) to service_role",
+  "grant execute on function private.jgw_pull_garden_impl(text,text) to service_role",
+  "grant execute on function private.jgw_force_push_garden_impl(text,text,jsonb) to service_role"
+];
+for (const marker of forbiddenBootstrapMarkers) {
+  if (bootstrap.includes(marker)) fail("Bootstrap enthält veraltetes service_role-RPC-Recht: " + marker);
+}
+
+const edgeFunctions = ["jgw-photo", "trefle-enrich", "jgw-calendar", "muell-moessingen"];
+const supabaseConfig = fs.readFileSync("supabase/config.toml", "utf8");
+for (const name of edgeFunctions) {
+  const file = path.join("supabase/functions", name, "index.ts");
+  if (!fs.existsSync(file) || !fs.readFileSync(file, "utf8").trim()) {
+    fail("Edge Function Source fehlt: " + file);
+  }
+  const configMarker = `[functions.${name}]\nverify_jwt = false`;
+  if (!supabaseConfig.includes(configMarker)) {
+    fail("Edge Function Gateway-Konfiguration fehlt oder weicht ab: " + name);
+  }
+}
+
+const forbiddenSecretPatterns = [
+  /SUPABASE_SERVICE_ROLE_KEY\s*=\s*["'][^"']+["']/i,
+  /sb_secret_[A-Za-z0-9_-]+/,
+  /BEGIN PRIVATE KEY/,
+  /TREFLE_TOKEN\s*=\s*["'][^"']+["']/i
+];
+const sourceFiles = [
+  "supabase/bootstrap_current.sql",
+  "supabase_setup.sql",
+  "supabase/config.toml",
+  ...edgeFunctions.map(name => path.join("supabase/functions", name, "index.ts"))
+];
+for (const file of sourceFiles) {
+  const content = fs.readFileSync(file, "utf8");
+  for (const pattern of forbiddenSecretPatterns) {
+    if (pattern.test(content)) fail("Mögliches Secret in " + file + ": " + pattern);
+  }
+}
+
+if (!process.exitCode) {
+  console.log("SUPABASE_RECOVERY_AUDIT_OK migrations=" + expectedMigrations.length +
+    " functions=" + edgeFunctions.length);
+}
+;",
+  "if length(coalesce(p_secret_hash, '')) <> 64 or p_secret_hash !~ '^[0-9a-fA-F]{64}const vtBaseline = fs.readFileSync(
+  "supabase/migrations/20260921092507_create_vokabeltrainer_family_sync_v1.sql",
+  "utf8"
+).trim();
+
+if (!bootstrap.includes(gardenBaseline)) fail("Gartenwelt-Baseline fehlt im Bootstrap");
+if (!bootstrap.includes(vtBaseline)) fail("VT-Family-Sync-Baseline fehlt im Bootstrap");
+
+const requiredBootstrapMarkers = [
+  "create extension if not exists pgcrypto with schema extensions",
+  "alter default privileges for role postgres in schema public",
+  "revoke select, insert, update, delete on tables from anon, authenticated, service_role",
+  "revoke execute on functions from public",
+  "CREATE OR REPLACE FUNCTION public.rls_auto_enable()",
+  "create event trigger ensure_rls",
+  "private.jgw_gardens",
+  "private.jgw_rate_limits",
+  "private.vt_families",
+  "private.vt_devices",
+  "private.vt_documents",
+  "private.vt_invites",
+  "jgw_rate_limits_requested_at_idx",
+  "where requested_at < pg_catalog.now() - interval '24 hours'",
+  "'jgw-photos'",
+  "5242880",
+  "image/jpeg",
+  "image/webp",
+  "image/png",
+  "alter role authenticator set pgrst.db_pre_request = 'private.jgw_pre_request'",
+  "revoke execute on function public.jgw_status_garden(text,text) from service_role"
+];
+for (const marker of requiredBootstrapMarkers) {
+  if (!bootstrap.includes(marker)) fail("Bootstrap-Marker fehlt: " + marker);
+}
+
+const forbiddenBootstrapMarkers = [
+  "grant execute on function public.jgw_status_garden(text,text) to service_role",
+  "grant execute on function public.jgw_pull_garden(text,text) to service_role",
+  "grant execute on function public.jgw_force_push_garden(text,text,jsonb) to service_role",
+  "grant execute on function private.jgw_status_garden_impl(text,text) to service_role",
+  "grant execute on function private.jgw_pull_garden_impl(text,text) to service_role",
+  "grant execute on function private.jgw_force_push_garden_impl(text,text,jsonb) to service_role"
+];
+for (const marker of forbiddenBootstrapMarkers) {
+  if (bootstrap.includes(marker)) fail("Bootstrap enthält veraltetes service_role-RPC-Recht: " + marker);
+}
+
+const edgeFunctions = ["jgw-photo", "trefle-enrich", "jgw-calendar", "muell-moessingen"];
+const supabaseConfig = fs.readFileSync("supabase/config.toml", "utf8");
+for (const name of edgeFunctions) {
+  const file = path.join("supabase/functions", name, "index.ts");
+  if (!fs.existsSync(file) || !fs.readFileSync(file, "utf8").trim()) {
+    fail("Edge Function Source fehlt: " + file);
+  }
+  const configMarker = `[functions.${name}]\nverify_jwt = false`;
+  if (!supabaseConfig.includes(configMarker)) {
+    fail("Edge Function Gateway-Konfiguration fehlt oder weicht ab: " + name);
+  }
+}
+
+const forbiddenSecretPatterns = [
+  /SUPABASE_SERVICE_ROLE_KEY\s*=\s*["'][^"']+["']/i,
+  /sb_secret_[A-Za-z0-9_-]+/,
+  /BEGIN PRIVATE KEY/,
+  /TREFLE_TOKEN\s*=\s*["'][^"']+["']/i
+];
+const sourceFiles = [
+  "supabase/bootstrap_current.sql",
+  "supabase_setup.sql",
+  "supabase/config.toml",
+  ...edgeFunctions.map(name => path.join("supabase/functions", name, "index.ts"))
+];
+for (const file of sourceFiles) {
+  const content = fs.readFileSync(file, "utf8");
+  for (const pattern of forbiddenSecretPatterns) {
+    if (pattern.test(content)) fail("Mögliches Secret in " + file + ": " + pattern);
+  }
+}
+
+if (!process.exitCode) {
+  console.log("SUPABASE_RECOVERY_AUDIT_OK migrations=" + expectedMigrations.length +
+    " functions=" + edgeFunctions.length);
+}
+ then",
+  "return jsonb_build_object('ok', false, 'error', 'invalid_secret');"
+];
+for (const marker of recoverySyntaxMarkers) {
+  if (!gardenBaseline.includes(marker)) fail("Gartenwelt-Baseline enthält beschädigte Secret-Validierung: " + marker);
+  if (!bootstrap.includes(marker)) fail("Bootstrap enthält beschädigte Secret-Validierung: " + marker);
+}
 const vtBaseline = fs.readFileSync(
   "supabase/migrations/20260921092507_create_vokabeltrainer_family_sync_v1.sql",
   "utf8"
