@@ -2597,15 +2597,16 @@ on conflict (id) do update set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
--- The photo Edge Function authenticates the garden itself and therefore needs
--- service-role access to these intentionally private RPC boundaries.
+-- The photo Edge Function authenticates the garden through the anon RPC and
+-- uses service_role only for Storage. Keep private-schema USAGE for the global
+-- pre-request hook, but do not grant service_role application-RPC execution.
 grant usage on schema private to service_role;
-grant execute on function public.jgw_status_garden(text,text) to service_role;
-grant execute on function public.jgw_pull_garden(text,text) to service_role;
-grant execute on function public.jgw_force_push_garden(text,text,jsonb) to service_role;
-grant execute on function private.jgw_status_garden_impl(text,text) to service_role;
-grant execute on function private.jgw_pull_garden_impl(text,text) to service_role;
-grant execute on function private.jgw_force_push_garden_impl(text,text,jsonb) to service_role;
+revoke execute on function public.jgw_status_garden(text,text) from service_role;
+revoke execute on function public.jgw_pull_garden(text,text) from service_role;
+revoke execute on function public.jgw_force_push_garden(text,text,jsonb) from service_role;
+revoke execute on function private.jgw_status_garden_impl(text,text) from service_role;
+revoke execute on function private.jgw_pull_garden_impl(text,text) from service_role;
+revoke execute on function private.jgw_force_push_garden_impl(text,text,jsonb) from service_role;
 
 -- Reassert private-table boundary after all objects exist.
 revoke all on table private.jgw_gardens from public, anon, authenticated, service_role;
