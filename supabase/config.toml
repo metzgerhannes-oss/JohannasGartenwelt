@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.jgw-photo]
 verify_jwt = false
+
+[functions.muell-moessingen]
+verify_jwt = false
