@@ -17,6 +17,7 @@ Die historische Kette beginnt erst nach der ursprünglichen Gartenwelt-Einrichtu
    - private Tabellen: `jgw_gardens`, `jgw_rate_limits`, `vt_families`, `vt_devices`, `vt_documents`, `vt_invites`
    - RLS auf allen privaten Tabellen aktiv
    - keine direkten `anon`/`authenticated`-Tabellenrechte
+   - `service_role` hat keine Garten-App-RPC-Rechte; privilegiert genutzt wird es nur serverseitig für Storage
    - Default-Privileges für neue `public`-Tabellen/Funktionen/Sequenzen sind geschlossen; benötigte Data-API-Rechte werden explizit pro Migration vergeben
    - `pgrst.db_pre_request = private.jgw_pre_request`
    - privater Storage-Bucket `jgw-photos`, 5 MB, nur JPEG/WebP/PNG
