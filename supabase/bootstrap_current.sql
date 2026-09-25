@@ -2832,7 +2832,7 @@ end;
 $function$;
 
 
--- Recovery replay: 20260925204000_harden_vt_device_context_boundary.sql
+-- Recovery replay: 20260925205453_harden_vt_device_context_boundary.sql
 -- Vokabeltrainer family sync v3: tighten internal RPC helper boundary.
 -- Public RPC wrappers continue to call the private SECURITY DEFINER implementations.
 -- The device-context helper itself is never a browser RPC entrypoint.
