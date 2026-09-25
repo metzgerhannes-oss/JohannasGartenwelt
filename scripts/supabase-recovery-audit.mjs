@@ -18,7 +18,10 @@ const expectedMigrations = [
   "20260921094351_enable_rls_jgw_rate_limits.sql",
   "20260921100151_harden_vt_rate_limits.sql",
   "20260921134427_global_rate_limit_cleanup.sql",
-  "20260924070028_harden_data_api_default_privileges.sql"
+  "20260924070028_harden_data_api_default_privileges.sql",
+  "20260924203104_vt_family_sync_v2_parent_invites.sql",
+  "20260925041851_rate_limit_vt_parent_invites.sql",
+  "20260925204000_harden_vt_device_context_boundary.sql"
 ];
 
 const actualMigrations = fs.readdirSync("supabase/migrations")
@@ -86,6 +89,11 @@ const requiredBootstrapMarkers = [
   "private.vt_devices",
   "private.vt_documents",
   "private.vt_invites",
+  "private.vt_parent_invites",
+  "public.vt_create_parent_invite",
+  "public.vt_claim_parent_invite",
+  "rpc/vt_claim_parent_invite",
+  "revoke execute on function private.vt_device_context(text,text,text) from anon, authenticated, public",
   "jgw_rate_limits_requested_at_idx",
   "where requested_at < pg_catalog.now() - interval '24 hours'",
   "'jgw-photos'",

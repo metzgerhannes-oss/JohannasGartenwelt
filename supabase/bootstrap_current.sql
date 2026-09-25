@@ -2623,6 +2623,222 @@ alter table private.vt_devices enable row level security;
 alter table private.vt_documents enable row level security;
 alter table private.vt_invites enable row level security;
 
+
+
+-- Recovery replay: 20260924203104_vt_family_sync_v2_parent_invites.sql
+-- Vokabeltrainer family/device sync v2: one-time parent invites
+-- Enables secure QR/link pairing of an additional parent device without exposing the reusable family PIN.
+
+create table if not exists private.vt_parent_invites (
+  token_hash text primary key,
+  family_id text not null references private.vt_families(family_id) on delete cascade,
+  created_by_device_id text not null,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  constraint vt_parent_invite_token_hash_format check (token_hash ~ '^[0-9a-f]{64}$')
+);
+alter table private.vt_parent_invites enable row level security;
+create index if not exists vt_parent_invites_family_idx on private.vt_parent_invites(family_id);
+revoke all on private.vt_parent_invites from public, anon, authenticated;
+
+create or replace function private.vt_create_parent_invite_impl(p_family_id text,p_device_id text,p_device_secret text)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare
+  v_ctx jsonb;
+  v_token text;
+  v_hash text;
+  v_expires timestamptz := now()+interval '15 minutes';
+begin
+  v_ctx:=private.vt_device_context(p_family_id,p_device_id,p_device_secret);
+  if coalesce((v_ctx->>'ok')::boolean,false) is not true or v_ctx->>'role'<>'parent'
+    then return jsonb_build_object('ok',false,'error','unauthorized'); end if;
+  delete from private.vt_parent_invites where expires_at<now() or used_at is not null;
+  v_token:=encode(extensions.gen_random_bytes(24),'hex');
+  v_hash:=encode(extensions.digest(v_token,'sha256'),'hex');
+  insert into private.vt_parent_invites(token_hash,family_id,created_by_device_id,expires_at)
+  values(v_hash,v_ctx->>'family_id',trim(p_device_id),v_expires);
+  return jsonb_build_object('ok',true,'token',v_token,'expires_at',v_expires);
+end;
+$$;
+
+create or replace function private.vt_claim_parent_invite_impl(p_invite_token text,p_device_id text,p_device_secret text,p_label text)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare
+  v_hash text := encode(extensions.digest(coalesce(p_invite_token,''),'sha256'),'hex');
+  v_inv private.vt_parent_invites%rowtype;
+  v_docs jsonb;
+begin
+  if trim(coalesce(p_device_id,'')) !~ '^[A-Za-z0-9_-]{8,120}$' or length(coalesce(p_device_secret,''))<32 or length(p_device_secret)>256
+    then return jsonb_build_object('ok',false,'error','invalid_device'); end if;
+  select * into v_inv from private.vt_parent_invites where token_hash=v_hash and used_at is null and expires_at>now() for update;
+  if not found then return jsonb_build_object('ok',false,'error','invite_invalid'); end if;
+  if exists(select 1 from private.vt_devices where family_id=v_inv.family_id and device_id=trim(p_device_id))
+    then return jsonb_build_object('ok',false,'error','device_exists'); end if;
+  insert into private.vt_devices(family_id,device_id,device_secret_hash,role,label)
+  values(v_inv.family_id,trim(p_device_id),extensions.crypt(p_device_secret,extensions.gen_salt('bf',12)),'parent',left(coalesce(p_label,''),120));
+  update private.vt_parent_invites set used_at=now() where token_hash=v_hash;
+  select coalesce(jsonb_agg(jsonb_build_object('key',doc_key,'revision',revision,'payload',payload,'updated_at',updated_at) order by doc_key),'[]'::jsonb)
+    into v_docs from private.vt_documents where family_id=v_inv.family_id;
+  return jsonb_build_object('ok',true,'family_id',v_inv.family_id,'role','parent','documents',v_docs);
+end;
+$$;
+
+create or replace function public.vt_create_parent_invite(p_family_id text,p_device_id text,p_device_secret text)
+returns jsonb language sql set search_path='' as $$
+  select private.vt_create_parent_invite_impl(p_family_id,p_device_id,p_device_secret);
+$$;
+
+create or replace function public.vt_claim_parent_invite(p_invite_token text,p_device_id text,p_device_secret text,p_label text)
+returns jsonb language sql set search_path='' as $$
+  select private.vt_claim_parent_invite_impl(p_invite_token,p_device_id,p_device_secret,p_label);
+$$;
+
+revoke execute on function private.vt_create_parent_invite_impl(text,text,text) from public, authenticated;
+revoke execute on function private.vt_claim_parent_invite_impl(text,text,text,text) from public, authenticated;
+grant execute on function private.vt_create_parent_invite_impl(text,text,text) to anon;
+grant execute on function private.vt_claim_parent_invite_impl(text,text,text,text) to anon;
+
+revoke execute on function public.vt_create_parent_invite(text,text,text) from public, authenticated;
+revoke execute on function public.vt_claim_parent_invite(text,text,text,text) from public, authenticated;
+grant execute on function public.vt_create_parent_invite(text,text,text) to anon;
+grant execute on function public.vt_claim_parent_invite(text,text,text,text) to anon;
+
+
+-- Recovery replay: 20260925041851_rate_limit_vt_parent_invites.sql
+create or replace function private.jgw_pre_request()
+returns void
+language plpgsql
+security definer
+set search_path to ''
+as $function$
+declare
+  v_method text := pg_catalog.current_setting('request.method', true);
+  v_path text := pg_catalog.current_setting('request.path', true);
+  v_headers_text text := pg_catalog.current_setting('request.headers', true);
+  v_ip_text text;
+  v_ip inet;
+  v_scope text;
+  v_limit integer;
+  v_window interval;
+  v_count integer;
+  v_error_code text := 'api_rate_limit';
+begin
+  if v_method is null or v_method not in ('POST','PUT','PATCH','DELETE') then
+    return;
+  end if;
+
+  v_path := pg_catalog.regexp_replace(coalesce(v_path,''), '^/', '');
+
+  if v_path = 'rpc/jgw_create_garden' then
+    v_scope := 'jgw_create';
+    v_limit := 10;
+    v_window := interval '1 hour';
+    v_error_code := 'jgw_rate_limit';
+  elsif v_path in (
+    'rpc/jgw_status_garden',
+    'rpc/jgw_pull_garden',
+    'rpc/jgw_push_garden',
+    'rpc/jgw_force_push_garden',
+    'rpc/jgw_get_calendar_token',
+    'rpc/jgw_rotate_calendar_token'
+  ) then
+    v_scope := 'jgw_sync_auth';
+    v_limit := 60;
+    v_window := interval '5 minutes';
+    v_error_code := 'jgw_rate_limit';
+  elsif v_path = 'rpc/vt_create_family' then
+    v_scope := 'vt_create_family';
+    v_limit := 10;
+    v_window := interval '1 hour';
+    v_error_code := 'vt_rate_limit';
+  elsif v_path = 'rpc/vt_join_parent' then
+    v_scope := 'vt_join_parent';
+    v_limit := 12;
+    v_window := interval '15 minutes';
+    v_error_code := 'vt_rate_limit';
+  elsif v_path = 'rpc/vt_claim_child_invite' then
+    v_scope := 'vt_claim_child';
+    v_limit := 30;
+    v_window := interval '15 minutes';
+    v_error_code := 'vt_rate_limit';
+  elsif v_path = 'rpc/vt_claim_parent_invite' then
+    v_scope := 'vt_claim_parent';
+    v_limit := 30;
+    v_window := interval '15 minutes';
+    v_error_code := 'vt_rate_limit';
+  elsif v_path in (
+    'rpc/vt_create_child_invite',
+    'rpc/vt_create_parent_invite',
+    'rpc/vt_list_devices',
+    'rpc/vt_revoke_device'
+  ) then
+    v_scope := 'vt_device_admin';
+    v_limit := 60;
+    v_window := interval '5 minutes';
+    v_error_code := 'vt_rate_limit';
+  elsif v_path in (
+    'rpc/vt_pull_documents',
+    'rpc/vt_push_document',
+    'rpc/vt_status_documents'
+  ) then
+    v_scope := 'vt_sync';
+    v_limit := 180;
+    v_window := interval '5 minutes';
+    v_error_code := 'vt_rate_limit';
+  else
+    return;
+  end if;
+
+  if v_headers_text is null or v_headers_text = '' then
+    return;
+  end if;
+
+  begin
+    v_ip_text := pg_catalog.btrim(
+      pg_catalog.split_part((v_headers_text::jsonb)->>'x-forwarded-for', ',', 1)
+    );
+    if v_ip_text is null or v_ip_text = '' then return; end if;
+    v_ip := v_ip_text::inet;
+  exception when others then
+    return;
+  end;
+
+  delete from private.jgw_rate_limits
+   where requested_at < pg_catalog.now() - interval '24 hours';
+
+  select pg_catalog.count(*)::integer
+    into v_count
+    from private.jgw_rate_limits
+   where scope = v_scope
+     and ip = v_ip
+     and requested_at >= pg_catalog.now() - v_window;
+
+  if v_count >= v_limit then
+    raise sqlstate 'PGRST'
+      using message = jsonb_build_object(
+        'code',v_error_code,
+        'message','Zu viele Anfragen. Bitte kurz warten und erneut versuchen.'
+      )::text,
+      detail = jsonb_build_object(
+        'status',429,
+        'status_text','Too Many Requests'
+      )::text;
+  end if;
+
+  insert into private.jgw_rate_limits(ip, scope, requested_at)
+  values (v_ip, v_scope, pg_catalog.now());
+end;
+$function$;
+
+
+-- Recovery replay: 20260925204000_harden_vt_device_context_boundary.sql
+-- Vokabeltrainer family sync v3: tighten internal RPC helper boundary.
+-- Public RPC wrappers continue to call the private SECURITY DEFINER implementations.
+-- The device-context helper itself is never a browser RPC entrypoint.
+revoke execute on function private.vt_device_context(text,text,text) from anon, authenticated, public;
+
+
 notify pgrst, 'reload config';
 
 commit;
