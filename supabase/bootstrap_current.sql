@@ -2636,15 +2636,14 @@ create table if not exists private.vt_parent_invites (
   created_at timestamptz not null default now(),
   expires_at timestamptz not null,
   used_at timestamptz,
-  constraint vt_parent_invite_token_hash_format check (token_hash ~ '^[0-9a-f]{64}
-)
+  constraint vt_parent_invite_token_hash_format check (token_hash ~ '^[0-9a-f]{64}$')
 );
 alter table private.vt_parent_invites enable row level security;
 create index if not exists vt_parent_invites_family_idx on private.vt_parent_invites(family_id);
 revoke all on private.vt_parent_invites from public, anon, authenticated;
 
 create or replace function private.vt_create_parent_invite_impl(p_family_id text,p_device_id text,p_device_secret text)
-returns jsonb language plpgsql security definer set search_path='' as $
+returns jsonb language plpgsql security definer set search_path='' as $$
 declare
   v_ctx jsonb;
   v_token text;
@@ -2661,17 +2660,16 @@ begin
   values(v_hash,v_ctx->>'family_id',trim(p_device_id),v_expires);
   return jsonb_build_object('ok',true,'token',v_token,'expires_at',v_expires);
 end;
-$;
+$$;
 
 create or replace function private.vt_claim_parent_invite_impl(p_invite_token text,p_device_id text,p_device_secret text,p_label text)
-returns jsonb language plpgsql security definer set search_path='' as $
+returns jsonb language plpgsql security definer set search_path='' as $$
 declare
   v_hash text := encode(extensions.digest(coalesce(p_invite_token,''),'sha256'),'hex');
   v_inv private.vt_parent_invites%rowtype;
   v_docs jsonb;
 begin
-  if trim(coalesce(p_device_id,'')) !~ '^[A-Za-z0-9_-]{8,120}
- or length(coalesce(p_device_secret,''))<32 or length(p_device_secret)>256
+  if trim(coalesce(p_device_id,'')) !~ '^[A-Za-z0-9_-]{8,120}$' or length(coalesce(p_device_secret,''))<32 or length(p_device_secret)>256
     then return jsonb_build_object('ok',false,'error','invalid_device'); end if;
   select * into v_inv from private.vt_parent_invites where token_hash=v_hash and used_at is null and expires_at>now() for update;
   if not found then return jsonb_build_object('ok',false,'error','invite_invalid'); end if;
@@ -2684,17 +2682,17 @@ begin
     into v_docs from private.vt_documents where family_id=v_inv.family_id;
   return jsonb_build_object('ok',true,'family_id',v_inv.family_id,'role','parent','documents',v_docs);
 end;
-$;
+$$;
 
 create or replace function public.vt_create_parent_invite(p_family_id text,p_device_id text,p_device_secret text)
-returns jsonb language sql set search_path='' as $
+returns jsonb language sql set search_path='' as $$
   select private.vt_create_parent_invite_impl(p_family_id,p_device_id,p_device_secret);
-$;
+$$;
 
 create or replace function public.vt_claim_parent_invite(p_invite_token text,p_device_id text,p_device_secret text,p_label text)
-returns jsonb language sql set search_path='' as $
+returns jsonb language sql set search_path='' as $$
   select private.vt_claim_parent_invite_impl(p_invite_token,p_device_id,p_device_secret,p_label);
-$;
+$$;
 
 revoke execute on function private.vt_create_parent_invite_impl(text,text,text) from public, authenticated;
 revoke execute on function private.vt_claim_parent_invite_impl(text,text,text,text) from public, authenticated;
