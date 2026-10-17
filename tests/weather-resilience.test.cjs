@@ -27,8 +27,8 @@ function weatherEnv(options = {}) {
   let renders = 0, saves = 0, lookups = 0;
   const state = {
     plz: options.plz ?? "72116",
-    gardenCenter: options.center ?? { lat: 48.4, lon: 9.1 },
-    loc: options.loc ?? { name: "Mössingen", plz: "72116", lat: 48.4, lon: 9.1 },
+    gardenCenter: Object.prototype.hasOwnProperty.call(options, "center") ? options.center : { lat: 48.4, lon: 9.1 },
+    loc: Object.prototype.hasOwnProperty.call(options, "loc") ? options.loc : { name: "Mössingen", plz: "72116", lat: 48.4, lon: 9.1 },
     weather: options.weather ?? null,
     mapReady: false,
   };
