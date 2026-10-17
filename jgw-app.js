@@ -229,15 +229,69 @@ function globalError(msg){el("globalError").textContent=msg;show("globalError",t
 var noticeTimer=null;
 function notice(msg){var n=el("globalNotice");if(!n)return;clearTimeout(noticeTimer);n.textContent=msg;show("globalNotice",true);noticeTimer=setTimeout(function(){show("globalNotice",false)},3000)}
 function requestJSON(url,timeout){return new Promise(function(resolve,reject){var x=new XMLHttpRequest();x.open("GET",url,true);x.timeout=timeout||15000;x.onreadystatechange=function(){if(x.readyState===4){if(x.status>=200&&x.status<300){try{resolve(JSON.parse(x.responseText))}catch(e){reject(new Error("Ungültige Serverantwort"))}}else reject(new Error("HTTP "+x.status))}};x.onerror=function(){reject(new Error("Netzwerkfehler"))};x.ontimeout=function(){reject(new Error("Zeitüberschreitung"))};x.send()})}
-async function lookupPLZ(plz){var z=await requestJSON("https://api.zippopotam.us/de/"+encodeURIComponent(plz),12000);if(!z.places||!z.places.length)throw new Error("PLZ nicht gefunden");var p=z.places[0];return{name:p["place name"]||("PLZ "+plz),state:p.state||"",lat:parseFloat(p.latitude),lon:parseFloat(p.longitude)}}
+async function requestJSONResilient(url,timeout){try{return await requestJSON(url,timeout)}catch(e){if(!/^HTTP (502|503|504)$/.test(String(e&&e.message||"")))throw e;await new Promise(function(resolve){setTimeout(resolve,1200)});return requestJSON(url,timeout)}}
+async function lookupPLZ(plz){var z=await requestJSONResilient("https://api.zippopotam.us/de/"+encodeURIComponent(plz),12000);if(!z.places||!z.places.length)throw new Error("PLZ nicht gefunden");var p=z.places[0],lat=Number(p.latitude),lon=Number(p.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lon))throw new Error("Ungültige Standortkoordinaten");return{name:p["place name"]||("PLZ "+plz),state:p.state||"",plz:plz,lat:lat,lon:lon}}
 function weatherIsoDate(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function mergeWeatherData(history,forecast,source){var keys=["precipitation_sum","et0_fao_evapotranspiration","temperature_2m_min","temperature_2m_max"],byDate={};function add(src){var d=src&&src.daily;if(!d||!Array.isArray(d.time))return;d.time.forEach(function(date,i){var row=byDate[date]||{};keys.forEach(function(k){if(d[k]&&d[k][i]!=null)row[k]=d[k][i]});byDate[date]=row})}add(forecast);add(history);var dates=Object.keys(byDate).sort(),daily={time:dates};keys.forEach(function(k){daily[k]=dates.map(function(date){return byDate[date][k]!=null?byDate[date][k]:null})});var out=Object.assign({},forecast||{});out.daily=daily;out.jgwHistorySource=source||"";out.jgwWeatherVersion="2026.09.19-02";out.jgwFetchedAt=new Date().toISOString();return out}
-async function getWeather(lat,lon){var vars="precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max",now=new Date();now.setHours(12,0,0,0);var yesterday=new Date(now);yesterday.setDate(yesterday.getDate()-1);var start=new Date(yesterday);start.setDate(start.getDate()-91);var base="latitude="+encodeURIComponent(lat)+"&longitude="+encodeURIComponent(lon)+"&daily="+vars+"&timezone=Europe%2FBerlin",forecast=await requestJSON("https://api.open-meteo.com/v1/forecast?"+base+"&past_days=1&forecast_days=8",18000),history=null,source="",histBase="https://historical-forecast-api.open-meteo.com/v1/forecast?"+base+"&start_date="+weatherIsoDate(start)+"&end_date="+weatherIsoDate(yesterday);try{history=await requestJSON(histBase+"&models=icon_d2",20000);source="DWD ICON-D2 · Historischer Verlauf"}catch(e1){try{history=await requestJSON(histBase,20000);source="Open-Meteo Best Match · Historischer Verlauf"}catch(e2){history=await requestJSON("https://api.open-meteo.com/v1/forecast?"+base+"&past_days=92&forecast_days=1",20000);source="Open-Meteo Forecast-Rückblick (Fallback)"}}return mergeWeatherData(history,forecast,source)}
+async function getWeather(lat,lon){
+  var vars="precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max",now=new Date();
+  now.setHours(12,0,0,0);
+  var yesterday=new Date(now);yesterday.setDate(yesterday.getDate()-1);
+  var start=new Date(yesterday);start.setDate(start.getDate()-91);
+  var base="latitude="+encodeURIComponent(lat)+"&longitude="+encodeURIComponent(lon)+"&daily="+vars+"&timezone=Europe%2FBerlin",forecast,history=null,source="";
+  try{forecast=await requestJSONResilient("https://api.open-meteo.com/v1/forecast?"+base+"&past_days=1&forecast_days=8",18000)}
+  catch(e){throw new Error("Wetterprognose (Open-Meteo): "+e.message)}
+  if(!forecast||!forecast.daily||!Array.isArray(forecast.daily.time)||!forecast.daily.time.length)throw new Error("Wetterprognose enthält keine Tagesdaten");
+  var histBase="https://historical-forecast-api.open-meteo.com/v1/forecast?"+base+"&start_date="+weatherIsoDate(start)+"&end_date="+weatherIsoDate(yesterday);
+  try{history=await requestJSON(histBase+"&models=icon_d2",20000);source="DWD ICON-D2 · Historischer Verlauf"}
+  catch(e1){try{history=await requestJSON(histBase,20000);source="Open-Meteo Best Match · Historischer Verlauf"}
+    catch(e2){try{history=await requestJSON("https://api.open-meteo.com/v1/forecast?"+base+"&past_days=92&forecast_days=1",20000);source="Open-Meteo Forecast-Rückblick (Fallback)"}
+      catch(e3){throw new Error("Historische Wetterdaten (Open-Meteo): "+e3.message)}}}
+  if(!history||!history.daily||!Array.isArray(history.daily.time)||!history.daily.time.length)throw new Error("Historische Wetterdaten enthalten keine Tagesdaten");
+  return mergeWeatherData(history,forecast,source)
+}
 function weatherFetchedAt(){var v=state.weather&&state.weather.jgwFetchedAt||"";var t=Date.parse(v);return Number.isFinite(t)?t:0}
 function weatherIsFresh(){var t=weatherFetchedAt();return !!t&&(Date.now()-t)<=36*60*60*1000}
 function weatherFetchedLabel(){var t=weatherFetchedAt();if(!t)return"unbekannt";try{return new Date(t).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}catch(e){return"unbekannt"}}
 function weatherRows(){if(!state.weather||!state.weather.daily)return[];var d=state.weather.daily,a=[],corr=state.rainCorrections||{};for(var i=0;i<d.time.length;i++){var date=d.time[i],rain=Number(d.precipitation_sum[i]||0);if(Object.prototype.hasOwnProperty.call(corr,date))rain=Number(corr[date]||0);a.push({date:date,rain:rain,et0:Number((d.et0_fao_evapotranspiration||[])[i]||0),min:Number(d.temperature_2m_min[i]),max:Number(d.temperature_2m_max[i])})}return a}
-async function refreshWeather(showMsg){if(!state.gardenCenter&&!state.plz){openSettings("settingsLocation");notice("Bitte zuerst die PLZ oder Gartenposition einrichten.");return}el("locationStatus").textContent="Wetterdaten werden geladen …";try{var loc=state.loc||null;if(state.plz){try{loc=await lookupPLZ(state.plz)}catch(e){if(!state.gardenCenter)throw e}}var wc=state.gardenCenter||(loc?{lat:loc.lat,lon:loc.lon}:null);if(!wc)throw new Error("Standortkoordinaten fehlen");var w=await getWeather(wc.lat,wc.lon);if(loc)state.loc=loc;state.weather=w;save();el("locationStatus").textContent=loc&&loc.name?"Standort geladen: "+loc.name+".":"Wetter für die gespeicherte Gartenposition geladen.";renderWeatherViews();renderYesterdayRain();if(state.mapReady&&!state.gardenCenter&&loc)state.map.setView([loc.lat,loc.lon],19);if(showMsg)notice("Wetterdaten aktualisiert.")}catch(e){if(navigator.onLine===false){el("locationStatus").textContent=state.weather?"Offline · letzte Wetterdaten werden verwendet.":"Offline · Wetterdaten derzeit nicht verfügbar.";if(showMsg)notice("Offline-Modus: gespeicherte Gartendaten bleiben verfügbar.");renderWeatherViews();renderYesterdayRain();return}globalError("Wetterabruf nicht möglich: "+e.message+". Bitte Internetverbindung prüfen.");el("locationStatus").textContent="Abruf fehlgeschlagen."}}
+async function refreshWeather(showMsg){
+  if(!state.gardenCenter&&!state.plz){openSettings("settingsLocation");notice("Bitte zuerst die PLZ oder Gartenposition einrichten.");return}
+  el("locationStatus").textContent="Wetterdaten werden geladen …";
+  try{
+    var loc=state.loc||null,locValid=!!(loc&&Number.isFinite(Number(loc.lat))&&Number.isFinite(Number(loc.lon)));
+    var locMismatch=!!(loc&&loc.plz&&loc.plz!==state.plz);
+    // A saved garden or postal-code position must not depend on repeated geocoding.
+    if(state.plz&&(!locValid||locMismatch)){
+      try{loc=await lookupPLZ(state.plz)}
+      catch(e){if(!state.gardenCenter&&(!locValid||locMismatch))throw new Error("Postleitzahl-Dienst: "+e.message)}
+    }
+    var wc=state.gardenCenter||(loc?{lat:loc.lat,lon:loc.lon}:null);
+    if(!wc||!Number.isFinite(Number(wc.lat))||!Number.isFinite(Number(wc.lon)))throw new Error("Standortkoordinaten fehlen");
+    var w=await getWeather(wc.lat,wc.lon);
+    if(loc)state.loc=loc;
+    state.weather=w;save();
+    show("globalError",false);
+    el("locationStatus").textContent=loc&&loc.name?"Standort geladen: "+loc.name+".":"Wetter für die gespeicherte Gartenposition geladen.";
+    renderWeatherViews();renderYesterdayRain();
+    if(state.mapReady&&!state.gardenCenter&&loc)state.map.setView([loc.lat,loc.lon],19);
+    if(showMsg)notice("Wetterdaten aktualisiert.")
+  }catch(e){
+    if(navigator.onLine===false){
+      show("globalError",false);
+      el("locationStatus").textContent=state.weather?"Offline · letzte Wetterdaten werden verwendet.":"Offline · Wetterdaten derzeit nicht verfügbar.";
+      if(showMsg)notice("Offline-Modus: gespeicherte Gartendaten bleiben verfügbar.");
+      renderWeatherViews();renderYesterdayRain();return
+    }
+    el("locationStatus").textContent="Wetterdienst vorübergehend nicht erreichbar.";
+    if(state.weather){
+      show("globalError",false);
+      renderWeatherViews();renderYesterdayRain();
+      if(showMsg)notice("Wetterdaten derzeit nicht abrufbar. Der letzte Wetterstand bleibt gespeichert.");
+      return
+    }
+    globalError("Wetterdaten derzeit nicht abrufbar: "+e.message+". Bitte später erneut versuchen.")
+  }
+}
 function openSettings(sectionId){var o=el("settingsOverlay");if(!o)return;o.classList.remove("hidden");o.setAttribute("aria-hidden","false");document.body.classList.add("settings-open");setTimeout(function(){if(sectionId&&el(sectionId)){var target=el(sectionId);if(target.tagName==="DETAILS")target.open=true;target.scrollIntoView({behavior:"smooth",block:"start"})}},60)}
 function closeSettings(){var o=el("settingsOverlay");if(!o)return;o.classList.add("hidden");o.setAttribute("aria-hidden","true");document.body.classList.remove("settings-open")}
 function automaticSeason(){var m=new Date().getMonth()+1;return m>=3&&m<=5?"spring":m>=6&&m<=8?"summer":m>=9&&m<=11?"autumn":"winter"}
@@ -540,7 +594,7 @@ el("moreWeatherBtn").addEventListener("click",function(){switchView("weather")})
 el("moreSettingsBtn").addEventListener("click",function(){openSettings()});
 el("moreSyncBtn").addEventListener("click",function(){openSettings("settingsSync")});
 el("refreshWeather").addEventListener("click",function(){refreshWeather(true)});
-el("locationForm").addEventListener("submit",function(e){e.preventDefault();var p=el("plz").value.replace(/\D/g,"").slice(0,5);el("plz").value=p;if(!/^\d{5}$/.test(p)){globalError("Bitte eine gültige 5-stellige deutsche PLZ eingeben.");return}state.plz=p;save();refreshWeather(true)});
+el("locationForm").addEventListener("submit",function(e){e.preventDefault();var p=el("plz").value.replace(/\D/g,"").slice(0,5);el("plz").value=p;if(!/^\d{5}$/.test(p)){globalError("Bitte eine gültige 5-stellige deutsche PLZ eingeben.");return}if(p!==state.plz)state.loc=null;state.plz=p;save();refreshWeather(true)});
 el("newPlantBtn").addEventListener("click",function(){setNatureTab("plants");openPlantEditor(null)});
 el("plantName").addEventListener("input",function(){clearTimeout(plantNameSearchTimer);var q=this.value;renderPlantEcoPreview();plantNameSearchTimer=setTimeout(function(){searchPlantNames(q)},350)});
 el("plantScientific").addEventListener("input",renderPlantEcoPreview);
@@ -609,7 +663,7 @@ document.addEventListener("visibilitychange",function(){if(!document.hidden)sync
 window.addEventListener("error",function(e){console.error(e.error||e.message)});
 window.JGWCore={getState:function(){return state},switchView:switchView,setNatureTab:setNatureTab,renderPlants:renderPlants,renderNatureTabs:renderNatureTabs,renderHabitats:renderHabitats,renderAnimals:renderAnimals,renderCalendar:renderCalendar,renderCareViews:renderCareViews,openPlantDetail:openPlantDetail,openAnimalDetail:openAnimalDetail,syncCheckRemote:syncCheckRemote,refreshWeather:refreshWeather,notice:notice};
 window.switchView=switchView;window.setNatureTab=setNatureTab;window.renderPlants=renderPlants;window.renderNatureTabs=renderNatureTabs;window.renderHabitats=renderHabitats;window.renderAnimals=renderAnimals;window.openPlantDetail=openPlantDetail;window.openAnimalDetail=openAnimalDetail;window.state=state;
-renderAll();migrateLegacySyncCredential().finally(function(){syncBootstrap()});setTimeout(backfillPlantReferencePhotos,1400);if(state.plz||state.gardenCenter)refreshWeather(false);
+renderAll();migrateLegacySyncCredential().finally(function(){syncBootstrap()});setTimeout(backfillPlantReferencePhotos,1400);if((state.plz||state.gardenCenter)&&(!weatherFetchedAt()||Date.now()-weatherFetchedAt()>6*60*60*1000))refreshWeather(false);
 })();
 ;
 /* iOS/Safari: keep the app navigation above browser chrome when a Home Screen
