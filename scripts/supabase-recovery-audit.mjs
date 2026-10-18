@@ -21,7 +21,7 @@ const expectedMigrations = [
   "20260924070028_harden_data_api_default_privileges.sql",
   "20260924203104_vt_family_sync_v2_parent_invites.sql",
   "20260925041851_rate_limit_vt_parent_invites.sql",
-  "20260925204000_harden_vt_device_context_boundary.sql"
+  "20260925205453_harden_vt_device_context_boundary.sql"
 ];
 
 const actualMigrations = fs.readdirSync("supabase/migrations")
