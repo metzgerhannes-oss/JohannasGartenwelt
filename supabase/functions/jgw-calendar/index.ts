@@ -12,6 +12,7 @@ type Plant = {
   transplanted?: string;
   fertMonths?: number[];
   cutMonths?: number[];
+  bloomMonths?: number[];
 };
 
 type Candidate = {
@@ -116,6 +117,13 @@ function speciesCare(p: Plant): Candidate[] {
   const push=(key:string,title:string,icon:string,start:number,end:number,note:string)=>{
     out.push({kind:"species",title,group:title.split(/[:–-]/)[0].trim(),icon,start,end,plants:[p],note,key:"species|"+key+"|"+start+"|"+end});
   };
+  const isAster=/^(aster|symphyotrichum|eurybia)\b/.test(s)||/\b(aster|astern)\b/.test(n);
+  if(isAster){
+    push("aster-summer-chop","Astern – optionaler Sommerschnitt für mehr Fülle","✂️",5,6,"Ende Mai bis Anfang Juni Triebspitzen pinzieren oder die Triebe um etwa ein Drittel einkürzen. Das fördert Verzweigung und einen kompakteren Wuchs; die Blüte kann sich etwas nach hinten verschieben. Besonders Symphyotrichum novi-belgii reagiert oft gut, andere Astern können unterschiedlich reagieren.");
+    for(const r of consecutiveRanges(p.bloomMonths)){
+      push("aster-deadhead-"+r.start+"-"+r.end,"Astern – Verblühtes regelmäßig ausputzen","🌸",r.start,r.end,"Während der Blüte verblühte Blütenstände regelmäßig direkt entfernen. Das hält die Pflanze gepflegt und kann die Blüte bis in den Herbst verlängern.");
+    }
+  }
   if(/^abeliophyllum distichum\b/.test(s))push("abeliophyllum","Schneeforsythie nach der Blüte schneiden","✂️",3,4,"Nach der Blüte auslichten bzw. abgeblühte Triebe auf kräftige jüngere Triebe zurücknehmen. Nicht vor der Blüte schneiden.");
   if(/^forsythia\b/.test(s)||/\bforsythie\b/.test(n))push("forsythia","Forsythie nach der Blüte schneiden","✂️",4,4,"Direkt nach der Blüte schneiden; späterer Schnitt reduziert die Blüte des Folgejahres.");
   if(/^syringa\b/.test(s)||/\bflieder\b/.test(n))push("syringa","Flieder nach der Blüte auslichten","✂️",6,6,"Nur leicht schneiden und bei Bedarf ältere oder störende Triebe auslichten. Starker Winterschnitt kostet Blüten.");
